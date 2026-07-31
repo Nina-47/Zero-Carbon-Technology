@@ -59,8 +59,23 @@ from src.charts.load_overlay import (
 )
 from src.export.csv_writer import export_csv
 from src.export.json_writer import export_json
-from src.utils.csv_parser import parse_load_csv, list_load_columns
+from src.utils.csv_parser import parse_load_csv, list_load_columns, parse_load_history_upload
 from src.utils.time_utils import date_range_dates
+from src.similarity.similar_day import find_similar_days, compute_daily_weather
+from src.charts.similar_day import (
+    plot_similar_day_overlay,
+    render_similar_day_cards,
+    render_target_weather_card,
+    plot_similarity_breakdown,
+)
+from src.db.models import (
+    init_load_table,
+    import_load_from_df,
+    get_load_by_date,
+    query_load_date_range,
+    has_load_data,
+    delete_load_data,
+)
 
 # ============================================================
 # 初始化
@@ -78,6 +93,16 @@ if "data_status" not in st.session_state:
     st.session_state.data_status = DataSourceStatus()
 if "weather_loaded" not in st.session_state:
     st.session_state.weather_loaded = False
+if "similar_days" not in st.session_state:
+    st.session_state.similar_days = []
+if "target_date_str" not in st.session_state:
+    st.session_state.target_date_str = ""
+if "similar_search_done" not in st.session_state:
+    st.session_state.similar_search_done = False
+if "target_summary" not in st.session_state:
+    st.session_state.target_summary = {}
+if "target_weather" not in st.session_state:
+    st.session_state.target_weather = None
 
 # ============================================================
 # 数据获取（带缓存）
@@ -262,7 +287,12 @@ primary_label = LOCATIONS[primary_loc]["display_name"]
 # ============================================================
 # Tab 页签
 # ============================================================
-tab1, tab2, tab3 = st.tabs(["📊 天气总览", "🔗 负荷叠加分析", "📋 数据表格与导出"])
+tab1, tab2, tab3, tab4 = st.tabs([
+    "📊 天气总览",
+    "🔗 负荷叠加分析",
+    "📋 数据表格与导出",
+    "🔮 相似日分析",
+])
 
 # ============================================================
 # Tab 1: 天气总览
@@ -512,6 +542,137 @@ with tab3:
                     mime="application/json",
                     use_container_width=True,
                 )
+
+# ============================================================
+# Tab 4: 相似日分析
+# ============================================================
+with tab4:
+    st.subheader("🔮 相似日分析")
+
+    load_available = has_load_data()
+    load_start, load_end = query_load_date_range()
+
+    if not load_available:
+        st.info(
+            "💡 **尚未导入历史负荷数据。**\n\n"
+            "请先导入历史负荷数据（支持 CSV / Excel 格式）。\n"
+            "**支持格式**: Excel (.xlsx) / CSV 宽表(日期+24时) / CSV 长表(datetime+load_mw)"
+        )
+        uploaded_load = st.file_uploader(
+            "📤 上传历史负荷文件",
+            type=["csv", "xlsx", "xls"],
+            key="similar_day_load_uploader",
+        )
+        if uploaded_load is not None:
+            file_bytes = uploaded_load.getvalue()
+            load_hist_df, error_msg = parse_load_history_upload(file_bytes, uploaded_load.name)
+            if error_msg:
+                st.error(error_msg)
+            elif load_hist_df is not None and not load_hist_df.empty:
+                n_imported = import_load_from_df(load_hist_df, uploaded_load.name)
+                st.success(f"✅ 已导入 {n_imported} 条负荷记录")
+                st.rerun()
+    else:
+        with st.expander(f"📂 历史负荷数据 — {load_start} ~ {load_end}", expanded=False):
+            col_a, col_b = st.columns([2, 1])
+            with col_a:
+                st.caption(f"数据范围: **{load_start}** ~ **{load_end}**")
+            with col_b:
+                if st.button("🗑️ 清空", key="clear_load_history"):
+                    delete_load_data()
+                    st.rerun()
+
+        st.divider()
+        st.subheader("🎯 选择目标日")
+
+        if primary_data.empty:
+            st.info("天气数据加载中...")
+        else:
+            forecast_df = all_weather[primary_loc].get("forecast", pd.DataFrame())
+            if forecast_df.empty:
+                st.warning("暂无预报数据，请先加载天气数据。")
+            else:
+                forecast_dates = sorted(forecast_df["datetime"].dt.date.unique())
+                if not forecast_dates:
+                    st.warning("无可用的预报日期。")
+                else:
+                    col_t1, col_t2 = st.columns([2, 1])
+                    with col_t1:
+                        target_date = st.selectbox(
+                            "选择要分析的目标日期",
+                            options=forecast_dates,
+                            format_func=lambda d: d.strftime("%Y-%m-%d") + (
+                                " (明天)" if d == (datetime.now().date() + timedelta(days=1))
+                                else " (后天)" if d == (datetime.now().date() + timedelta(days=2))
+                                else ""
+                            ),
+                            key="similar_day_target",
+                        )
+                    with col_t2:
+                        st.caption("")
+                        st.caption("")
+                        search_btn = st.button("🔍 查找相似日", type="primary",
+                                               use_container_width=True, key="similar_day_search")
+
+                    if search_btn:
+                        with st.spinner("正在计算相似日..."):
+                            target_dt = datetime.combine(target_date, datetime.min.time())
+                            combined_wx = primary_data.drop_duplicates(subset=["datetime"]).sort_values("datetime")
+                            similar_days = find_similar_days(combined_wx, target_dt, n=3)
+
+                            if not similar_days:
+                                st.warning("未能找到相似日。请确保有足够的历史天气数据。")
+                            else:
+                                st.session_state.similar_days = similar_days
+                                st.session_state.target_date_str = target_date.strftime("%Y-%m-%d")
+                                st.session_state.similar_search_done = True
+
+                                target_wx = combined_wx[combined_wx["datetime"].dt.date == target_date]
+                                target_daily = compute_daily_weather(target_wx)
+                                if not target_daily.empty:
+                                    tr = target_daily.iloc[0]
+                                    st.session_state.target_summary = {
+                                        "tmax": tr.get("tmax"), "tmin": tr.get("tmin"),
+                                        "precip_sum": tr.get("precip_sum"), "precip_level": int(tr.get("precip_level", 0)),
+                                        "rad_daily_sum": tr.get("rad_daily_sum"), "dew_point_avg": tr.get("dew_point_avg"),
+                                    }
+                                else:
+                                    st.session_state.target_summary = {}
+                                st.session_state.target_weather = target_wx
+
+                    if st.session_state.get("similar_search_done"):
+                        similar_days = st.session_state.get("similar_days", [])
+                        target_summary = st.session_state.get("target_summary", {})
+                        target_date_str = st.session_state.get("target_date_str", "")
+                        target_wx = st.session_state.get("target_weather")
+
+                        st.divider()
+                        if target_summary:
+                            render_target_weather_card(target_summary, target_date_str)
+                        st.divider()
+
+                        if similar_days:
+                            render_similar_day_cards(similar_days)
+                            st.divider()
+
+                            load_data_map = {}
+                            for day in similar_days:
+                                ds = day["date"].strftime("%Y-%m-%d") if hasattr(day["date"], "strftime") else str(day["date"])
+                                ldf = get_load_by_date(ds)
+                                if not ldf.empty:
+                                    load_data_map[ds] = ldf
+
+                            st.subheader("📈 负荷曲线叠加对比")
+                            st.plotly_chart(
+                                plot_similar_day_overlay(target_date_str, similar_days, load_data_map,
+                                                         target_weather=target_wx, location_label=primary_label),
+                                use_container_width=True,
+                            )
+                            st.subheader("🔬 相似度因子分解")
+                            st.plotly_chart(
+                                plot_similarity_breakdown(similar_days),
+                                use_container_width=True,
+                            )
 
 # ============================================================
 # 自动刷新逻辑
