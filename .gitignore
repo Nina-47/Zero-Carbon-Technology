@@ -1,0 +1,21 @@
+# Streamlit
+.streamlit/secrets.toml
+
+# SQLite
+data/weather.db
+*.db
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
