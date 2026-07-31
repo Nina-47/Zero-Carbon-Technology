@@ -84,6 +84,9 @@ def init_db():
     conn.commit()
     conn.close()
 
+    # 负荷历史表（独立连接，避免 WAL 锁冲突）
+    init_load_table()
+
 
 def insert_weather_data(df: pd.DataFrame) -> int:
     """
@@ -235,3 +238,122 @@ def clean_old_forecasts(days: int = 7):
     conn.commit()
     conn.close()
     return deleted
+
+
+# ============================================================
+# 负荷历史数据表
+# ============================================================
+
+def init_load_table():
+    """初始化负荷历史表（逐小时长格式）。"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS load_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        datetime TEXT NOT NULL,
+        load_mw REAL NOT NULL,
+        weekday TEXT,
+        daily_total REAL,
+        source_file TEXT,
+        imported_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE(datetime)
+    )
+    """)
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_load_datetime ON load_history(datetime)"
+    )
+    conn.commit()
+    conn.close()
+
+
+def import_load_from_df(df: pd.DataFrame, source_file: str = "") -> int:
+    """
+    批量导入负荷数据（INSERT OR REPLACE）。
+
+    返回: 插入的行数。
+    """
+    if df.empty:
+        return 0
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    df = df.copy()
+    if "datetime" in df.columns and pd.api.types.is_datetime64_any_dtype(df["datetime"]):
+        df["datetime"] = df["datetime"].dt.strftime("%Y-%m-%dT%H:%M:%S")
+    if "weekday" not in df.columns:
+        df["weekday"] = pd.to_datetime(df["datetime"]).dt.day_name()
+    if "daily_total" not in df.columns:
+        df_date = pd.to_datetime(df["datetime"]).dt.date
+        daily_totals = df.groupby(df_date)["load_mw"].transform("sum")
+        df["daily_total"] = daily_totals
+
+    inserted = 0
+    for _, row in df.iterrows():
+        try:
+            cursor.execute(
+                "INSERT OR REPLACE INTO load_history "
+                "(datetime, load_mw, weekday, daily_total, source_file) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (
+                    str(row["datetime"]),
+                    float(row["load_mw"]) if not pd.isna(row["load_mw"]) else None,
+                    str(row.get("weekday", "")),
+                    float(row.get("daily_total", 0)) if not pd.isna(row.get("daily_total", 0)) else None,
+                    source_file,
+                ),
+            )
+            inserted += 1
+        except Exception:
+            pass
+
+    conn.commit()
+    conn.close()
+    return inserted
+
+
+def get_load_by_date(date_str: str) -> pd.DataFrame:
+    """获取指定日期完整的 24 小时负荷曲线。"""
+    conn = get_connection()
+    df = pd.read_sql_query(
+        "SELECT datetime, load_mw, weekday, daily_total "
+        "FROM load_history WHERE date(datetime) = ? "
+        "ORDER BY datetime ASC",
+        conn, params=(date_str,),
+    )
+    conn.close()
+    if not df.empty:
+        df["datetime"] = pd.to_datetime(df["datetime"])
+    return df
+
+
+def query_load_date_range() -> tuple[str | None, str | None]:
+    """获取负荷数据的可用日期范围。"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT MIN(date(datetime)), MAX(date(datetime)) FROM load_history"
+    )
+    row = cursor.fetchone()
+    conn.close()
+    return (row[0], row[1]) if row else (None, None)
+
+
+def has_load_data() -> bool:
+    """检查是否已有负荷数据。"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM load_history")
+    count = cursor.fetchone()[0]
+    conn.close()
+    return count > 0
+
+
+def delete_load_data():
+    """清空负荷历史数据。"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM load_history")
+    conn.commit()
+    conn.close()
