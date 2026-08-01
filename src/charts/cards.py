@@ -1,5 +1,5 @@
 """
-概览卡片：当前温度、今日降水、平均风速、日照小时数
+概览卡片：当前温度、今日降水、平均风速、太阳总辐射
 """
 
 import streamlit as st
@@ -83,15 +83,11 @@ def render_overview_cards(df: pd.DataFrame):
         )
 
     with col4:
-        sunshine = latest.get("sunshine_duration", "—")
-        if isinstance(sunshine, (int, float)) and not pd.isna(sunshine):
-            sun_str = f"{sunshine:.1f} h" if sunshine < 24 else f"{sunshine / 3600:.1f} h"
-            if sunshine > 3600:
-                sun_str = f"{sunshine:.1f} h"
-            else:
-                sun_str = f"{sunshine:.1f} h"
+        radiation = latest.get("shortwave_radiation", "—")
+        if isinstance(radiation, (int, float)) and not pd.isna(radiation):
+            rad_str = f"{radiation:.0f} W/m²"
         else:
-            sun_str = "— h"
+            rad_str = "— W/m²"
 
         cloud = latest.get("cloud_cover", None)
         if isinstance(cloud, (int, float)) and not pd.isna(cloud):
@@ -99,8 +95,8 @@ def render_overview_cards(df: pd.DataFrame):
         else:
             cloud_str = ""
         st.metric(
-            label="日照小时",
-            value=sun_str,
+            label="太阳总辐射",
+            value=rad_str,
             delta=cloud_str if cloud_str else None,
         )
 

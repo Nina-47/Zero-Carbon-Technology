@@ -39,7 +39,7 @@ VIS_PARAMS = {
     "precipitation":           {"cn": "降水量",        "unit": "mm",    "chart": "bar"},
     "wind_speed_10m":         {"cn": "风速",          "unit": "km/h",  "chart": "line"},
     "wind_direction_10m":     {"cn": "风向",          "unit": "°",     "chart": "scatter"},
-    "sunshine_duration":       {"cn": "日照时长",      "unit": "h",     "chart": "area"},
+    "shortwave_radiation":     {"cn": "太阳总辐射",    "unit": "W/m²",  "chart": "area"},
     "cloud_cover":             {"cn": "云量",          "unit": "%",     "chart": "line"},
 }
 
@@ -61,7 +61,7 @@ EXPORT_PARAMS = {
     "cloud_cover_low":         {"cn": "低云量",             "unit": "%"},
     "cloud_cover_mid":         {"cn": "中云量",             "unit": "%"},
     "cloud_cover_high":        {"cn": "高云量",             "unit": "%"},
-    "sunshine_duration":        {"cn": "日照时长",          "unit": "s"},
+    "shortwave_radiation":      {"cn": "太阳总辐射",         "unit": "W/m²"},
     "dew_point_2m":            {"cn": "露点温度",           "unit": "°C"},
     "evapotranspiration":       {"cn": "蒸散量",             "unit": "mm"},
     "vapour_pressure_deficit":  {"cn": "饱和水汽压差",      "unit": "kPa"},
@@ -80,7 +80,7 @@ ARCHIVE_PARAMS_STR = ",".join(k for k in EXPORT_PARAMS if k not in _EXCLUDE_ARCH
 # ============================================================
 AGGREGATION_SUM_PARAMS = {
     "precipitation", "rain", "showers", "snowfall",
-    "sunshine_duration", "evapotranspiration",
+    "evapotranspiration",
 }
 # 其余所有参数默认取算术平均
 
@@ -210,18 +210,11 @@ def _heat_index_rothfusz(t_f: float, rh: float) -> float:
 def convert_units(df):
     """
     将 API 原始单位转换为显示单位，并计算中国体感温度:
-    - sunshine_duration: 秒 → 小时
     - apparent_temp_cn: 用中国公式从气温+湿度+风速推导
     """
     import pandas as pd
     import numpy as np
     df = df.copy()
-    if "sunshine_duration" in df.columns:
-        df["sunshine_duration"] = pd.to_numeric(df["sunshine_duration"], errors="coerce")
-        # 防御: 若已是小时值 (max < 100) 则跳过秒→小时转换
-        max_val = df["sunshine_duration"].max()
-        if pd.notna(max_val) and max_val > 100:
-            df["sunshine_duration"] = df["sunshine_duration"] / 3600.0  # 秒 → 小时
 
     # 计算中国体感温度
     need_cols = ["temperature_2m", "relative_humidity_2m", "wind_speed_10m"]

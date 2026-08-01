@@ -48,7 +48,7 @@ from src.charts.weather_charts import (
     plot_temperature,
     plot_precipitation,
     plot_wind,
-    plot_sunshine,
+    plot_shortwave_radiation,
 )
 from src.charts.load_overlay import (
     plot_precip_load_overlay,
@@ -81,6 +81,22 @@ from src.db.models import (
 # 初始化
 # ============================================================
 init_db()
+
+# 数据库列兼容检测：shortwave_radiation
+import sqlite3, os
+_db_path = os.path.join(os.path.dirname(__file__), "data", "weather.db")
+if os.path.exists(_db_path):
+    try:
+        _conn = sqlite3.connect(_db_path)
+        _cols = [r[1] for r in _conn.execute("PRAGMA table_info(weather_hourly)").fetchall()]
+        _conn.close()
+        if "shortwave_radiation" not in _cols:
+            st.warning(
+                "⚠️ 数据库缺少 `shortwave_radiation` 列。"
+                "请删除 `data/weather.db` 后刷新页面以重新拉取天气数据。"
+            )
+    except Exception:
+        pass  # 表不存在等异常静默忽略
 
 # Session State 初始化
 if "load_df" not in st.session_state:
@@ -207,7 +223,7 @@ with st.sidebar:
     for param, info in VIS_PARAMS.items():
         default_checked = param in [
             "temperature_2m", "apparent_temp_cn",
-            "precipitation", "wind_speed_10m", "sunshine_duration",
+            "precipitation", "wind_speed_10m", "shortwave_radiation",
         ]
         vis_selection[param] = st.checkbox(
             info["cn"],
@@ -328,10 +344,10 @@ with tab1:
                 use_container_width=True,
             )
 
-        # 日照
-        if vis_selection.get("sunshine_duration", True):
+        # 太阳总辐射
+        if vis_selection.get("shortwave_radiation", True):
             st.plotly_chart(
-                plot_sunshine(primary_data, primary_label),
+                plot_shortwave_radiation(primary_data, primary_label),
                 use_container_width=True,
             )
 
@@ -458,7 +474,7 @@ with tab3:
         selected_table_cols = st.multiselect(
             "选择显示列",
             options=available_cols,
-            default=["temperature_2m", "precipitation", "wind_speed_10m", "sunshine_duration"][:4],
+            default=["temperature_2m", "precipitation", "wind_speed_10m", "shortwave_radiation"][:4],
             format_func=lambda x: EXPORT_PARAMS.get(x, {}).get("cn", x),
         )
 

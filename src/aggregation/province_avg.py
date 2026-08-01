@@ -130,5 +130,4 @@ def fetch_guangdong_average(
 
     result = compute_province_average(all_dfs)
     # 注意: convert_units 已在逐城阶段调用，此处不再重复调用
-    # sunshine_duration 已在小时单位，聚合后无需再次换算
     return result

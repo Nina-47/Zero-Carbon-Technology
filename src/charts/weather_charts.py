@@ -1,5 +1,5 @@
 """
-天气总览图表：温度、降水、风况、日照小时数
+天气总览图表：温度、降水、风况、太阳总辐射
 """
 
 import pandas as pd
@@ -162,61 +162,62 @@ def plot_wind(df: pd.DataFrame, location_label: str = "") -> go.Figure:
     return fig
 
 
-def plot_sunshine(df: pd.DataFrame, location_label: str = "") -> go.Figure:
+def plot_shortwave_radiation(df: pd.DataFrame, location_label: str = "") -> go.Figure:
     """
-    日照小时数面积图，叠加云量虚线（右Y轴倒置）。
+    太阳总辐射面积图（左Y轴，W/m²）+ 云量折线（右Y轴，%）。
+    双Y轴，各自独立刻度，云量不反转。
     """
-    if "sunshine_duration" not in df.columns or "datetime" not in df.columns or df.empty:
+    if "shortwave_radiation" not in df.columns or "datetime" not in df.columns or df.empty:
         return go.Figure()
+
+    has_cloud = "cloud_cover" in df.columns
 
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 
-    # 日照面积
+    # 左Y轴：太阳总辐射面积填充
     fig.add_trace(
         go.Scatter(
-            x=df["datetime"], y=df["sunshine_duration"],
-            mode="none", name="日照时长",
+            x=df["datetime"], y=df["shortwave_radiation"],
+            mode="none", name="太阳总辐射",
             fill="tozeroy",
-            fillcolor="rgba(241, 196, 15, 0.4)",
-            line=dict(color="#F1C40F"),
+            fillcolor="rgba(243, 156, 18, 0.35)",
         ),
         secondary_y=False,
     )
 
-    # 日照边界线
+    # 辐射边界线
     fig.add_trace(
         go.Scatter(
-            x=df["datetime"], y=df["sunshine_duration"],
-            mode="lines", name="日照值",
+            x=df["datetime"], y=df["shortwave_radiation"],
+            mode="lines", name="辐射值",
             line=dict(color="#F39C12", width=1.5),
             showlegend=False,
         ),
         secondary_y=False,
     )
 
-    # 云量虚线（倒置：云量越高，线越低）
-    if "cloud_cover" in df.columns:
-        # 将云量映射到日照Y轴范围的倒置
-        sun_max = df["sunshine_duration"].max() or 1.0
-        scaled_cloud = (100 - df["cloud_cover"]) / 100 * sun_max
+    # 右Y轴：云量折线（不反转，独立刻度）
+    if has_cloud:
         fig.add_trace(
             go.Scatter(
-                x=df["datetime"], y=scaled_cloud,
-                mode="lines", name="云量 (倒置)",
+                x=df["datetime"], y=df["cloud_cover"],
+                mode="lines", name="云量",
                 line=dict(color="#7F8C8D", width=1.5, dash="dot"),
             ),
-            secondary_y=False,
+            secondary_y=True,
         )
 
     fig.update_layout(
-        title=f"☀️ 日照小时 {location_label}",
+        title=f"☀️ 太阳总辐射 {location_label}",
         xaxis_title="时间",
         hovermode="x unified",
-        height=280,
+        height=300,
         margin=dict(l=20, r=20, t=40, b=20),
         legend=dict(orientation="h", yanchor="bottom", y=1.02),
     )
-    fig.update_yaxes(title_text="日照 (h)", secondary_y=False)
+    fig.update_yaxes(title_text="太阳总辐射 (W/m²)", secondary_y=False)
+    if has_cloud:
+        fig.update_yaxes(title_text="云量 (%)", secondary_y=True, range=[0, 100])
 
     return fig
 
