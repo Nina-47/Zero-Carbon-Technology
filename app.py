@@ -697,7 +697,7 @@ with tab4:
         today = datetime.now().date()
         min_date = max(datetime.strptime(sim_min, "%Y-%m-%d").date(), today - timedelta(days=30))
         sim_max_date = datetime.strptime(sim_max, "%Y-%m-%d").date()
-        max_date = min(sim_max_date, today + timedelta(days=7))
+        max_date = max(sim_max_date, today + timedelta(days=7))  # 允许选未来，超出 JSON 的用实时算
 
         col_t1, col_t2 = st.columns([2, 1])
         with col_t1:
@@ -718,7 +718,89 @@ with tab4:
             target_date_str = target_date.strftime("%Y-%m-%d")
 
             if target_date_str not in similarity_db:
-                st.warning(f"目标日 {target_date_str} 不在预计算范围内（{sim_min} ~ {sim_max}）。")
+                # 未来日期：从侧边栏预报数据提取天气，在 JSON 历史特征中找相似
+                if not primary_data.empty and "datetime" in primary_data.columns:
+                    target_wx = primary_data[
+                        primary_data["datetime"].apply(lambda x: str(x)[:10]) == target_date_str
+                    ].copy()
+                else:
+                    target_wx = pd.DataFrame()
+
+                if target_wx.empty or len(target_wx) < 6:
+                    st.warning(f"目标日 {target_date_str} 暂无足够天气数据（需要至少 6 小时数据）。")
+                else:
+                    st.info(f"目标日 {target_date_str} 超出预计算范围，使用预报天气实时匹配。")
+                    # 聚合目标日天气
+                    td = compute_daily_weather(target_wx)
+                    if td.empty:
+                        st.warning("无法计算目标日天气特征。")
+                    else:
+                        tr = td.iloc[0]
+                        t_tmax = tr.get("tmax", 0) or 0
+                        t_tmin = tr.get("tmin", 0) or 0
+                        t_precip = tr.get("precip_sum", 0) or 0
+                        t_rad = tr.get("rad_daily_sum", 0) or 0
+                        t_rainy = t_precip >= 0.5
+                        t_m = target_date.month
+                        t_s = 0 if t_m in [12,1,2] else 1 if t_m in [3,4,5] else 2 if t_m in [6,7,8] else 3
+
+                        # 从 JSON 历史特征中计算距离
+                        season_names = ["冬", "春", "夏", "秋"]
+                        weekday_names = ["一", "二", "三", "四", "五", "六", "日"]
+                        scored = []
+                        for d_str in sim_dates:
+                            d_dt = datetime.strptime(d_str, "%Y-%m-%d")
+                            dm = d_dt.month
+                            ds = 0 if dm in [12,1,2] else 1 if dm in [3,4,5] else 2 if dm in [6,7,8] else 3
+                            if ds != t_s:
+                                continue
+                            pre = similarity_db.get(d_str, [])
+                            if not pre:
+                                continue
+                            c = pre[0]  # 该日期在预计算中的特征值
+                            c_rainy = c["precip_sum"] >= 0.5
+                            if t_rainy != c_rainy:
+                                continue
+
+                            # z-score 标准化（用预计算时相同的参数近似）
+                            tmax_d = abs(t_tmax - c["tmax"]) / 8.0  # 夏季温度 std ≈ 8
+                            tmin_d = abs(t_tmin - c["tmin"]) / 7.0
+                            rad_d = abs(t_rad - c["rad_sum"]) / 8.0
+                            delta = (target_date - d_dt.date()).days
+                            decay = 1.0 - np.exp(-max(delta, 0) / 180.0) if delta > 90 else 0.0
+                            score = 0.25 * tmax_d + 0.25 * tmin_d + 0.05 * rad_d + 0.1 * decay
+                            scored.append((d_str, score, c))
+
+                        scored.sort(key=lambda x: x[1])
+                        similar_days = []
+                        sigma = 1.0
+                        if scored:
+                            sigma = max(float(np.median([s[1] for s in scored])), 0.01)
+                        for d_str, score, c in scored[:3]:
+                            dd = datetime.strptime(d_str, "%Y-%m-%d")
+                            sim = max(30.0, round(100.0 * np.exp(-score / sigma), 1))
+                            similar_days.append({
+                                "date": dd,
+                                "similarity_score": round(score, 4),
+                                "similarity_pct": sim,
+                                "tmax": c["tmax"],
+                                "tmin": c["tmin"],
+                                "precip_sum": c["precip_sum"],
+                                "precip_level": c.get("precip_level", 0),
+                                "rad_daily_sum": c["rad_sum"],
+                                "dew_point_avg": None,
+                                "season_label": season_names[c["season"]],
+                                "weekday_label": weekday_names[c["weekday"]],
+                                "distance_components": {},
+                            })
+
+                        if not similar_days:
+                            st.warning("未能找到匹配的相似日。")
+                        else:
+                            st.session_state.similar_days = similar_days
+                            st.session_state.target_date_str = target_date_str
+                            st.session_state.similar_search_done = True
+                            st.session_state.target_weather = target_wx
             else:
                 precomputed = similarity_db[target_date_str]
                 if not precomputed:
