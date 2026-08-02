@@ -185,7 +185,11 @@ def query_weather_data(
     conn.close()
 
     if not df.empty:
-        df["datetime"] = pd.to_datetime(df["datetime"])
+        try:
+            df["datetime"] = pd.to_datetime(df["datetime"], format="mixed")
+        except Exception:
+            df["datetime"] = pd.to_datetime(df["datetime"], errors="coerce")
+            df = df.dropna(subset=["datetime"])
 
     return df
 
@@ -324,7 +328,11 @@ def get_load_by_date(date_str: str) -> pd.DataFrame:
     )
     conn.close()
     if not df.empty:
-        df["datetime"] = pd.to_datetime(df["datetime"])
+        try:
+            df["datetime"] = pd.to_datetime(df["datetime"], format="mixed")
+        except Exception:
+            df["datetime"] = pd.to_datetime(df["datetime"], errors="coerce")
+            df = df.dropna(subset=["datetime"])
     return df
 
 
