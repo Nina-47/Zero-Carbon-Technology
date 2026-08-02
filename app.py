@@ -794,7 +794,7 @@ with tab4:
                                     st.session_state.target_date_str = target_date_str
                                     st.session_state.similar_search_done = True
                                     st.session_state.target_weather = target_wx
-                else:
+            else:
                 precomputed = similarity_db[target_date_str]
                 if not precomputed:
                     st.warning("未找到相似日。")
