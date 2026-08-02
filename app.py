@@ -773,11 +773,6 @@ with tab4:
                                              target_weather=None, location_label=primary_label),
                     use_container_width=True,
                 )
-                st.subheader("🔬 相似度因子分解")
-                st.plotly_chart(
-                    plot_similarity_breakdown(similar_days),
-                    use_container_width=True,
-                )
 
 # ============================================================
 # 自动刷新逻辑
