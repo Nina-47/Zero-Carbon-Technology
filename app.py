@@ -729,8 +729,89 @@ with tab4:
                     target_wx = pd.DataFrame()
 
                 if target_wx.empty or len(target_wx) < 6:
-                    # 降级：在同季节中选日期最近的 3 天
-                    st.info(f"目标日 {target_date_str} 暂无预报数据。降级为同季节最近相似日。")
+                    target_wx = pd.DataFrame()  # 走下面的降级
+
+                if not target_wx.empty and len(target_wx) >= 6:
+                    st.info(f"目标日 {target_date_str} 超出预计算范围，使用预报天气实时匹配。")
+                    # 聚合目标日天气
+                    td = compute_daily_weather(target_wx)
+                    if td.empty:
+                        st.warning("无法计算目标日天气特征。")
+                    else:
+                        tr = td.iloc[0]
+                        t_tmax = tr.get("tmax", 0) or 0
+                        t_tmin = tr.get("tmin", 0) or 0
+                        t_precip = tr.get("precip_sum", 0) or 0
+                        t_rainy = t_precip >= 0.5
+                        t_m = target_date.month
+                        t_s = 0 if t_m in [12,1,2] else 1 if t_m in [3,4,5] else 2 if t_m in [6,7,8] else 3
+
+                        season_names = ["冬", "春", "夏", "秋"]
+                        weekday_names = ["一", "二", "三", "四", "五", "六", "日"]
+
+                        def precip_level(p):
+                            if p < 0.1: return 0
+                            if p < 1: return 1
+                            if p < 10: return 2
+                            if p < 25: return 3
+                            if p < 50: return 4
+                            return 5
+
+                        # 同季节 + 同晴雨 + 温度最接近
+                        scored = []
+                        for d_str in sim_dates:
+                            d_dt = datetime.strptime(d_str, "%Y-%m-%d")
+                            dm = d_dt.month
+                            ds = 0 if dm in [12,1,2] else 1 if dm in [3,4,5] else 2 if dm in [6,7,8] else 3
+                            if ds != t_s:
+                                continue
+                            f = similarity_features.get(d_str, {})
+                            if not f:
+                                continue
+                            f_rainy = f.get("precip_sum", 0) >= 0.5
+                            if t_rainy != f_rainy:
+                                continue
+                            tmax_d = abs(t_tmax - f.get("tmax", t_tmax)) ** 2
+                            tmin_d = abs(t_tmin - f.get("tmin", t_tmin)) ** 2
+                            score = tmax_d + tmin_d  # 温度差的平方和
+                            scored.append((d_str, score, f))
+
+                        scored.sort(key=lambda x: x[1])
+                        similar_days = []
+                        for rank, (d_str, score, f) in enumerate(scored[:3]):
+                            dd = datetime.strptime(d_str, "%Y-%m-%d")
+                            dm = dd.month
+                            ds = 0 if dm in [12,1,2] else 1 if dm in [3,4,5] else 2 if dm in [6,7,8] else 3
+                            dp = f.get("precip_sum", 0)
+                            pl = precip_level(dp)
+                            # 相似度：第一名 95%, 第二 85%, 第三 75%（简单分层）
+                            sim = [95, 85, 75][rank] if rank < 3 else 70
+                            similar_days.append({
+                                "date": dd,
+                                "similarity_score": round(score, 2),
+                                "similarity_pct": sim,
+                                "tmax": f.get("tmax"),
+                                "tmin": f.get("tmin"),
+                                "precip_sum": dp,
+                                "precip_level": pl,
+                                "rad_daily_sum": f.get("rad_sum"),
+                                "dew_point_avg": None,
+                                "season_label": season_names[ds],
+                                "weekday_label": weekday_names[dd.weekday()],
+                                "distance_components": {},
+                            })
+
+                        if not similar_days:
+                            st.warning("未找到匹配的相似日。")
+                        else:
+                            st.session_state.similar_days = similar_days
+                            st.session_state.target_date_str = target_date_str
+                            st.session_state.similar_search_done = True
+                            st.session_state.target_weather = target_wx
+
+                else:
+                    # 降级：无预报数据，同季节选日期最近的 3 天
+                    st.info(f"目标日 {target_date_str} 暂无预报数据，降级为同季节最近相似日。")
                     t_m = target_date.month
                     t_s = 0 if t_m in [12,1,2] else 1 if t_m in [3,4,5] else 2 if t_m in [6,7,8] else 3
                     season_names = ["冬", "春", "夏", "秋"]
@@ -771,82 +852,6 @@ with tab4:
                         st.session_state.target_date_str = target_date_str
                         st.session_state.similar_search_done = True
                         st.session_state.target_weather = None
-                else:
-                    st.info(f"目标日 {target_date_str} 超出预计算范围，使用预报天气实时匹配。")
-                    # 聚合目标日天气
-                    td = compute_daily_weather(target_wx)
-                    if td.empty:
-                        st.warning("无法计算目标日天气特征。")
-                    else:
-                        tr = td.iloc[0]
-                        t_tmax = tr.get("tmax", 0) or 0
-                        t_tmin = tr.get("tmin", 0) or 0
-                        t_precip = tr.get("precip_sum", 0) or 0
-                        t_rad = tr.get("rad_daily_sum", 0) or 0
-                        t_rainy = t_precip >= 0.5
-                        t_m = target_date.month
-                        t_s = 0 if t_m in [12,1,2] else 1 if t_m in [3,4,5] else 2 if t_m in [6,7,8] else 3
-
-                        # 从 JSON 历史特征中计算距离
-                        season_names = ["冬", "春", "夏", "秋"]
-                        weekday_names = ["一", "二", "三", "四", "五", "六", "日"]
-                        scored = []
-                        for d_str in sim_dates:
-                            d_dt = datetime.strptime(d_str, "%Y-%m-%d")
-                            dm = d_dt.month
-                            ds = 0 if dm in [12,1,2] else 1 if dm in [3,4,5] else 2 if dm in [6,7,8] else 3
-                            if ds != t_s:
-                                continue
-                            c = similarity_features.get(d_str)
-                            if not c:
-                                continue
-                            c_rainy = c.get("precip_sum", 0) >= 0.5
-                            if t_rainy != c_rainy:
-                                continue
-
-                            tmax_d = abs(t_tmax - c.get("tmax", t_tmax))
-                            tmin_d = abs(t_tmin - c.get("tmin", t_tmin))
-                            rad_d = abs(t_rad - c.get("rad_sum", t_rad)) / 5.0
-                            delta = (target_date - d_dt.date()).days
-                            decay = 1.0 - np.exp(-max(delta, 0) / 180.0) if delta > 90 else 0.0
-                            score = 0.25 * tmax_d + 0.25 * tmin_d + 0.05 * rad_d + 0.3 * decay
-                            c["_date"] = d_str
-                            scored.append((d_str, score, c))
-
-                        scored.sort(key=lambda x: x[1])
-                        similar_days = []
-                        sigma = 1.0
-                        if scored:
-                            sigma = max(float(np.median([s[1] for s in scored])), 0.01)
-                        for d_str, score, c in scored[:3]:
-                            dd = datetime.strptime(d_str, "%Y-%m-%d")
-                            sim = max(30.0, round(100.0 * np.exp(-score / sigma), 1))
-                            dm = dd.month
-                            ds = 0 if dm in [12,1,2] else 1 if dm in [3,4,5] else 2 if dm in [6,7,8] else 3
-                            dp = c.get("precip_sum", 0)
-                            pl = 0 if dp < 0.1 else 1 if dp < 1 else 2 if dp < 10 else 3 if dp < 25 else 4 if dp < 50 else 5
-                            similar_days.append({
-                                "date": dd,
-                                "similarity_score": round(score, 4),
-                                "similarity_pct": sim,
-                                "tmax": c.get("tmax"),
-                                "tmin": c.get("tmin"),
-                                "precip_sum": dp,
-                                "precip_level": pl,
-                                "rad_daily_sum": c.get("rad_sum"),
-                                "dew_point_avg": None,
-                                "season_label": season_names[ds],
-                                "weekday_label": weekday_names[dd.weekday()],
-                                "distance_components": {},
-                            })
-
-                        if not similar_days:
-                            st.warning("未能找到匹配的相似日。")
-                        else:
-                            st.session_state.similar_days = similar_days
-                            st.session_state.target_date_str = target_date_str
-                            st.session_state.similar_search_done = True
-                            st.session_state.target_weather = target_wx
             else:
                 precomputed = similarity_db[target_date_str]
                 if not precomputed:
