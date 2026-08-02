@@ -144,12 +144,16 @@ def compute_weighted_distance(
     weights: dict,
 ) -> float:
     """
-    计算加权欧氏距离。
+    计算加权距离（混合策略）。
 
-    数值因子用 z-score 后的欧氏距离分量；
-    离散/衰减因子直接使用 [0,1] 得分作为距离分量。
+    数值因子用曼哈顿距离（比欧氏距离对单维度差异更敏感）；
+    离散/衰减因子直接使用 [0,1] 得分。
+
+    数值距离乘以放大系数 ~4-6，使其与离散因子在同一尺度。
     """
-    dist_sq = 0.0
+    dist = 0.0
+
+    SCALE = 5.0  # z-score 差异放大系数
 
     numeric_map = [
         ("tmax_deviation", "tmax"),
@@ -163,7 +167,7 @@ def compute_weighted_distance(
             continue
         tv = norm_target.get(n_key, 0.0)
         cv = norm_candidate.get(n_key, 0.0)
-        dist_sq += w * ((tv - cv) ** 2)
+        dist += w * SCALE * abs(tv - cv)
 
     discrete_map = [
         ("precip_match", "precip_match"),
@@ -174,9 +178,9 @@ def compute_weighted_distance(
     for w_key, d_key in discrete_map:
         w = weights.get(w_key, 0.0)
         val = candidate_discrete.get(d_key, 0.0)
-        dist_sq += w * (val ** 2)
+        dist += w * val
 
-    return float(np.sqrt(dist_sq))
+    return dist
 
 
 # ============================================================
@@ -333,13 +337,13 @@ def find_similar_days(
         })
 
     # 7. 排序并转换相似度
+    # 用指数衰减: similarity = e^(-d/σ), σ = 距离中位数
     results.sort(key=lambda x: x["similarity_score"])
-    max_dist = max(r["similarity_score"] for r in results) if results else 1.0
+    sigma = np.median([r["similarity_score"] for r in results]) if results else 1.0
+    if sigma < 0.001:
+        sigma = 1.0
     for r in results:
-        if max_dist > 0:
-            r["similarity_pct"] = max(0.0, round(100.0 * (1.0 - r["similarity_score"] / max_dist), 1))
-        else:
-            r["similarity_pct"] = 100.0
+        r["similarity_pct"] = max(0.0, round(100.0 * np.exp(-r["similarity_score"] / sigma), 1))
 
     return results[:n]
 
