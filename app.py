@@ -98,6 +98,66 @@ if os.path.exists(_db_path):
     except Exception:
         pass  # 表不存在等异常静默忽略
 
+# 天气数据种子检查：如果数据库天数 < 100，自动从预置 Excel 导入
+import hashlib
+def _seed_weather_db():
+    """如果 weather_hourly 表数据不足 100 天，从全要素天气表导入。"""
+    try:
+        _conn = sqlite3.connect(_db_path)
+        _days = _conn.execute("SELECT COUNT(DISTINCT date(datetime)) FROM weather_hourly").fetchone()[0]
+        _conn.close()
+        if _days >= 100:
+            return  # 数据充足，无需导入
+    except Exception:
+        _days = 0
+
+    # 尝试导入
+    seed_path = os.path.join(os.path.dirname(__file__), "data", "weather_seed.xlsx")
+    if not os.path.exists(seed_path):
+        return
+
+    try:
+        element_map = {
+            "气温(℃)": "temperature_2m",
+            "降水量(mm)": "precipitation",
+            "风速(km/h)": "wind_speed_10m",
+            "风向(°)": "wind_direction_10m",
+            "云量(%)": "cloud_cover",
+            "太阳总辐射(MJ/m²)": "shortwave_radiation",
+        }
+        df = pd.read_excel(seed_path, sheet_name="全要素天气表_长格式_v2")
+        df.columns = ["date", "element"] + list(range(24))
+
+        _conn = sqlite3.connect(_db_path)
+        inserted = 0
+        for _, row in df.iterrows():
+            date_val = str(row["date"])[:10]
+            element = str(row["element"])
+            col_name = element_map.get(element)
+            if col_name is None:
+                continue
+            for h in range(24):
+                val = row[h]
+                if pd.isna(val):
+                    continue
+                dt = f"{date_val}T{h:02d}:00:00+08:00"
+                try:
+                    _conn.execute(
+                        f"INSERT OR REPLACE INTO weather_hourly "
+                        f"(location_id, datetime, data_type, source, {col_name}, fetched_at) "
+                        f"VALUES ('zhongshan', ?, 'historical', 'seed', ?, datetime('now'))",
+                        (dt, float(val)),
+                    )
+                    inserted += 1
+                except Exception:
+                    pass
+        _conn.commit()
+        _conn.close()
+    except Exception:
+        pass
+
+_seed_weather_db()
+
 # Session State 初始化
 if "load_df" not in st.session_state:
     st.session_state.load_df = None
