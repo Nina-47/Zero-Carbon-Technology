@@ -11,6 +11,7 @@ import streamlit as st
 # 配色方案
 COLORS = {
     "target": "#E74C3C",     # 目标日 = 红色
+    "prediction": "#E74C3C", # 预测值 = 红色虚线
     "similar_1": "#3498DB",  # 相似日 #1 = 蓝色
     "similar_2": "#2ECC71",  # 相似日 #2 = 绿色
     "similar_3": "#9B59B6",  # 相似日 #3 = 紫色
@@ -161,11 +162,9 @@ def plot_similar_day_overlay(
 
         has_data = True
         pct = day.get("similarity_pct", 0)
-        label = f"{RANK_LABELS.get(i, f'#{i+1}')} ({date_str}, 相似度 {pct:.1f}%)"
+        label = f"{RANK_LABELS.get(i, f'#{i+1}')} ({date_str}, {pct:.1f}%)"
 
-        # 构建 X 轴（小时）
         hours = [f"{h:02d}:00" for h in range(24)]
-        # 取前 24 行
         load_vals = load_df["load_mw"].values[:24] if "load_mw" in load_df.columns else []
 
         fig.add_trace(
@@ -174,11 +173,42 @@ def plot_similar_day_overlay(
                 y=load_vals,
                 mode="lines+markers",
                 name=label,
-                line=dict(color=color, width=2.5),
-                marker=dict(size=4),
+                line=dict(color=color, width=1.5, dash="dash"),
+                marker=dict(size=3),
             ),
             secondary_y=False,
         )
+
+    # --- 预测曲线：相似日负荷加权平均 ---
+    all_loads = []  # [ (weight, array24), ... ]
+    for i, day in enumerate(similar_days):
+        date_str = day["date"].strftime("%Y-%m-%d") if hasattr(day["date"], "strftime") else str(day["date"])
+        load_df = load_data_map.get(date_str)
+        if load_df is None or load_df.empty:
+            continue
+        load_vals = list(load_df["load_mw"].values[:24]) if "load_mw" in load_df.columns else []
+        if len(load_vals) != 24:
+            continue
+        w = day.get("similarity_pct", 0) / 100.0
+        all_loads.append((w, load_vals))
+
+    if all_loads:
+        total_w = sum(w for w, _ in all_loads)
+        if total_w > 0:
+            predicted = [sum(w * lv[h] for w, lv in all_loads) / total_w for h in range(24)]
+            hours = [f"{h:02d}:00" for h in range(24)]
+            fig.add_trace(
+                go.Scatter(
+                    x=hours,
+                    y=predicted,
+                    mode="lines+markers",
+                    name=f"🔮 预测负荷 ({target_date_str})",
+                    line=dict(color=COLORS["prediction"], width=3),
+                    marker=dict(size=6, symbol="circle"),
+                ),
+                secondary_y=False,
+            )
+            has_data = True
 
     # --- 右侧：目标日预报温度 ---
     if target_weather is not None and not target_weather.empty:
