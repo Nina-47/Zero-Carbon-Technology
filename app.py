@@ -644,6 +644,18 @@ with tab3:
 with tab4:
     st.subheader("🔮 相似日分析")
 
+    # 负荷数据模板下载
+    template_path = os.path.join(os.path.dirname(__file__), "data", "负荷数据模板.xlsx")
+    with open(template_path, "rb") as tf:
+        st.download_button(
+            label="📥 下载负荷数据模板",
+            data=tf,
+            file_name="负荷数据模板.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            help="下载后按模板格式填入负荷数据，再上传到本页面",
+            use_container_width=True,
+        )
+
     load_available = has_load_data()
     load_start, load_end = query_load_date_range()
 
