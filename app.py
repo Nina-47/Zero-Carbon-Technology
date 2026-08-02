@@ -718,13 +718,19 @@ with tab4:
 
             if target_date_str not in similarity_db:
                 # 不在预计算库中：用侧边栏已有的天气数据实时匹配
-                st.info(f"目标日 {target_date_str} 不在预计算库中，使用实时天气数据匹配。")
                 if not primary_data.empty and "datetime" in primary_data.columns:
+                    # 调试：显示 primary_data 覆盖的日期范围
+                    pd_dates = sorted(set(str(d)[:10] for d in primary_data["datetime"]))
                     target_wx = primary_data[
                         primary_data["datetime"].apply(lambda x: str(x)[:10]) == target_date_str
                     ].copy()
                     if target_wx.empty:
-                        st.warning(f"目标日 {target_date_str} 暂无天气数据。")
+                        st.warning(
+                            f"目标日 {target_date_str} 暂无天气数据。\n\n"
+                            f"当前天气数据覆盖: {pd_dates[0]} ~ {pd_dates[-1]} "
+                            f"(共 {len(pd_dates)} 天)。"
+                            f"请调整侧边栏「历史回溯」或「预报天数」后刷新。"
+                        )
                     else:
                         st.info("目标日不在预计算库中，使用实时天气数据匹配。")
                         target_daily = compute_daily_weather(target_wx)
