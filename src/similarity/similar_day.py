@@ -1,10 +1,10 @@
 """
-相似日分析核心算法模块
+相似日分析核心算法模块 (v2)
 
-基于加权欧氏距离（min-max标准化），从历史天气数据中找出
-与目标日气象条件最相似的 Top-N 日期，用于辅助工业负荷预测。
+基于 z-score 标准化 + 加权欧氏距离，从历史天气数据中找出
+与目标日气象条件最相似的 Top-N 日期，用于辅助负荷预测。
 
-8因子权重定义见 config.SIMILARITY_WEIGHTS。
+6因子权重定义见 config.SIMILARITY_WEIGHTS。
 """
 
 import numpy as np
@@ -13,10 +13,6 @@ from datetime import datetime
 
 from config import SIMILARITY_WEIGHTS, PRECIP_LEVELS
 
-
-# ============================================================
-# 辅助函数：降水等级 / 季节匹配 / 星期匹配 / 日期衰减
-# ============================================================
 
 def compute_precip_level(precip_sum: float) -> int:
     """将日降水量 (mm) 映射为 0-5 等级。"""
@@ -41,44 +37,34 @@ def _season_idx(dt):
 
 
 def match_season(d1, d2):
-    """
-    季节匹配得分：同季=0, 相邻季=0.5, 相反季=1。
-
-    参数
-    ----
-    d1, d2 : datetime 或 pd.Timestamp
-    """
+    """季节匹配得分：同季=0, 相邻季=0.5, 相反季=1。"""
     s1, s2 = _season_idx(d1), _season_idx(d2)
     if s1 == s2:
         return 0.0
     diff = abs(s1 - s2)
-    if diff == 2:  # 冬↔夏 或 春↔秋
+    if diff == 2:
         return 1.0
     return 0.5
 
 
 def match_weekday(d1, d2):
-    """
-    星期类型匹配：同类型(工作日/周末)=0, 不同=1。
-    """
+    """星期类型匹配：同类型=0, 不同=1。"""
     w1 = 1 if d1.weekday() >= 5 else 0
     w2 = 1 if d2.weekday() >= 5 else 0
     return 0.0 if w1 == w2 else 1.0
 
 
-def compute_date_decay(target_date, candidate_date, max_days=365):
+def compute_date_decay(target_date, candidate_date):
     """
-    日期距离衰减因子（指数衰减）。
-    越远惩罚越大，范围 [0, 1)。半衰期约 180 天。
+    日期距离衰减因子。
+    近 90 天不衰减(0)，90天后指数衰减，半衰期 180 天。
 
-    参数
-    ----
     target_date, candidate_date : datetime 或 pd.Timestamp
     """
     delta_days = abs((target_date - candidate_date).days)
-    if delta_days <= 1:
+    if delta_days <= 90:
         return 0.0
-    decay = 1.0 - np.exp(-delta_days / 180.0)
+    decay = 1.0 - np.exp(-(delta_days - 90) / 180.0)
     return float(decay)
 
 
@@ -89,23 +75,6 @@ def compute_date_decay(target_date, candidate_date, max_days=365):
 def compute_daily_weather(df: pd.DataFrame) -> pd.DataFrame:
     """
     将逐小时天气 DataFrame 聚合为逐日摘要。
-
-    参数
-    ----
-    df : pd.DataFrame
-        逐小时天气数据。需包含 datetime 列及以下气象参数列
-        （列名与 EXPORT_PARAMS 一致）：
-        - temperature_2m
-        - precipitation
-        - shortwave_radiation
-        - dew_point_2m
-
-    返回
-    ----
-    pd.DataFrame
-        每日一行，列：
-        date, tmax, tmin, precip_sum, precip_level,
-        rad_daily_sum, dew_point_avg
     """
     if df.empty:
         return pd.DataFrame()
@@ -127,7 +96,6 @@ def compute_daily_weather(df: pd.DataFrame) -> pd.DataFrame:
     daily = df.groupby("date", as_index=False).agg(**agg_dict)
     daily["date"] = pd.to_datetime(daily["date"])
 
-    # 派生：降水等级
     if "precip_sum" in daily.columns:
         daily["precip_level"] = daily["precip_sum"].apply(compute_precip_level)
 
@@ -135,50 +103,38 @@ def compute_daily_weather(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ============================================================
-# Min-Max 标准化
+# Z-Score 标准化
 # ============================================================
 
-def _fit_min_max(historical: pd.DataFrame, factor_keys: list[str]) -> dict:
-    """从历史数据中学习每个因子的 min/max/range。"""
-    min_max = {}
+def _fit_zscore(historical: pd.DataFrame, factor_keys: list[str]) -> dict:
+    """从历史数据中学习每个因子的 mean/std。"""
+    stats = {}
     for key in factor_keys:
         if key in historical.columns and historical[key].notna().any():
-            vmin = float(historical[key].min())
-            vmax = float(historical[key].max())
-            rng = vmax - vmin
-            min_max[key] = {"min": vmin, "max": vmax, "range": rng if rng > 0 else 1.0}
+            s = historical[key].dropna()
+            stats[key] = {"mean": float(s.mean()), "std": float(s.std()) or 1.0}
         else:
-            min_max[key] = {"min": 0.0, "max": 1.0, "range": 1.0}
-    return min_max
+            stats[key] = {"mean": 0.0, "std": 1.0}
+    return stats
 
 
-def _normalize(val, params: dict) -> float:
-    """将单个值缩放到 [0, 1]。无信息时返回 0.5。"""
+def _zscore(val, params: dict) -> float:
+    """标准化到 z-score。无信息时返回 0（即均值）。"""
     if val is None or (isinstance(val, float) and np.isnan(val)):
-        return 0.5
-    if params["range"] == 0:
-        return 0.5
-    return float((val - params["min"]) / params["range"])
+        return 0.0
+    return float((val - params["mean"]) / params["std"])
 
 
 def normalize_factors(historical: pd.DataFrame, target: dict,
                       factor_keys: list[str]) -> tuple[dict, dict]:
-    """
-    学习 min-max 参数并标准化目标日。
-
-    返回
-    ----
-    (normalized_target, min_max_params)
-        normalized_target : {key: float}  目标日各因子标准化值
-        min_max_params    : {key: {min, max, range}}  供候选项复用
-    """
-    min_max = _fit_min_max(historical, factor_keys)
-    normalized = {key: _normalize(target.get(key), min_max[key]) for key in factor_keys}
-    return normalized, min_max
+    """学习 z-score 参数并标准化目标日。"""
+    stats = _fit_zscore(historical, factor_keys)
+    normalized = {key: _zscore(target.get(key), stats[key]) for key in factor_keys}
+    return normalized, stats
 
 
 # ============================================================
-# 加权距离计算
+# 加权距离计算 (v2)
 # ============================================================
 
 def compute_weighted_distance(
@@ -190,27 +146,11 @@ def compute_weighted_distance(
     """
     计算加权欧氏距离。
 
-    数值因子使用标准化后的欧氏距离分量；
-    离散/衰减因子直接使用其 [0,1] 得分作为距离分量。
-
-    参数
-    ----
-    norm_target : dict
-        目标日数值因子标准化值 {tmax, tmin, rad_daily_sum, dew_point_avg}
-    norm_candidate : dict
-        候选项数值因子标准化值（同上结构）
-    candidate_discrete : dict
-        候选项离散因子 {precip_level_match, season_match, weekday_match, date_distance_decay}
-    weights : dict
-        因子权重（来自 config.SIMILARITY_WEIGHTS）
-
-    返回
-    ----
-    float : 加权欧氏距离（越小越相似）
+    数值因子用 z-score 后的欧氏距离分量；
+    离散/衰减因子直接使用 [0,1] 得分作为距离分量。
     """
     dist_sq = 0.0
 
-    # --- 数值因子 ---
     numeric_map = [
         ("tmax_deviation", "tmax"),
         ("tmin_deviation", "tmin"),
@@ -221,13 +161,12 @@ def compute_weighted_distance(
         w = weights.get(w_key, 0.0)
         if w == 0:
             continue
-        tv = norm_target.get(n_key, 0.5)
-        cv = norm_candidate.get(n_key, 0.5)
+        tv = norm_target.get(n_key, 0.0)
+        cv = norm_candidate.get(n_key, 0.0)
         dist_sq += w * ((tv - cv) ** 2)
 
-    # --- 离散 / 衰减因子 ---
     discrete_map = [
-        ("precip_level_match", "precip_level_match"),
+        ("precip_match", "precip_match"),
         ("season_match", "season_match"),
         ("weekday_match", "weekday_match"),
         ("date_distance_decay", "date_distance_decay"),
@@ -257,22 +196,12 @@ def find_similar_days(
     ----
     weather_df : pd.DataFrame
         逐小时天气数据（含历史 + 预报）。
-        需包含 datetime 列及 EXPORT_PARAMS 中的气象参数。
     target_date : datetime
-        目标日期（通常为未来预报日）。
+        目标日期。
     n : int
         返回的相似日数量（默认 3）。
     weights : dict | None
-        8因子权重。默认使用 config.SIMILARITY_WEIGHTS。
-
-    返回
-    ----
-    list[dict]
-        Top-N 相似日（按相似度降序），每项包含：
-        - date, similarity_score (距离), similarity_pct (0-100%)
-        - tmax, tmin, precip_sum, precip_level, rad_daily_sum, dew_point_avg
-        - season_label, weekday_label
-        - distance_components: {因子名: 加权距离分量}
+        6因子权重。默认使用 config.SIMILARITY_WEIGHTS。
     """
     if weights is None:
         weights = SIMILARITY_WEIGHTS
@@ -284,7 +213,6 @@ def find_similar_days(
 
     # 2. 定位目标日
     target_dt = pd.Timestamp(target_date.date() if hasattr(target_date, "date") else target_date)
-
     target_row = daily[daily["date"] == target_dt]
     if target_row.empty:
         return []
@@ -298,19 +226,31 @@ def find_similar_days(
         "dew_point_avg": _safe_get(target_row, "dew_point_avg"),
     }
 
-    # 3. 候选项（仅历史，排除目标日及之后）
-    candidates = daily[daily["date"] < target_dt].copy()
+    # 3. 候选项（排除目标日本身）
+    candidates = daily[daily["date"] != target_dt].copy()
     if candidates.empty:
         return []
 
-    # 4. Min-max 标准化
-    numeric_keys = ["tmax", "tmin", "rad_daily_sum", "dew_point_avg"]
-    norm_target, min_max = normalize_factors(candidates, target_summary, numeric_keys)
+    # 4. 晴雨硬约束：如果目标日是降水日，候选项也必须 > 0.1mm
+    target_is_rainy = (target_summary.get("precip_sum") or 0) >= 0.5
+    if target_is_rainy:
+        rain_candidates = candidates[candidates["precip_sum"] >= 0.3]
+        if len(rain_candidates) >= 10:
+            candidates = rain_candidates
 
-    # 5. 遍历所有候选项计算距离
+    # 5. z-score 标准化
+    numeric_keys = ["tmax", "tmin", "rad_daily_sum", "dew_point_avg"]
+    norm_target, stats = normalize_factors(candidates, target_summary, numeric_keys)
+
+    # 6. 遍历所有候选项计算距离
     results = []
     season_names = ["冬", "春", "夏", "秋"]
     weekday_names = ["一", "二", "三", "四", "五", "六", "日"]
+
+    # 降水归一化：用候选池中的 precip_sum 范围做线性映射
+    precip_vals = candidates["precip_sum"].dropna()
+    precip_min = float(precip_vals.min()) if not precip_vals.empty else 0.0
+    precip_max = max(float(precip_vals.max()), 1.0) if not precip_vals.empty else 1.0
 
     for _, row in candidates.iterrows():
         cand_date = row["date"]
@@ -319,7 +259,7 @@ def find_similar_days(
         else:
             cand_date_py = cand_date
 
-        # 数值因子标准化
+        # 数值因子 z-score 标准化
         cand_summary = {
             "tmax": row.get("tmax"),
             "tmin": row.get("tmin"),
@@ -327,7 +267,7 @@ def find_similar_days(
             "dew_point_avg": row.get("dew_point_avg"),
         }
         norm_cand = {
-            key: _normalize(cand_summary.get(key), min_max[key])
+            key: _zscore(cand_summary.get(key), stats[key])
             for key in numeric_keys
         }
 
@@ -336,12 +276,28 @@ def find_similar_days(
         weekday_val = match_weekday(target_dt, cand_date_py)
         decay_val = compute_date_decay(target_dt, cand_date_py)
 
-        target_plvl = target_summary.get("precip_level", 0)
+        # 降水：连续距离 + 等级交叉
+        # 先用连续值归一化到 [0,1]，再与等级差混合
+        target_p = target_summary.get("precip_sum") or 0.0
+        cand_p = row.get("precip_sum") or 0.0
+        precip_dist = abs(target_p - cand_p)
+        # 对数压缩：降水 mm 差距小的时候精度高，差距大时影响递减
+        if precip_dist <= 1.0:
+            precip_continuous = precip_dist / 5.0  # [0, 0.2]
+        elif precip_dist <= 10.0:
+            precip_continuous = 0.2 + (precip_dist - 1.0) / 45.0  # [0.2, 0.4]
+        else:
+            precip_continuous = min(0.4 + (precip_dist - 10.0) / 200.0, 0.7)
+
         cand_plvl = int(row.get("precip_level", 0))
-        precip_match = abs(target_plvl - cand_plvl) / 5.0  # [0, 1]
+        target_plvl = target_summary.get("precip_level", 0)
+        precip_level_dist = abs(target_plvl - cand_plvl) / 5.0  # [0, 1]
+
+        # 混合距离：连续差异 70% + 等级差异 30%
+        precip_match = 0.7 * precip_continuous + 0.3 * precip_level_dist
 
         candidate_discrete = {
-            "precip_level_match": precip_match,
+            "precip_match": precip_match,
             "season_match": season_val,
             "weekday_match": weekday_val,
             "date_distance_decay": decay_val,
@@ -351,13 +307,12 @@ def find_similar_days(
             norm_target, norm_cand, candidate_discrete, weights,
         )
 
-        # 各因子分量（用于分解图）
         components = {
             "最高温偏差": weights.get("tmax_deviation", 0) * abs(norm_target["tmax"] - norm_cand["tmax"]),
             "最低温偏差": weights.get("tmin_deviation", 0) * abs(norm_target["tmin"] - norm_cand["tmin"]),
             "辐射偏差": weights.get("radiation_deviation", 0) * abs(norm_target["rad_daily_sum"] - norm_cand["rad_daily_sum"]),
             "露点偏差": weights.get("dew_point_deviation", 0) * abs(norm_target["dew_point_avg"] - norm_cand["dew_point_avg"]),
-            "降水等级": weights.get("precip_level_match", 0) * precip_match,
+            "降水差异": weights.get("precip_match", 0) * precip_match,
             "季节匹配": weights.get("season_match", 0) * season_val,
             "星期类型": weights.get("weekday_match", 0) * weekday_val,
             "日期距离": weights.get("date_distance_decay", 0) * decay_val,
@@ -377,7 +332,7 @@ def find_similar_days(
             "distance_components": components,
         })
 
-    # 6. 排序并转换相似度
+    # 7. 排序并转换相似度
     results.sort(key=lambda x: x["similarity_score"])
     max_dist = max(r["similarity_score"] for r in results) if results else 1.0
     for r in results:

@@ -105,17 +105,17 @@ MAX_HISTORY_DAYS = 365          # 历史回溯上限
 TIMEZONE = "Asia/Shanghai"
 
 # ============================================================
-# 相似日因子权重（工业负荷预测标定版，基于395天相关性分析）
-# ============================================================
+# 相似日因子权重（基于395天工业负荷相关性分析标定）
+# 数据: Tmin r=0.694 > Tmax r=0.569 > 露点 r=0.673 > 季节(秋0.76/冬-0.23) > 降水
+# 辐射对工业负荷几乎无关(r≈0), 星期效应仅0.7%, 均下调
 SIMILARITY_WEIGHTS = {
+    "tmin_deviation":         0.25,
     "tmax_deviation":         0.20,
-    "tmin_deviation":         0.20,
-    "precip_level_match":     0.18,
-    "season_match":           0.15,
-    "weekday_match":          0.10,
-    "radiation_deviation":    0.05,
+    "precip_match":           0.18,
+    "season_match":           0.12,
     "date_distance_decay":    0.10,
-    "dew_point_deviation":    0.05,
+    "dew_point_deviation":    0.10,
+    "weekday_match":          0.05,
 }
 
 # 降水等级划分 (mm/day)
