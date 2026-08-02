@@ -908,6 +908,65 @@ with tab4:
                     use_container_width=True,
                 )
 
+                # --- 导出 Excel ---
+                st.divider()
+                st.subheader("📥 导出 24h 负荷数据")
+
+                # 构建导出数据
+                export_rows = []
+                # 相似日实际负荷
+                for day in similar_days:
+                    ds = day["date"].strftime("%Y-%m-%d") if hasattr(day["date"], "strftime") else str(day["date"])
+                    ldf = load_data_map.get(ds)
+                    if ldf is not None and not ldf.empty:
+                        vals = ldf["load_mw"].values[:24] if "load_mw" in ldf.columns else []
+                        if len(vals) == 24:
+                            export_rows.append({
+                                "类型": f"相似日_{ds}",
+                                "相似度": f"{day.get('similarity_pct', 0):.1f}%",
+                                **{f"{h:02d}h": round(vals[h], 2) for h in range(24)},
+                            })
+
+                # 预测负荷
+                all_loads = []
+                for day in similar_days:
+                    ds = day["date"].strftime("%Y-%m-%d") if hasattr(day["date"], "strftime") else str(day["date"])
+                    ldf = load_data_map.get(ds)
+                    if ldf is not None and not ldf.empty:
+                        vals = list(ldf["load_mw"].values[:24]) if "load_mw" in ldf.columns else []
+                        if len(vals) == 24:
+                            w = day.get("similarity_pct", 0) / 100.0
+                            all_loads.append((w, vals))
+
+                if all_loads:
+                    total_w = sum(w for w, _ in all_loads)
+                    if total_w > 0:
+                        pred = [round(sum(w * lv[h] for w, lv in all_loads) / total_w, 2) for h in range(24)]
+                        export_rows.append({
+                            "类型": f"预测_{target_date_str}",
+                            "相似度": "加权平均",
+                            **{f"{h:02d}h": pred[h] for h in range(24)},
+                        })
+
+                if export_rows:
+                    export_df = pd.DataFrame(export_rows)
+                    # 生成 Excel
+                    from io import BytesIO
+                    output = BytesIO()
+                    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+                        export_df.to_excel(writer, sheet_name="24h负荷", index=False)
+                    output.seek(0)
+
+                    st.download_button(
+                        label=f"⬇️ 下载 Excel ({target_date_str})",
+                        data=output,
+                        file_name=f"相似日负荷_{target_date_str}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        use_container_width=True,
+                    )
+                else:
+                    st.caption("暂无负荷数据可导出。")
+
 # ============================================================
 # 自动刷新逻辑
 # ============================================================
