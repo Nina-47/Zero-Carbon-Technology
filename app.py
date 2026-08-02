@@ -653,17 +653,16 @@ with tab4:
 
             with st.spinner("正在加载历史天气候选池..."):
                 # 候选池：从 SQLite weather_hourly 读取全部历史数据
-                one_year_ago = (today - timedelta(days=365)).strftime("%Y-%m-%dT00:00:00")
                 candidate_wx = query_weather_data(
                     [primary_loc],
-                    one_year_ago,
+                    "2025-01-01T00:00:00",
                     (today + timedelta(days=1)).strftime("%Y-%m-%dT00:00:00"),
                     data_types=["historical", "forecast"],
                 )
                 if not candidate_wx.empty and "datetime" in candidate_wx.columns:
                     candidate_wx = candidate_wx[candidate_wx["datetime"].dt.date != target_date]
                     candidate_days = candidate_wx["datetime"].dt.date.nunique()
-                    st.info(f"候选池: {candidate_days} 天")
+                    st.info(f"候选池: {candidate_days} 天 (2025-01-01 ~ {today})")
                     if candidate_days < 30:
                         st.warning(f"⚠️ 候选池仅 {candidate_days} 天，相似日精度受限。")
                 else:
