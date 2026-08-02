@@ -695,8 +695,8 @@ with tab4:
         st.subheader("🎯 选择目标日")
 
         today = datetime.now().date()
-        min_date = datetime.strptime(sim_min, "%Y-%m-%d").date()
-        max_date = min(datetime.strptime(sim_max, "%Y-%m-%d").date(), today + timedelta(days=7))
+        min_date = max(datetime.strptime(sim_min, "%Y-%m-%d").date(), today - timedelta(days=30))
+        max_date = today + timedelta(days=7)
 
         col_t1, col_t2 = st.columns([2, 1])
         with col_t1:
