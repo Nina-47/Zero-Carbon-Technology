@@ -140,7 +140,7 @@ def _seed_weather_db():
                 val = row[h]
                 if pd.isna(val):
                     continue
-                dt = f"{date_val}T{h:02d}:00:00+08:00"
+                dt = f"{date_val}T{h:02d}:00:00"
                 try:
                     _conn.execute(
                         f"INSERT OR REPLACE INTO weather_hourly "
@@ -736,7 +736,8 @@ with tab4:
                 else:
                     combined_wx = pd.concat(
                         [candidate_wx, target_wx], ignore_index=True
-                    ).drop_duplicates(subset=["datetime"]).sort_values("datetime")
+                    ).drop_duplicates(subset=["datetime"])
+                    combined_wx = combined_wx.dropna(subset=["datetime"]).sort_values("datetime")
 
                     candidate_days = candidate_wx["datetime"].dt.date.nunique() if not candidate_wx.empty else 0
                     if candidate_days < 30:
