@@ -129,11 +129,12 @@ def _seed_weather_db():
         df.columns = ["date", "element"] + list(range(24))
 
         _conn = sqlite3.connect(_db_path)
-        # 清空旧数据（可能有 tz-aware datetime 导致排序冲突）
-        _conn.execute("DELETE FROM weather_hourly WHERE source='seed'")
-        # 同时清空旧 API 数据中的 tz 后缀
+        _conn.execute("DELETE FROM weather_hourly")
         _conn.execute("UPDATE weather_hourly SET datetime = REPLACE(datetime, '+08:00', '') WHERE datetime LIKE '%+08:00'")
-        inserted = 0
+
+        # 聚合: (date, hour) → {temperature_2m, precipitation, ...}
+        from collections import defaultdict
+        records = defaultdict(dict)
         for _, row in df.iterrows():
             date_val = str(row["date"])[:10]
             element = str(row["element"])
@@ -145,16 +146,31 @@ def _seed_weather_db():
                 if pd.isna(val):
                     continue
                 dt = f"{date_val}T{h:02d}:00:00"
-                try:
-                    _conn.execute(
-                        f"INSERT OR REPLACE INTO weather_hourly "
-                        f"(location_id, datetime, data_type, source, {col_name}, fetched_at) "
-                        f"VALUES ('zhongshan', ?, 'historical', 'seed', ?, datetime('now'))",
-                        (dt, float(val)),
-                    )
-                    inserted += 1
-                except Exception:
-                    pass
+                records[dt][col_name] = float(val)
+
+        cols = ["location_id", "datetime", "data_type", "source",
+                "temperature_2m", "precipitation", "wind_speed_10m",
+                "wind_direction_10m", "cloud_cover", "shortwave_radiation", "fetched_at"]
+        phs = ",".join(["?"] * len(cols))
+        sql = f"INSERT OR REPLACE INTO weather_hourly ({','.join(cols)}) VALUES ({phs})"
+        now = pd.Timestamp.now().isoformat()
+        inserted = 0
+        for dt, vals in records.items():
+            row = [
+                "zhongshan", dt, "historical", "seed",
+                vals.get("temperature_2m"),
+                vals.get("precipitation"),
+                vals.get("wind_speed_10m"),
+                vals.get("wind_direction_10m"),
+                vals.get("cloud_cover"),
+                vals.get("shortwave_radiation"),
+                now,
+            ]
+            try:
+                _conn.execute(sql, row)
+                inserted += 1
+            except Exception:
+                pass
         _conn.commit()
         _conn.close()
     except Exception:
