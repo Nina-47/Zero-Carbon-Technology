@@ -1,10 +1,6 @@
 # Streamlit
 .streamlit/secrets.toml
 
-# SQLite
-data/weather.db
-*.db
-
 # Python
 __pycache__/
 *.py[cod]

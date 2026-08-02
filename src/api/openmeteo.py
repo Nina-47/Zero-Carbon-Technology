@@ -35,9 +35,10 @@ def fetch_forecast(
     longitude: float,
     location_id: str,
     forecast_days: int = 3,
+    past_days: int = 0,
 ) -> pd.DataFrame:
     """
-    获取逐小时天气预报。
+    获取逐小时天气预报（含近期历史）。
 
     参数
     ----
@@ -47,6 +48,8 @@ def fetch_forecast(
         地点标识。
     forecast_days : int
         预报天数 (默认 3)。
+    past_days : int
+        往回拉的天数（Forecast API 最多支持 92 天）。
 
     返回
     ----
@@ -58,6 +61,7 @@ def fetch_forecast(
         "longitude": longitude,
         "hourly": FORECAST_PARAMS_STR,
         "forecast_days": forecast_days,
+        "past_days": past_days,
         "timezone": TIMEZONE,
     }
     resp = requests.get(
@@ -66,7 +70,8 @@ def fetch_forecast(
         timeout=API_TIMEOUT_SECONDS,
     )
     resp.raise_for_status()
-    return _build_hourly_df(resp.json(), location_id, "forecast")
+    data_type = "historical" if past_days > 0 and forecast_days == 0 else "forecast"
+    return _build_hourly_df(resp.json(), location_id, data_type)
 
 
 def fetch_historical(

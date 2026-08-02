@@ -111,3 +111,29 @@ def fetch_historical_safe(
             pass
 
     return pd.DataFrame()
+
+
+def fetch_past_days_safe(
+    latitude: float,
+    longitude: float,
+    location_id: str,
+    past_days: int = 92,
+    status: DataSourceStatus | None = None,
+) -> pd.DataFrame:
+    """
+    用 Forecast API 的 past_days 参数拉取近期历史（最多 92 天）。
+    这个端点比 Archive API 更稳定，在国内能通。
+    """
+    if status is None:
+        status = DataSourceStatus()
+
+    try:
+        df = om_fetch_forecast(latitude, longitude, location_id, forecast_days=0, past_days=past_days)
+        df["data_type"] = "historical"
+        status.primary_ok = True
+        return df
+    except Exception as e:
+        status.primary_ok = False
+        status.error_message = str(e)
+
+    return pd.DataFrame()
