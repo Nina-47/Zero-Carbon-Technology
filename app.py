@@ -624,6 +624,8 @@ with tab4:
             target_dt = datetime.combine(target_date, datetime.min.time())
             target_date_str = target_date.strftime("%Y-%m-%d")
 
+            loc = LOCATIONS[primary_loc]
+
             with st.spinner("正在获取目标日天气数据..."):
                 if target_date >= today:
                     # 未来日期：从内存预报数据取
@@ -634,23 +636,46 @@ with tab4:
                     else:
                         target_wx = forecast_df[forecast_df["datetime"].dt.date == target_date].copy()
                 else:
-                    # 历史日期：从 SQLite weather_hourly 查询
+                    # 历史日期：从 SQLite 查询，没有则拉 API
                     hist_start = target_date_str + "T00:00:00"
                     hist_end = target_date_str + "T23:59:59"
                     target_wx = query_weather_data(
                         [primary_loc], hist_start, hist_end, data_types=["historical", "forecast"],
                     )
+                    if target_wx.empty:
+                        target_wx = fetch_historical_safe(
+                            loc["latitude"], loc["longitude"], primary_loc,
+                            target_date_str, target_date_str, st.session_state.data_status,
+                        )
+                        if not target_wx.empty:
+                            target_wx = convert_units(target_wx)
+                            insert_weather_data(target_wx)
 
-            with st.spinner("正在查询历史天气候选池..."):
-                # 候选池：SQLite weather_hourly 全部历史（排除目标日本身）
-                candidate_wx = query_weather_data(
-                    [primary_loc],
-                    "2000-01-01T00:00:00",
-                    (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%dT00:00:00"),
-                    data_types=["historical", "forecast"],
+            with st.spinner("正在拉取近一年历史天气候选池..."):
+                # 候选池：直接调 Archive API 拉取过去 365 天逐日数据
+                one_year_ago = (today - timedelta(days=365)).strftime("%Y-%m-%d")
+                yesterday = (today - timedelta(days=1)).strftime("%Y-%m-%d")
+
+                @st.cache_data(ttl=3600, show_spinner=False)
+                def _fetch_yearly_daily(lat, lon, loc_id, start, end):
+                    """拉取一年逐小时数据并聚合为逐日（缓存1小时）"""
+                    raw = fetch_historical_safe(lat, lon, loc_id, start, end, DataSourceStatus())
+                    if raw.empty:
+                        return raw
+                    raw = convert_units(raw)
+                    raw["date"] = raw["datetime"].dt.date
+                    return raw
+
+                candidate_wx = _fetch_yearly_daily(
+                    loc["latitude"], loc["longitude"], primary_loc,
+                    one_year_ago, yesterday,
                 )
                 if not candidate_wx.empty and "datetime" in candidate_wx.columns:
                     candidate_wx = candidate_wx[candidate_wx["datetime"].dt.date != target_date]
+
+                # 写入 SQLite 供后续复用
+                if not candidate_wx.empty:
+                    _ = insert_weather_data(candidate_wx)
 
             with st.spinner("正在计算相似日..."):
                 if target_wx.empty:
@@ -661,6 +686,10 @@ with tab4:
                     combined_wx = pd.concat(
                         [candidate_wx, target_wx], ignore_index=True
                     ).drop_duplicates(subset=["datetime"]).sort_values("datetime")
+
+                    candidate_days = candidate_wx["datetime"].dt.date.nunique() if not candidate_wx.empty else 0
+                    if candidate_days < 30:
+                        st.info(f"⚠️ 历史天气数据仅 {candidate_days} 天，候选池较小，相似日精度可能受限。")
 
                     target_daily = compute_daily_weather(target_wx)
                     similar_days = find_similar_days(combined_wx, target_dt, n=3)
