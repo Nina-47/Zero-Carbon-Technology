@@ -717,9 +717,12 @@ with tab4:
             target_date_str = target_date.strftime("%Y-%m-%d")
 
             if target_date_str not in similarity_db:
-                # 未来日期：用侧边栏已有的预报天气 + 同季节历史日匹配
-                if not primary_data.empty:
-                    target_wx = primary_data[primary_data["datetime"].dt.date == target_date].copy()
+                # 不在预计算库中：用侧边栏已有的天气数据实时匹配
+                st.info(f"目标日 {target_date_str} 不在预计算库中，使用实时天气数据匹配。")
+                if not primary_data.empty and "datetime" in primary_data.columns:
+                    target_wx = primary_data[
+                        primary_data["datetime"].apply(lambda x: str(x)[:10]) == target_date_str
+                    ].copy()
                     if target_wx.empty:
                         st.warning(f"目标日 {target_date_str} 暂无天气数据。")
                     else:
