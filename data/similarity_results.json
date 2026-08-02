@@ -1,7 +1,5184 @@
 {
-  "generated": "2026-08-02T22:38:46.209377",
+  "generated": "2026-08-02T23:05:51.554550",
   "total_days": 575,
   "top_n": 5,
+  "features": {
+    "2025-01-01": {
+      "tmax": 19.7,
+      "tmin": 13.5,
+      "tavg": 16.64,
+      "precip_sum": 0.0,
+      "rad_sum": 8.0,
+      "wind_avg": 5.79,
+      "cloud_avg": 66.33
+    },
+    "2025-01-02": {
+      "tmax": 22.7,
+      "tmin": 13.7,
+      "tavg": 17.67,
+      "precip_sum": 0.0,
+      "rad_sum": 10.22,
+      "wind_avg": 7.03,
+      "cloud_avg": 42.54
+    },
+    "2025-01-03": {
+      "tmax": 21.6,
+      "tmin": 10.9,
+      "tavg": 16.19,
+      "precip_sum": 0.0,
+      "rad_sum": 16.54,
+      "wind_avg": 10.32,
+      "cloud_avg": 5.58
+    },
+    "2025-01-04": {
+      "tmax": 20.8,
+      "tmin": 9.4,
+      "tavg": 15.65,
+      "precip_sum": 0.0,
+      "rad_sum": 16.42,
+      "wind_avg": 6.91,
+      "cloud_avg": 24.58
+    },
+    "2025-01-05": {
+      "tmax": 23.0,
+      "tmin": 14.2,
+      "tavg": 18.0,
+      "precip_sum": 0.3,
+      "rad_sum": 15.74,
+      "wind_avg": 7.6,
+      "cloud_avg": 32.46
+    },
+    "2025-01-06": {
+      "tmax": 22.1,
+      "tmin": 11.0,
+      "tavg": 15.95,
+      "precip_sum": 0.0,
+      "rad_sum": 16.65,
+      "wind_avg": 6.83,
+      "cloud_avg": 0.0
+    },
+    "2025-01-07": {
+      "tmax": 21.9,
+      "tmin": 12.0,
+      "tavg": 16.36,
+      "precip_sum": 0.0,
+      "rad_sum": 16.02,
+      "wind_avg": 8.13,
+      "cloud_avg": 3.08
+    },
+    "2025-01-08": {
+      "tmax": 22.8,
+      "tmin": 11.9,
+      "tavg": 17.1,
+      "precip_sum": 0.0,
+      "rad_sum": 16.26,
+      "wind_avg": 7.08,
+      "cloud_avg": 3.54
+    },
+    "2025-01-09": {
+      "tmax": 22.0,
+      "tmin": 11.3,
+      "tavg": 16.61,
+      "precip_sum": 0.0,
+      "rad_sum": 16.37,
+      "wind_avg": 10.22,
+      "cloud_avg": 0.83
+    },
+    "2025-01-10": {
+      "tmax": 17.2,
+      "tmin": 8.0,
+      "tavg": 12.85,
+      "precip_sum": 0.0,
+      "rad_sum": 16.43,
+      "wind_avg": 12.72,
+      "cloud_avg": 0.17
+    },
+    "2025-01-11": {
+      "tmax": 17.0,
+      "tmin": 6.9,
+      "tavg": 11.92,
+      "precip_sum": 0.0,
+      "rad_sum": 16.27,
+      "wind_avg": 12.65,
+      "cloud_avg": 3.92
+    },
+    "2025-01-12": {
+      "tmax": 18.4,
+      "tmin": 6.1,
+      "tavg": 12.23,
+      "precip_sum": 0.0,
+      "rad_sum": 17.64,
+      "wind_avg": 8.93,
+      "cloud_avg": 7.25
+    },
+    "2025-01-13": {
+      "tmax": 20.6,
+      "tmin": 7.7,
+      "tavg": 14.34,
+      "precip_sum": 0.0,
+      "rad_sum": 14.31,
+      "wind_avg": 7.38,
+      "cloud_avg": 43.38
+    },
+    "2025-01-14": {
+      "tmax": 22.8,
+      "tmin": 14.7,
+      "tavg": 18.51,
+      "precip_sum": 0.0,
+      "rad_sum": 9.56,
+      "wind_avg": 9.2,
+      "cloud_avg": 86.25
+    },
+    "2025-01-15": {
+      "tmax": 21.7,
+      "tmin": 15.4,
+      "tavg": 18.49,
+      "precip_sum": 0.0,
+      "rad_sum": 11.66,
+      "wind_avg": 13.55,
+      "cloud_avg": 45.71
+    },
+    "2025-01-16": {
+      "tmax": 20.1,
+      "tmin": 9.4,
+      "tavg": 14.89,
+      "precip_sum": 0.0,
+      "rad_sum": 17.14,
+      "wind_avg": 10.55,
+      "cloud_avg": 0.0
+    },
+    "2025-01-17": {
+      "tmax": 19.2,
+      "tmin": 8.7,
+      "tavg": 13.81,
+      "precip_sum": 0.0,
+      "rad_sum": 17.44,
+      "wind_avg": 8.72,
+      "cloud_avg": 0.0
+    },
+    "2025-01-18": {
+      "tmax": 21.6,
+      "tmin": 9.0,
+      "tavg": 14.8,
+      "precip_sum": 0.0,
+      "rad_sum": 17.12,
+      "wind_avg": 5.26,
+      "cloud_avg": 1.33
+    },
+    "2025-01-19": {
+      "tmax": 22.7,
+      "tmin": 8.7,
+      "tavg": 15.16,
+      "precip_sum": 0.0,
+      "rad_sum": 17.31,
+      "wind_avg": 3.64,
+      "cloud_avg": 0.83
+    },
+    "2025-01-20": {
+      "tmax": 22.5,
+      "tmin": 10.2,
+      "tavg": 15.81,
+      "precip_sum": 0.0,
+      "rad_sum": 17.3,
+      "wind_avg": 4.3,
+      "cloud_avg": 0.04
+    },
+    "2025-01-21": {
+      "tmax": 22.1,
+      "tmin": 10.3,
+      "tavg": 16.0,
+      "precip_sum": 0.0,
+      "rad_sum": 15.24,
+      "wind_avg": 7.01,
+      "cloud_avg": 37.04
+    },
+    "2025-01-22": {
+      "tmax": 21.4,
+      "tmin": 14.2,
+      "tavg": 17.69,
+      "precip_sum": 5.1,
+      "rad_sum": 11.57,
+      "wind_avg": 9.3,
+      "cloud_avg": 92.33
+    },
+    "2025-01-23": {
+      "tmax": 23.0,
+      "tmin": 15.5,
+      "tavg": 18.75,
+      "precip_sum": 0.1,
+      "rad_sum": 11.36,
+      "wind_avg": 5.89,
+      "cloud_avg": 59.21
+    },
+    "2025-01-24": {
+      "tmax": 23.2,
+      "tmin": 15.5,
+      "tavg": 18.36,
+      "precip_sum": 0.0,
+      "rad_sum": 12.57,
+      "wind_avg": 9.48,
+      "cloud_avg": 38.75
+    },
+    "2025-01-25": {
+      "tmax": 22.3,
+      "tmin": 15.0,
+      "tavg": 17.91,
+      "precip_sum": 0.0,
+      "rad_sum": 16.83,
+      "wind_avg": 11.04,
+      "cloud_avg": 8.04
+    },
+    "2025-01-26": {
+      "tmax": 16.3,
+      "tmin": 9.5,
+      "tavg": 12.15,
+      "precip_sum": 3.3,
+      "rad_sum": 3.48,
+      "wind_avg": 16.09,
+      "cloud_avg": 81.08
+    },
+    "2025-01-27": {
+      "tmax": 17.6,
+      "tmin": 7.7,
+      "tavg": 12.38,
+      "precip_sum": 0.0,
+      "rad_sum": 18.66,
+      "wind_avg": 13.98,
+      "cloud_avg": 32.62
+    },
+    "2025-01-28": {
+      "tmax": 19.6,
+      "tmin": 9.6,
+      "tavg": 14.25,
+      "precip_sum": 0.0,
+      "rad_sum": 18.6,
+      "wind_avg": 9.75,
+      "cloud_avg": 34.42
+    },
+    "2025-01-29": {
+      "tmax": 20.1,
+      "tmin": 10.7,
+      "tavg": 14.8,
+      "precip_sum": 0.0,
+      "rad_sum": 15.92,
+      "wind_avg": 8.06,
+      "cloud_avg": 38.21
+    },
+    "2025-01-30": {
+      "tmax": 20.8,
+      "tmin": 12.6,
+      "tavg": 15.97,
+      "precip_sum": 0.0,
+      "rad_sum": 15.36,
+      "wind_avg": 10.24,
+      "cloud_avg": 34.67
+    },
+    "2025-01-31": {
+      "tmax": 24.6,
+      "tmin": 14.6,
+      "tavg": 18.66,
+      "precip_sum": 0.2,
+      "rad_sum": 15.87,
+      "wind_avg": 10.64,
+      "cloud_avg": 54.04
+    },
+    "2025-02-01": {
+      "tmax": 24.4,
+      "tmin": 15.8,
+      "tavg": 20.03,
+      "precip_sum": 0.4,
+      "rad_sum": 8.99,
+      "wind_avg": 4.88,
+      "cloud_avg": 90.46
+    },
+    "2025-02-02": {
+      "tmax": 22.8,
+      "tmin": 15.2,
+      "tavg": 19.32,
+      "precip_sum": 2.6,
+      "rad_sum": 8.95,
+      "wind_avg": 6.78,
+      "cloud_avg": 88.38
+    },
+    "2025-02-03": {
+      "tmax": 17.0,
+      "tmin": 12.1,
+      "tavg": 13.9,
+      "precip_sum": 5.2,
+      "rad_sum": 10.17,
+      "wind_avg": 13.92,
+      "cloud_avg": 82.79
+    },
+    "2025-02-04": {
+      "tmax": 17.8,
+      "tmin": 8.2,
+      "tavg": 12.54,
+      "precip_sum": 0.0,
+      "rad_sum": 14.54,
+      "wind_avg": 9.43,
+      "cloud_avg": 59.71
+    },
+    "2025-02-05": {
+      "tmax": 18.4,
+      "tmin": 9.9,
+      "tavg": 14.24,
+      "precip_sum": 0.0,
+      "rad_sum": 12.69,
+      "wind_avg": 6.0,
+      "cloud_avg": 57.42
+    },
+    "2025-02-06": {
+      "tmax": 20.6,
+      "tmin": 13.0,
+      "tavg": 16.56,
+      "precip_sum": 0.1,
+      "rad_sum": 13.78,
+      "wind_avg": 6.93,
+      "cloud_avg": 87.67
+    },
+    "2025-02-07": {
+      "tmax": 15.7,
+      "tmin": 11.1,
+      "tavg": 13.38,
+      "precip_sum": 0.0,
+      "rad_sum": 8.85,
+      "wind_avg": 13.95,
+      "cloud_avg": 87.33
+    },
+    "2025-02-08": {
+      "tmax": 16.3,
+      "tmin": 8.2,
+      "tavg": 11.75,
+      "precip_sum": 0.0,
+      "rad_sum": 17.14,
+      "wind_avg": 13.2,
+      "cloud_avg": 38.29
+    },
+    "2025-02-09": {
+      "tmax": 16.2,
+      "tmin": 5.4,
+      "tavg": 10.85,
+      "precip_sum": 0.0,
+      "rad_sum": 19.48,
+      "wind_avg": 7.98,
+      "cloud_avg": 7.08
+    },
+    "2025-02-10": {
+      "tmax": 20.3,
+      "tmin": 9.5,
+      "tavg": 14.36,
+      "precip_sum": 0.0,
+      "rad_sum": 19.2,
+      "wind_avg": 7.7,
+      "cloud_avg": 2.33
+    },
+    "2025-02-11": {
+      "tmax": 22.9,
+      "tmin": 13.6,
+      "tavg": 17.75,
+      "precip_sum": 0.2,
+      "rad_sum": 12.64,
+      "wind_avg": 8.4,
+      "cloud_avg": 82.5
+    },
+    "2025-02-12": {
+      "tmax": 22.0,
+      "tmin": 16.8,
+      "tavg": 18.85,
+      "precip_sum": 2.0,
+      "rad_sum": 4.89,
+      "wind_avg": 4.9,
+      "cloud_avg": 75.79
+    },
+    "2025-02-13": {
+      "tmax": 21.2,
+      "tmin": 13.3,
+      "tavg": 17.53,
+      "precip_sum": 0.6,
+      "rad_sum": 11.31,
+      "wind_avg": 9.36,
+      "cloud_avg": 56.08
+    },
+    "2025-02-14": {
+      "tmax": 22.8,
+      "tmin": 13.9,
+      "tavg": 17.69,
+      "precip_sum": 0.0,
+      "rad_sum": 13.4,
+      "wind_avg": 7.53,
+      "cloud_avg": 71.83
+    },
+    "2025-02-15": {
+      "tmax": 24.1,
+      "tmin": 14.3,
+      "tavg": 19.32,
+      "precip_sum": 0.4,
+      "rad_sum": 11.18,
+      "wind_avg": 5.61,
+      "cloud_avg": 57.71
+    },
+    "2025-02-16": {
+      "tmax": 26.7,
+      "tmin": 16.6,
+      "tavg": 21.07,
+      "precip_sum": 0.1,
+      "rad_sum": 14.9,
+      "wind_avg": 7.1,
+      "cloud_avg": 54.29
+    },
+    "2025-02-17": {
+      "tmax": 23.7,
+      "tmin": 15.1,
+      "tavg": 18.62,
+      "precip_sum": 0.0,
+      "rad_sum": 11.25,
+      "wind_avg": 7.85,
+      "cloud_avg": 74.42
+    },
+    "2025-02-18": {
+      "tmax": 23.3,
+      "tmin": 15.7,
+      "tavg": 18.7,
+      "precip_sum": 0.0,
+      "rad_sum": 13.35,
+      "wind_avg": 6.9,
+      "cloud_avg": 76.21
+    },
+    "2025-02-19": {
+      "tmax": 21.7,
+      "tmin": 15.5,
+      "tavg": 17.94,
+      "precip_sum": 0.0,
+      "rad_sum": 15.79,
+      "wind_avg": 9.57,
+      "cloud_avg": 65.17
+    },
+    "2025-02-20": {
+      "tmax": 24.9,
+      "tmin": 16.2,
+      "tavg": 19.13,
+      "precip_sum": 0.0,
+      "rad_sum": 13.97,
+      "wind_avg": 10.02,
+      "cloud_avg": 48.79
+    },
+    "2025-02-21": {
+      "tmax": 21.3,
+      "tmin": 15.8,
+      "tavg": 17.97,
+      "precip_sum": 0.0,
+      "rad_sum": 9.24,
+      "wind_avg": 8.6,
+      "cloud_avg": 80.29
+    },
+    "2025-02-22": {
+      "tmax": 20.5,
+      "tmin": 15.6,
+      "tavg": 17.4,
+      "precip_sum": 0.4,
+      "rad_sum": 7.65,
+      "wind_avg": 6.54,
+      "cloud_avg": 92.79
+    },
+    "2025-02-23": {
+      "tmax": 18.4,
+      "tmin": 14.0,
+      "tavg": 16.27,
+      "precip_sum": 0.0,
+      "rad_sum": 10.53,
+      "wind_avg": 12.09,
+      "cloud_avg": 96.08
+    },
+    "2025-02-24": {
+      "tmax": 19.1,
+      "tmin": 8.8,
+      "tavg": 14.02,
+      "precip_sum": 0.0,
+      "rad_sum": 19.57,
+      "wind_avg": 10.69,
+      "cloud_avg": 30.42
+    },
+    "2025-02-25": {
+      "tmax": 17.0,
+      "tmin": 13.4,
+      "tavg": 14.68,
+      "precip_sum": 5.9,
+      "rad_sum": 5.65,
+      "wind_avg": 8.82,
+      "cloud_avg": 89.92
+    },
+    "2025-02-26": {
+      "tmax": 17.3,
+      "tmin": 13.0,
+      "tavg": 15.05,
+      "precip_sum": 6.3,
+      "rad_sum": 5.32,
+      "wind_avg": 5.69,
+      "cloud_avg": 99.75
+    },
+    "2025-02-27": {
+      "tmax": 23.4,
+      "tmin": 13.5,
+      "tavg": 17.85,
+      "precip_sum": 1.4,
+      "rad_sum": 11.78,
+      "wind_avg": 6.03,
+      "cloud_avg": 65.5
+    },
+    "2025-02-28": {
+      "tmax": 26.6,
+      "tmin": 13.9,
+      "tavg": 19.55,
+      "precip_sum": 0.0,
+      "rad_sum": 16.26,
+      "wind_avg": 8.12,
+      "cloud_avg": 35.12
+    },
+    "2025-03-01": {
+      "tmax": 26.5,
+      "tmin": 18.8,
+      "tavg": 21.74,
+      "precip_sum": 0.7,
+      "rad_sum": 13.68,
+      "wind_avg": 9.72,
+      "cloud_avg": 93.12
+    },
+    "2025-03-02": {
+      "tmax": 29.0,
+      "tmin": 20.5,
+      "tavg": 23.46,
+      "precip_sum": 0.0,
+      "rad_sum": 18.05,
+      "wind_avg": 10.57,
+      "cloud_avg": 59.29
+    },
+    "2025-03-03": {
+      "tmax": 27.8,
+      "tmin": 20.0,
+      "tavg": 23.23,
+      "precip_sum": 0.9,
+      "rad_sum": 10.94,
+      "wind_avg": 9.07,
+      "cloud_avg": 86.58
+    },
+    "2025-03-04": {
+      "tmax": 28.5,
+      "tmin": 18.4,
+      "tavg": 22.18,
+      "precip_sum": 28.7,
+      "rad_sum": 12.36,
+      "wind_avg": 9.5,
+      "cloud_avg": 89.67
+    },
+    "2025-03-05": {
+      "tmax": 18.5,
+      "tmin": 13.3,
+      "tavg": 16.42,
+      "precip_sum": 2.9,
+      "rad_sum": 4.14,
+      "wind_avg": 10.49,
+      "cloud_avg": 100.0
+    },
+    "2025-03-06": {
+      "tmax": 16.3,
+      "tmin": 11.0,
+      "tavg": 12.93,
+      "precip_sum": 3.6,
+      "rad_sum": 6.45,
+      "wind_avg": 13.1,
+      "cloud_avg": 100.0
+    },
+    "2025-03-07": {
+      "tmax": 16.5,
+      "tmin": 9.9,
+      "tavg": 12.34,
+      "precip_sum": 4.0,
+      "rad_sum": 8.76,
+      "wind_avg": 12.14,
+      "cloud_avg": 98.54
+    },
+    "2025-03-08": {
+      "tmax": 19.3,
+      "tmin": 10.0,
+      "tavg": 14.52,
+      "precip_sum": 0.0,
+      "rad_sum": 13.9,
+      "wind_avg": 6.62,
+      "cloud_avg": 53.29
+    },
+    "2025-03-09": {
+      "tmax": 22.7,
+      "tmin": 12.5,
+      "tavg": 17.33,
+      "precip_sum": 0.0,
+      "rad_sum": 20.06,
+      "wind_avg": 6.35,
+      "cloud_avg": 37.12
+    },
+    "2025-03-10": {
+      "tmax": 25.3,
+      "tmin": 15.1,
+      "tavg": 19.74,
+      "precip_sum": 0.0,
+      "rad_sum": 16.3,
+      "wind_avg": 6.92,
+      "cloud_avg": 44.5
+    },
+    "2025-03-11": {
+      "tmax": 26.5,
+      "tmin": 16.3,
+      "tavg": 20.98,
+      "precip_sum": 0.0,
+      "rad_sum": 14.04,
+      "wind_avg": 7.18,
+      "cloud_avg": 36.46
+    },
+    "2025-03-12": {
+      "tmax": 27.5,
+      "tmin": 17.2,
+      "tavg": 21.92,
+      "precip_sum": 0.0,
+      "rad_sum": 13.12,
+      "wind_avg": 7.0,
+      "cloud_avg": 40.42
+    },
+    "2025-03-13": {
+      "tmax": 28.5,
+      "tmin": 19.4,
+      "tavg": 23.49,
+      "precip_sum": 0.6,
+      "rad_sum": 12.89,
+      "wind_avg": 5.0,
+      "cloud_avg": 79.79
+    },
+    "2025-03-14": {
+      "tmax": 26.8,
+      "tmin": 20.8,
+      "tavg": 23.12,
+      "precip_sum": 0.7,
+      "rad_sum": 12.42,
+      "wind_avg": 10.08,
+      "cloud_avg": 85.75
+    },
+    "2025-03-15": {
+      "tmax": 24.1,
+      "tmin": 15.7,
+      "tavg": 20.8,
+      "precip_sum": 10.9,
+      "rad_sum": 6.24,
+      "wind_avg": 9.82,
+      "cloud_avg": 96.25
+    },
+    "2025-03-16": {
+      "tmax": 20.3,
+      "tmin": 12.2,
+      "tavg": 15.87,
+      "precip_sum": 0.1,
+      "rad_sum": 19.71,
+      "wind_avg": 16.15,
+      "cloud_avg": 25.29
+    },
+    "2025-03-17": {
+      "tmax": 18.4,
+      "tmin": 11.4,
+      "tavg": 14.92,
+      "precip_sum": 0.0,
+      "rad_sum": 14.1,
+      "wind_avg": 9.3,
+      "cloud_avg": 67.08
+    },
+    "2025-03-18": {
+      "tmax": 20.9,
+      "tmin": 12.9,
+      "tavg": 16.02,
+      "precip_sum": 1.6,
+      "rad_sum": 18.99,
+      "wind_avg": 8.7,
+      "cloud_avg": 57.88
+    },
+    "2025-03-19": {
+      "tmax": 21.8,
+      "tmin": 11.0,
+      "tavg": 15.94,
+      "precip_sum": 0.0,
+      "rad_sum": 22.46,
+      "wind_avg": 6.32,
+      "cloud_avg": 45.38
+    },
+    "2025-03-20": {
+      "tmax": 23.3,
+      "tmin": 11.9,
+      "tavg": 17.18,
+      "precip_sum": 0.0,
+      "rad_sum": 22.66,
+      "wind_avg": 6.57,
+      "cloud_avg": 38.21
+    },
+    "2025-03-21": {
+      "tmax": 24.6,
+      "tmin": 12.2,
+      "tavg": 18.05,
+      "precip_sum": 0.0,
+      "rad_sum": 22.38,
+      "wind_avg": 6.38,
+      "cloud_avg": 35.75
+    },
+    "2025-03-22": {
+      "tmax": 26.2,
+      "tmin": 12.7,
+      "tavg": 19.15,
+      "precip_sum": 0.0,
+      "rad_sum": 22.54,
+      "wind_avg": 5.34,
+      "cloud_avg": 35.33
+    },
+    "2025-03-23": {
+      "tmax": 27.9,
+      "tmin": 12.6,
+      "tavg": 19.9,
+      "precip_sum": 0.0,
+      "rad_sum": 22.22,
+      "wind_avg": 4.91,
+      "cloud_avg": 9.29
+    },
+    "2025-03-24": {
+      "tmax": 30.5,
+      "tmin": 15.1,
+      "tavg": 22.09,
+      "precip_sum": 0.0,
+      "rad_sum": 22.58,
+      "wind_avg": 6.99,
+      "cloud_avg": 0.0
+    },
+    "2025-03-25": {
+      "tmax": 32.1,
+      "tmin": 16.6,
+      "tavg": 23.54,
+      "precip_sum": 0.0,
+      "rad_sum": 22.79,
+      "wind_avg": 7.68,
+      "cloud_avg": 3.38
+    },
+    "2025-03-26": {
+      "tmax": 30.2,
+      "tmin": 19.2,
+      "tavg": 23.7,
+      "precip_sum": 0.0,
+      "rad_sum": 21.9,
+      "wind_avg": 12.12,
+      "cloud_avg": 6.83
+    },
+    "2025-03-27": {
+      "tmax": 30.8,
+      "tmin": 19.9,
+      "tavg": 24.82,
+      "precip_sum": 0.8,
+      "rad_sum": 17.07,
+      "wind_avg": 13.95,
+      "cloud_avg": 67.96
+    },
+    "2025-03-28": {
+      "tmax": 26.0,
+      "tmin": 17.2,
+      "tavg": 23.03,
+      "precip_sum": 20.4,
+      "rad_sum": 8.86,
+      "wind_avg": 9.13,
+      "cloud_avg": 96.08
+    },
+    "2025-03-29": {
+      "tmax": 16.8,
+      "tmin": 11.5,
+      "tavg": 14.26,
+      "precip_sum": 1.1,
+      "rad_sum": 5.1,
+      "wind_avg": 13.94,
+      "cloud_avg": 100.0
+    },
+    "2025-03-30": {
+      "tmax": 12.5,
+      "tmin": 10.2,
+      "tavg": 11.05,
+      "precip_sum": 6.8,
+      "rad_sum": 4.51,
+      "wind_avg": 13.26,
+      "cloud_avg": 100.0
+    },
+    "2025-03-31": {
+      "tmax": 13.1,
+      "tmin": 9.6,
+      "tavg": 11.02,
+      "precip_sum": 2.3,
+      "rad_sum": 4.97,
+      "wind_avg": 11.36,
+      "cloud_avg": 100.0
+    },
+    "2025-04-01": {
+      "tmax": 23.5,
+      "tmin": 9.8,
+      "tavg": 14.62,
+      "precip_sum": 0.5,
+      "rad_sum": 19.31,
+      "wind_avg": 10.06,
+      "cloud_avg": 58.5
+    },
+    "2025-04-02": {
+      "tmax": 22.2,
+      "tmin": 11.3,
+      "tavg": 16.75,
+      "precip_sum": 0.0,
+      "rad_sum": 23.5,
+      "wind_avg": 6.95,
+      "cloud_avg": 46.38
+    },
+    "2025-04-03": {
+      "tmax": 25.3,
+      "tmin": 12.2,
+      "tavg": 18.6,
+      "precip_sum": 0.0,
+      "rad_sum": 23.59,
+      "wind_avg": 5.44,
+      "cloud_avg": 1.42
+    },
+    "2025-04-04": {
+      "tmax": 23.9,
+      "tmin": 15.9,
+      "tavg": 19.76,
+      "precip_sum": 0.2,
+      "rad_sum": 14.17,
+      "wind_avg": 8.72,
+      "cloud_avg": 56.96
+    },
+    "2025-04-05": {
+      "tmax": 21.3,
+      "tmin": 18.4,
+      "tavg": 19.48,
+      "precip_sum": 1.5,
+      "rad_sum": 5.27,
+      "wind_avg": 6.79,
+      "cloud_avg": 100.0
+    },
+    "2025-04-06": {
+      "tmax": 24.1,
+      "tmin": 17.5,
+      "tavg": 20.47,
+      "precip_sum": 0.0,
+      "rad_sum": 10.5,
+      "wind_avg": 4.66,
+      "cloud_avg": 93.12
+    },
+    "2025-04-07": {
+      "tmax": 26.9,
+      "tmin": 16.0,
+      "tavg": 21.02,
+      "precip_sum": 0.0,
+      "rad_sum": 23.06,
+      "wind_avg": 6.55,
+      "cloud_avg": 40.38
+    },
+    "2025-04-08": {
+      "tmax": 30.2,
+      "tmin": 16.7,
+      "tavg": 22.44,
+      "precip_sum": 0.0,
+      "rad_sum": 20.32,
+      "wind_avg": 5.88,
+      "cloud_avg": 65.67
+    },
+    "2025-04-09": {
+      "tmax": 30.1,
+      "tmin": 19.5,
+      "tavg": 24.08,
+      "precip_sum": 1.1,
+      "rad_sum": 17.38,
+      "wind_avg": 7.6,
+      "cloud_avg": 82.96
+    },
+    "2025-04-10": {
+      "tmax": 30.4,
+      "tmin": 22.0,
+      "tavg": 25.23,
+      "precip_sum": 0.0,
+      "rad_sum": 14.57,
+      "wind_avg": 6.92,
+      "cloud_avg": 83.67
+    },
+    "2025-04-11": {
+      "tmax": 31.5,
+      "tmin": 21.4,
+      "tavg": 25.82,
+      "precip_sum": 0.2,
+      "rad_sum": 17.8,
+      "wind_avg": 12.24,
+      "cloud_avg": 61.88
+    },
+    "2025-04-12": {
+      "tmax": 29.3,
+      "tmin": 19.3,
+      "tavg": 24.12,
+      "precip_sum": 26.0,
+      "rad_sum": 8.64,
+      "wind_avg": 17.01,
+      "cloud_avg": 99.71
+    },
+    "2025-04-13": {
+      "tmax": 22.9,
+      "tmin": 16.6,
+      "tavg": 19.38,
+      "precip_sum": 0.0,
+      "rad_sum": 12.81,
+      "wind_avg": 10.7,
+      "cloud_avg": 83.83
+    },
+    "2025-04-14": {
+      "tmax": 28.1,
+      "tmin": 14.3,
+      "tavg": 20.74,
+      "precip_sum": 0.0,
+      "rad_sum": 23.04,
+      "wind_avg": 6.12,
+      "cloud_avg": 60.33
+    },
+    "2025-04-15": {
+      "tmax": 31.1,
+      "tmin": 16.2,
+      "tavg": 23.43,
+      "precip_sum": 0.0,
+      "rad_sum": 25.38,
+      "wind_avg": 8.35,
+      "cloud_avg": 62.88
+    },
+    "2025-04-16": {
+      "tmax": 28.8,
+      "tmin": 17.4,
+      "tavg": 22.95,
+      "precip_sum": 0.0,
+      "rad_sum": 24.37,
+      "wind_avg": 9.65,
+      "cloud_avg": 74.21
+    },
+    "2025-04-17": {
+      "tmax": 29.5,
+      "tmin": 18.7,
+      "tavg": 23.87,
+      "precip_sum": 0.1,
+      "rad_sum": 19.26,
+      "wind_avg": 9.34,
+      "cloud_avg": 98.5
+    },
+    "2025-04-18": {
+      "tmax": 30.4,
+      "tmin": 22.2,
+      "tavg": 25.35,
+      "precip_sum": 2.7,
+      "rad_sum": 9.51,
+      "wind_avg": 10.59,
+      "cloud_avg": 99.46
+    },
+    "2025-04-19": {
+      "tmax": 31.5,
+      "tmin": 24.5,
+      "tavg": 26.84,
+      "precip_sum": 1.2,
+      "rad_sum": 14.8,
+      "wind_avg": 13.53,
+      "cloud_avg": 95.96
+    },
+    "2025-04-20": {
+      "tmax": 31.7,
+      "tmin": 24.7,
+      "tavg": 27.17,
+      "precip_sum": 0.0,
+      "rad_sum": 20.73,
+      "wind_avg": 10.4,
+      "cloud_avg": 91.29
+    },
+    "2025-04-21": {
+      "tmax": 31.4,
+      "tmin": 24.3,
+      "tavg": 27.04,
+      "precip_sum": 0.1,
+      "rad_sum": 22.8,
+      "wind_avg": 13.43,
+      "cloud_avg": 55.75
+    },
+    "2025-04-22": {
+      "tmax": 33.1,
+      "tmin": 24.3,
+      "tavg": 27.94,
+      "precip_sum": 0.4,
+      "rad_sum": 20.41,
+      "wind_avg": 14.5,
+      "cloud_avg": 63.79
+    },
+    "2025-04-23": {
+      "tmax": 33.5,
+      "tmin": 24.8,
+      "tavg": 28.2,
+      "precip_sum": 2.1,
+      "rad_sum": 15.63,
+      "wind_avg": 8.99,
+      "cloud_avg": 93.92
+    },
+    "2025-04-24": {
+      "tmax": 33.5,
+      "tmin": 23.5,
+      "tavg": 27.77,
+      "precip_sum": 13.8,
+      "rad_sum": 20.95,
+      "wind_avg": 10.64,
+      "cloud_avg": 76.67
+    },
+    "2025-04-25": {
+      "tmax": 24.8,
+      "tmin": 21.9,
+      "tavg": 23.28,
+      "precip_sum": 13.2,
+      "rad_sum": 5.9,
+      "wind_avg": 7.48,
+      "cloud_avg": 98.54
+    },
+    "2025-04-26": {
+      "tmax": 26.0,
+      "tmin": 20.7,
+      "tavg": 23.23,
+      "precip_sum": 0.8,
+      "rad_sum": 13.0,
+      "wind_avg": 11.52,
+      "cloud_avg": 93.42
+    },
+    "2025-04-27": {
+      "tmax": 28.2,
+      "tmin": 22.4,
+      "tavg": 24.63,
+      "precip_sum": 6.9,
+      "rad_sum": 14.85,
+      "wind_avg": 11.05,
+      "cloud_avg": 93.12
+    },
+    "2025-04-28": {
+      "tmax": 30.7,
+      "tmin": 22.9,
+      "tavg": 26.1,
+      "precip_sum": 2.0,
+      "rad_sum": 20.24,
+      "wind_avg": 5.94,
+      "cloud_avg": 84.58
+    },
+    "2025-04-29": {
+      "tmax": 29.1,
+      "tmin": 22.0,
+      "tavg": 24.9,
+      "precip_sum": 0.0,
+      "rad_sum": 22.58,
+      "wind_avg": 9.53,
+      "cloud_avg": 49.79
+    },
+    "2025-04-30": {
+      "tmax": 29.6,
+      "tmin": 21.4,
+      "tavg": 25.06,
+      "precip_sum": 0.9,
+      "rad_sum": 20.1,
+      "wind_avg": 8.02,
+      "cloud_avg": 65.25
+    },
+    "2025-05-01": {
+      "tmax": 28.6,
+      "tmin": 22.6,
+      "tavg": 24.87,
+      "precip_sum": 3.3,
+      "rad_sum": 11.34,
+      "wind_avg": 4.52,
+      "cloud_avg": 94.38
+    },
+    "2025-05-02": {
+      "tmax": 31.3,
+      "tmin": 22.4,
+      "tavg": 26.12,
+      "precip_sum": 0.2,
+      "rad_sum": 21.67,
+      "wind_avg": 6.96,
+      "cloud_avg": 76.75
+    },
+    "2025-05-03": {
+      "tmax": 29.4,
+      "tmin": 22.9,
+      "tavg": 25.78,
+      "precip_sum": 7.1,
+      "rad_sum": 16.4,
+      "wind_avg": 5.99,
+      "cloud_avg": 51.67
+    },
+    "2025-05-04": {
+      "tmax": 31.1,
+      "tmin": 23.3,
+      "tavg": 26.67,
+      "precip_sum": 7.3,
+      "rad_sum": 18.89,
+      "wind_avg": 9.41,
+      "cloud_avg": 69.29
+    },
+    "2025-05-05": {
+      "tmax": 30.6,
+      "tmin": 24.3,
+      "tavg": 26.77,
+      "precip_sum": 20.7,
+      "rad_sum": 16.31,
+      "wind_avg": 10.02,
+      "cloud_avg": 66.75
+    },
+    "2025-05-06": {
+      "tmax": 30.4,
+      "tmin": 22.7,
+      "tavg": 25.62,
+      "precip_sum": 19.2,
+      "rad_sum": 13.47,
+      "wind_avg": 4.59,
+      "cloud_avg": 96.54
+    },
+    "2025-05-07": {
+      "tmax": 29.0,
+      "tmin": 22.7,
+      "tavg": 25.53,
+      "precip_sum": 32.3,
+      "rad_sum": 13.1,
+      "wind_avg": 7.67,
+      "cloud_avg": 99.08
+    },
+    "2025-05-08": {
+      "tmax": 29.9,
+      "tmin": 24.3,
+      "tavg": 26.9,
+      "precip_sum": 1.3,
+      "rad_sum": 22.12,
+      "wind_avg": 16.25,
+      "cloud_avg": 79.08
+    },
+    "2025-05-09": {
+      "tmax": 30.0,
+      "tmin": 24.2,
+      "tavg": 26.64,
+      "precip_sum": 1.9,
+      "rad_sum": 15.08,
+      "wind_avg": 7.62,
+      "cloud_avg": 99.71
+    },
+    "2025-05-10": {
+      "tmax": 30.9,
+      "tmin": 22.3,
+      "tavg": 25.4,
+      "precip_sum": 13.6,
+      "rad_sum": 17.93,
+      "wind_avg": 6.43,
+      "cloud_avg": 98.46
+    },
+    "2025-05-11": {
+      "tmax": 27.0,
+      "tmin": 17.3,
+      "tavg": 22.39,
+      "precip_sum": 9.6,
+      "rad_sum": 18.02,
+      "wind_avg": 10.39,
+      "cloud_avg": 99.54
+    },
+    "2025-05-12": {
+      "tmax": 28.2,
+      "tmin": 17.6,
+      "tavg": 23.08,
+      "precip_sum": 0.0,
+      "rad_sum": 28.08,
+      "wind_avg": 6.76,
+      "cloud_avg": 23.46
+    },
+    "2025-05-13": {
+      "tmax": 28.2,
+      "tmin": 20.8,
+      "tavg": 24.27,
+      "precip_sum": 1.2,
+      "rad_sum": 19.94,
+      "wind_avg": 8.99,
+      "cloud_avg": 32.46
+    },
+    "2025-05-14": {
+      "tmax": 29.8,
+      "tmin": 23.0,
+      "tavg": 26.1,
+      "precip_sum": 1.0,
+      "rad_sum": 20.37,
+      "wind_avg": 9.51,
+      "cloud_avg": 31.96
+    },
+    "2025-05-15": {
+      "tmax": 30.9,
+      "tmin": 23.8,
+      "tavg": 26.97,
+      "precip_sum": 0.6,
+      "rad_sum": 22.4,
+      "wind_avg": 9.15,
+      "cloud_avg": 61.46
+    },
+    "2025-05-16": {
+      "tmax": 30.4,
+      "tmin": 24.8,
+      "tavg": 26.98,
+      "precip_sum": 1.1,
+      "rad_sum": 15.34,
+      "wind_avg": 7.6,
+      "cloud_avg": 87.17
+    },
+    "2025-05-17": {
+      "tmax": 31.7,
+      "tmin": 24.6,
+      "tavg": 27.22,
+      "precip_sum": 9.0,
+      "rad_sum": 17.05,
+      "wind_avg": 4.32,
+      "cloud_avg": 93.0
+    },
+    "2025-05-18": {
+      "tmax": 32.0,
+      "tmin": 24.2,
+      "tavg": 26.73,
+      "precip_sum": 12.4,
+      "rad_sum": 14.93,
+      "wind_avg": 5.47,
+      "cloud_avg": 99.38
+    },
+    "2025-05-19": {
+      "tmax": 32.2,
+      "tmin": 25.0,
+      "tavg": 27.01,
+      "precip_sum": 12.3,
+      "rad_sum": 16.21,
+      "wind_avg": 7.14,
+      "cloud_avg": 95.58
+    },
+    "2025-05-20": {
+      "tmax": 29.5,
+      "tmin": 25.6,
+      "tavg": 27.33,
+      "precip_sum": 4.6,
+      "rad_sum": 12.01,
+      "wind_avg": 9.5,
+      "cloud_avg": 99.88
+    },
+    "2025-05-21": {
+      "tmax": 32.2,
+      "tmin": 25.8,
+      "tavg": 28.39,
+      "precip_sum": 2.6,
+      "rad_sum": 19.23,
+      "wind_avg": 9.89,
+      "cloud_avg": 95.29
+    },
+    "2025-05-22": {
+      "tmax": 33.6,
+      "tmin": 25.8,
+      "tavg": 29.01,
+      "precip_sum": 0.3,
+      "rad_sum": 22.19,
+      "wind_avg": 8.65,
+      "cloud_avg": 94.25
+    },
+    "2025-05-23": {
+      "tmax": 31.8,
+      "tmin": 24.6,
+      "tavg": 27.95,
+      "precip_sum": 4.0,
+      "rad_sum": 15.66,
+      "wind_avg": 7.73,
+      "cloud_avg": 97.83
+    },
+    "2025-05-24": {
+      "tmax": 29.8,
+      "tmin": 22.7,
+      "tavg": 25.63,
+      "precip_sum": 3.9,
+      "rad_sum": 12.34,
+      "wind_avg": 8.48,
+      "cloud_avg": 87.42
+    },
+    "2025-05-25": {
+      "tmax": 25.1,
+      "tmin": 21.4,
+      "tavg": 23.06,
+      "precip_sum": 0.1,
+      "rad_sum": 9.58,
+      "wind_avg": 8.87,
+      "cloud_avg": 98.33
+    },
+    "2025-05-26": {
+      "tmax": 27.2,
+      "tmin": 20.1,
+      "tavg": 23.58,
+      "precip_sum": 0.0,
+      "rad_sum": 18.23,
+      "wind_avg": 6.68,
+      "cloud_avg": 85.54
+    },
+    "2025-05-27": {
+      "tmax": 28.8,
+      "tmin": 21.6,
+      "tavg": 24.87,
+      "precip_sum": 0.0,
+      "rad_sum": 17.0,
+      "wind_avg": 7.52,
+      "cloud_avg": 79.42
+    },
+    "2025-05-28": {
+      "tmax": 29.4,
+      "tmin": 24.0,
+      "tavg": 25.59,
+      "precip_sum": 9.2,
+      "rad_sum": 10.44,
+      "wind_avg": 9.9,
+      "cloud_avg": 94.71
+    },
+    "2025-05-29": {
+      "tmax": 30.0,
+      "tmin": 23.7,
+      "tavg": 25.48,
+      "precip_sum": 34.8,
+      "rad_sum": 12.73,
+      "wind_avg": 5.98,
+      "cloud_avg": 97.33
+    },
+    "2025-05-30": {
+      "tmax": 27.8,
+      "tmin": 23.1,
+      "tavg": 24.93,
+      "precip_sum": 3.8,
+      "rad_sum": 10.09,
+      "wind_avg": 13.04,
+      "cloud_avg": 93.88
+    },
+    "2025-05-31": {
+      "tmax": 29.6,
+      "tmin": 23.3,
+      "tavg": 26.19,
+      "precip_sum": 0.0,
+      "rad_sum": 17.26,
+      "wind_avg": 11.34,
+      "cloud_avg": 90.92
+    },
+    "2025-06-01": {
+      "tmax": 31.3,
+      "tmin": 24.6,
+      "tavg": 27.79,
+      "precip_sum": 1.8,
+      "rad_sum": 19.99,
+      "wind_avg": 9.58,
+      "cloud_avg": 94.83
+    },
+    "2025-06-02": {
+      "tmax": 33.3,
+      "tmin": 26.8,
+      "tavg": 29.12,
+      "precip_sum": 7.5,
+      "rad_sum": 17.59,
+      "wind_avg": 7.8,
+      "cloud_avg": 99.79
+    },
+    "2025-06-03": {
+      "tmax": 29.1,
+      "tmin": 25.0,
+      "tavg": 26.79,
+      "precip_sum": 14.0,
+      "rad_sum": 14.3,
+      "wind_avg": 7.47,
+      "cloud_avg": 100.0
+    },
+    "2025-06-04": {
+      "tmax": 26.8,
+      "tmin": 24.3,
+      "tavg": 25.33,
+      "precip_sum": 14.5,
+      "rad_sum": 7.27,
+      "wind_avg": 6.98,
+      "cloud_avg": 100.0
+    },
+    "2025-06-05": {
+      "tmax": 30.5,
+      "tmin": 24.5,
+      "tavg": 26.55,
+      "precip_sum": 0.5,
+      "rad_sum": 12.93,
+      "wind_avg": 7.46,
+      "cloud_avg": 84.33
+    },
+    "2025-06-06": {
+      "tmax": 32.1,
+      "tmin": 24.0,
+      "tavg": 27.73,
+      "precip_sum": 1.9,
+      "rad_sum": 22.68,
+      "wind_avg": 6.6,
+      "cloud_avg": 44.67
+    },
+    "2025-06-07": {
+      "tmax": 34.0,
+      "tmin": 24.9,
+      "tavg": 28.9,
+      "precip_sum": 1.2,
+      "rad_sum": 24.18,
+      "wind_avg": 6.4,
+      "cloud_avg": 53.67
+    },
+    "2025-06-08": {
+      "tmax": 34.0,
+      "tmin": 26.2,
+      "tavg": 29.6,
+      "precip_sum": 0.6,
+      "rad_sum": 24.42,
+      "wind_avg": 7.06,
+      "cloud_avg": 95.83
+    },
+    "2025-06-09": {
+      "tmax": 34.4,
+      "tmin": 26.2,
+      "tavg": 29.84,
+      "precip_sum": 1.4,
+      "rad_sum": 25.68,
+      "wind_avg": 6.04,
+      "cloud_avg": 87.58
+    },
+    "2025-06-10": {
+      "tmax": 35.0,
+      "tmin": 25.8,
+      "tavg": 29.77,
+      "precip_sum": 1.2,
+      "rad_sum": 25.97,
+      "wind_avg": 7.62,
+      "cloud_avg": 60.62
+    },
+    "2025-06-11": {
+      "tmax": 32.9,
+      "tmin": 24.9,
+      "tavg": 27.93,
+      "precip_sum": 28.3,
+      "rad_sum": 21.19,
+      "wind_avg": 12.99,
+      "cloud_avg": 90.29
+    },
+    "2025-06-12": {
+      "tmax": 31.3,
+      "tmin": 24.8,
+      "tavg": 27.25,
+      "precip_sum": 31.8,
+      "rad_sum": 19.8,
+      "wind_avg": 15.37,
+      "cloud_avg": 84.96
+    },
+    "2025-06-13": {
+      "tmax": 30.6,
+      "tmin": 25.0,
+      "tavg": 26.86,
+      "precip_sum": 13.7,
+      "rad_sum": 16.74,
+      "wind_avg": 9.73,
+      "cloud_avg": 94.0
+    },
+    "2025-06-14": {
+      "tmax": 29.6,
+      "tmin": 24.8,
+      "tavg": 26.76,
+      "precip_sum": 15.9,
+      "rad_sum": 13.48,
+      "wind_avg": 14.2,
+      "cloud_avg": 99.79
+    },
+    "2025-06-15": {
+      "tmax": 31.6,
+      "tmin": 25.6,
+      "tavg": 28.17,
+      "precip_sum": 6.9,
+      "rad_sum": 13.97,
+      "wind_avg": 18.38,
+      "cloud_avg": 98.42
+    },
+    "2025-06-16": {
+      "tmax": 30.1,
+      "tmin": 24.8,
+      "tavg": 27.12,
+      "precip_sum": 23.6,
+      "rad_sum": 8.37,
+      "wind_avg": 10.51,
+      "cloud_avg": 99.54
+    },
+    "2025-06-17": {
+      "tmax": 26.6,
+      "tmin": 24.3,
+      "tavg": 25.03,
+      "precip_sum": 61.3,
+      "rad_sum": 6.35,
+      "wind_avg": 10.36,
+      "cloud_avg": 100.0
+    },
+    "2025-06-18": {
+      "tmax": 31.0,
+      "tmin": 25.1,
+      "tavg": 27.55,
+      "precip_sum": 4.2,
+      "rad_sum": 17.59,
+      "wind_avg": 12.23,
+      "cloud_avg": 97.83
+    },
+    "2025-06-19": {
+      "tmax": 31.5,
+      "tmin": 25.5,
+      "tavg": 28.08,
+      "precip_sum": 2.0,
+      "rad_sum": 22.46,
+      "wind_avg": 11.58,
+      "cloud_avg": 96.12
+    },
+    "2025-06-20": {
+      "tmax": 29.9,
+      "tmin": 25.7,
+      "tavg": 27.11,
+      "precip_sum": 8.1,
+      "rad_sum": 14.36,
+      "wind_avg": 9.31,
+      "cloud_avg": 98.62
+    },
+    "2025-06-21": {
+      "tmax": 31.2,
+      "tmin": 25.7,
+      "tavg": 27.53,
+      "precip_sum": 6.5,
+      "rad_sum": 17.02,
+      "wind_avg": 10.28,
+      "cloud_avg": 99.33
+    },
+    "2025-06-22": {
+      "tmax": 30.7,
+      "tmin": 25.6,
+      "tavg": 27.93,
+      "precip_sum": 8.2,
+      "rad_sum": 19.65,
+      "wind_avg": 9.28,
+      "cloud_avg": 91.5
+    },
+    "2025-06-23": {
+      "tmax": 33.0,
+      "tmin": 25.8,
+      "tavg": 28.84,
+      "precip_sum": 1.0,
+      "rad_sum": 23.84,
+      "wind_avg": 10.0,
+      "cloud_avg": 44.12
+    },
+    "2025-06-24": {
+      "tmax": 34.3,
+      "tmin": 25.9,
+      "tavg": 29.45,
+      "precip_sum": 0.3,
+      "rad_sum": 25.4,
+      "wind_avg": 7.6,
+      "cloud_avg": 75.75
+    },
+    "2025-06-25": {
+      "tmax": 33.4,
+      "tmin": 24.9,
+      "tavg": 28.92,
+      "precip_sum": 0.5,
+      "rad_sum": 25.36,
+      "wind_avg": 7.01,
+      "cloud_avg": 35.71
+    },
+    "2025-06-26": {
+      "tmax": 29.4,
+      "tmin": 24.5,
+      "tavg": 26.85,
+      "precip_sum": 15.3,
+      "rad_sum": 12.57,
+      "wind_avg": 11.45,
+      "cloud_avg": 97.29
+    },
+    "2025-06-27": {
+      "tmax": 29.6,
+      "tmin": 24.6,
+      "tavg": 26.82,
+      "precip_sum": 19.5,
+      "rad_sum": 16.66,
+      "wind_avg": 8.85,
+      "cloud_avg": 99.21
+    },
+    "2025-06-28": {
+      "tmax": 29.5,
+      "tmin": 24.0,
+      "tavg": 26.61,
+      "precip_sum": 7.5,
+      "rad_sum": 13.34,
+      "wind_avg": 8.54,
+      "cloud_avg": 99.38
+    },
+    "2025-06-29": {
+      "tmax": 30.6,
+      "tmin": 25.4,
+      "tavg": 27.51,
+      "precip_sum": 4.3,
+      "rad_sum": 16.83,
+      "wind_avg": 8.9,
+      "cloud_avg": 99.83
+    },
+    "2025-06-30": {
+      "tmax": 30.2,
+      "tmin": 25.3,
+      "tavg": 27.23,
+      "precip_sum": 15.3,
+      "rad_sum": 19.02,
+      "wind_avg": 10.98,
+      "cloud_avg": 99.75
+    },
+    "2025-07-01": {
+      "tmax": 29.8,
+      "tmin": 24.1,
+      "tavg": 26.52,
+      "precip_sum": 22.7,
+      "rad_sum": 15.83,
+      "wind_avg": 10.46,
+      "cloud_avg": 98.46
+    },
+    "2025-07-02": {
+      "tmax": 31.1,
+      "tmin": 25.2,
+      "tavg": 27.94,
+      "precip_sum": 2.8,
+      "rad_sum": 21.77,
+      "wind_avg": 10.32,
+      "cloud_avg": 85.88
+    },
+    "2025-07-03": {
+      "tmax": 32.4,
+      "tmin": 25.2,
+      "tavg": 28.59,
+      "precip_sum": 0.8,
+      "rad_sum": 22.27,
+      "wind_avg": 6.1,
+      "cloud_avg": 89.5
+    },
+    "2025-07-04": {
+      "tmax": 32.9,
+      "tmin": 24.8,
+      "tavg": 28.7,
+      "precip_sum": 0.4,
+      "rad_sum": 24.17,
+      "wind_avg": 4.95,
+      "cloud_avg": 67.12
+    },
+    "2025-07-05": {
+      "tmax": 34.0,
+      "tmin": 25.8,
+      "tavg": 29.21,
+      "precip_sum": 3.7,
+      "rad_sum": 24.57,
+      "wind_avg": 5.14,
+      "cloud_avg": 54.83
+    },
+    "2025-07-06": {
+      "tmax": 34.3,
+      "tmin": 25.9,
+      "tavg": 29.71,
+      "precip_sum": 0.4,
+      "rad_sum": 25.56,
+      "wind_avg": 7.52,
+      "cloud_avg": 48.21
+    },
+    "2025-07-07": {
+      "tmax": 36.0,
+      "tmin": 27.0,
+      "tavg": 30.72,
+      "precip_sum": 0.1,
+      "rad_sum": 24.58,
+      "wind_avg": 8.67,
+      "cloud_avg": 66.42
+    },
+    "2025-07-08": {
+      "tmax": 33.3,
+      "tmin": 27.0,
+      "tavg": 29.6,
+      "precip_sum": 2.3,
+      "rad_sum": 20.46,
+      "wind_avg": 7.65,
+      "cloud_avg": 89.96
+    },
+    "2025-07-09": {
+      "tmax": 34.7,
+      "tmin": 25.8,
+      "tavg": 29.67,
+      "precip_sum": 5.3,
+      "rad_sum": 20.64,
+      "wind_avg": 7.25,
+      "cloud_avg": 96.46
+    },
+    "2025-07-10": {
+      "tmax": 32.4,
+      "tmin": 25.7,
+      "tavg": 27.49,
+      "precip_sum": 26.3,
+      "rad_sum": 9.13,
+      "wind_avg": 8.52,
+      "cloud_avg": 100.0
+    },
+    "2025-07-11": {
+      "tmax": 29.4,
+      "tmin": 25.0,
+      "tavg": 26.87,
+      "precip_sum": 3.3,
+      "rad_sum": 11.43,
+      "wind_avg": 5.64,
+      "cloud_avg": 99.33
+    },
+    "2025-07-12": {
+      "tmax": 31.7,
+      "tmin": 24.8,
+      "tavg": 27.76,
+      "precip_sum": 6.3,
+      "rad_sum": 15.59,
+      "wind_avg": 6.21,
+      "cloud_avg": 99.21
+    },
+    "2025-07-13": {
+      "tmax": 32.7,
+      "tmin": 26.3,
+      "tavg": 29.0,
+      "precip_sum": 1.6,
+      "rad_sum": 17.31,
+      "wind_avg": 6.02,
+      "cloud_avg": 98.92
+    },
+    "2025-07-14": {
+      "tmax": 31.9,
+      "tmin": 26.3,
+      "tavg": 28.55,
+      "precip_sum": 4.6,
+      "rad_sum": 16.41,
+      "wind_avg": 5.1,
+      "cloud_avg": 88.62
+    },
+    "2025-07-15": {
+      "tmax": 32.5,
+      "tmin": 26.7,
+      "tavg": 28.64,
+      "precip_sum": 3.0,
+      "rad_sum": 15.91,
+      "wind_avg": 6.36,
+      "cloud_avg": 99.83
+    },
+    "2025-07-16": {
+      "tmax": 34.5,
+      "tmin": 27.1,
+      "tavg": 30.17,
+      "precip_sum": 2.4,
+      "rad_sum": 22.96,
+      "wind_avg": 8.02,
+      "cloud_avg": 56.46
+    },
+    "2025-07-17": {
+      "tmax": 35.0,
+      "tmin": 27.4,
+      "tavg": 30.69,
+      "precip_sum": 2.3,
+      "rad_sum": 21.8,
+      "wind_avg": 6.12,
+      "cloud_avg": 77.83
+    },
+    "2025-07-18": {
+      "tmax": 34.4,
+      "tmin": 26.2,
+      "tavg": 29.58,
+      "precip_sum": 7.0,
+      "rad_sum": 13.7,
+      "wind_avg": 5.92,
+      "cloud_avg": 95.54
+    },
+    "2025-07-19": {
+      "tmax": 33.9,
+      "tmin": 25.6,
+      "tavg": 28.7,
+      "precip_sum": 30.7,
+      "rad_sum": 20.3,
+      "wind_avg": 7.67,
+      "cloud_avg": 87.88
+    },
+    "2025-07-20": {
+      "tmax": 27.4,
+      "tmin": 25.8,
+      "tavg": 26.29,
+      "precip_sum": 57.8,
+      "rad_sum": 4.36,
+      "wind_avg": 29.86,
+      "cloud_avg": 100.0
+    },
+    "2025-07-21": {
+      "tmax": 28.9,
+      "tmin": 25.2,
+      "tavg": 26.79,
+      "precip_sum": 21.1,
+      "rad_sum": 12.94,
+      "wind_avg": 14.78,
+      "cloud_avg": 99.92
+    },
+    "2025-07-22": {
+      "tmax": 30.9,
+      "tmin": 24.6,
+      "tavg": 27.34,
+      "precip_sum": 9.4,
+      "rad_sum": 16.67,
+      "wind_avg": 15.1,
+      "cloud_avg": 99.92
+    },
+    "2025-07-23": {
+      "tmax": 31.5,
+      "tmin": 25.2,
+      "tavg": 27.08,
+      "precip_sum": 13.5,
+      "rad_sum": 13.97,
+      "wind_avg": 6.87,
+      "cloud_avg": 99.96
+    },
+    "2025-07-24": {
+      "tmax": 33.1,
+      "tmin": 24.4,
+      "tavg": 27.74,
+      "precip_sum": 21.6,
+      "rad_sum": 23.47,
+      "wind_avg": 5.83,
+      "cloud_avg": 58.25
+    },
+    "2025-07-25": {
+      "tmax": 34.0,
+      "tmin": 25.1,
+      "tavg": 28.61,
+      "precip_sum": 16.5,
+      "rad_sum": 24.97,
+      "wind_avg": 7.22,
+      "cloud_avg": 44.38
+    },
+    "2025-07-26": {
+      "tmax": 35.3,
+      "tmin": 25.1,
+      "tavg": 29.16,
+      "precip_sum": 1.3,
+      "rad_sum": 24.82,
+      "wind_avg": 7.08,
+      "cloud_avg": 23.5
+    },
+    "2025-07-27": {
+      "tmax": 34.6,
+      "tmin": 26.9,
+      "tavg": 30.43,
+      "precip_sum": 0.6,
+      "rad_sum": 24.6,
+      "wind_avg": 7.48,
+      "cloud_avg": 89.33
+    },
+    "2025-07-28": {
+      "tmax": 33.8,
+      "tmin": 26.7,
+      "tavg": 29.06,
+      "precip_sum": 7.8,
+      "rad_sum": 15.2,
+      "wind_avg": 7.74,
+      "cloud_avg": 99.75
+    },
+    "2025-07-29": {
+      "tmax": 32.3,
+      "tmin": 24.8,
+      "tavg": 28.22,
+      "precip_sum": 45.6,
+      "rad_sum": 15.61,
+      "wind_avg": 6.5,
+      "cloud_avg": 97.08
+    },
+    "2025-07-30": {
+      "tmax": 33.1,
+      "tmin": 26.5,
+      "tavg": 28.66,
+      "precip_sum": 12.8,
+      "rad_sum": 14.84,
+      "wind_avg": 5.29,
+      "cloud_avg": 99.83
+    },
+    "2025-07-31": {
+      "tmax": 32.1,
+      "tmin": 25.4,
+      "tavg": 28.1,
+      "precip_sum": 11.9,
+      "rad_sum": 14.89,
+      "wind_avg": 5.26,
+      "cloud_avg": 96.96
+    },
+    "2025-08-01": {
+      "tmax": 32.1,
+      "tmin": 24.8,
+      "tavg": 27.85,
+      "precip_sum": 6.5,
+      "rad_sum": 17.16,
+      "wind_avg": 5.11,
+      "cloud_avg": 86.83
+    },
+    "2025-08-02": {
+      "tmax": 31.3,
+      "tmin": 26.1,
+      "tavg": 27.61,
+      "precip_sum": 18.6,
+      "rad_sum": 10.02,
+      "wind_avg": 7.95,
+      "cloud_avg": 99.5
+    },
+    "2025-08-03": {
+      "tmax": 29.6,
+      "tmin": 25.5,
+      "tavg": 27.37,
+      "precip_sum": 18.0,
+      "rad_sum": 8.72,
+      "wind_avg": 10.49,
+      "cloud_avg": 97.17
+    },
+    "2025-08-04": {
+      "tmax": 28.9,
+      "tmin": 25.0,
+      "tavg": 27.05,
+      "precip_sum": 24.2,
+      "rad_sum": 5.4,
+      "wind_avg": 8.15,
+      "cloud_avg": 100.0
+    },
+    "2025-08-05": {
+      "tmax": 29.6,
+      "tmin": 24.4,
+      "tavg": 26.32,
+      "precip_sum": 57.6,
+      "rad_sum": 6.46,
+      "wind_avg": 8.68,
+      "cloud_avg": 99.62
+    },
+    "2025-08-06": {
+      "tmax": 29.2,
+      "tmin": 23.8,
+      "tavg": 26.51,
+      "precip_sum": 22.6,
+      "rad_sum": 7.14,
+      "wind_avg": 9.0,
+      "cloud_avg": 100.0
+    },
+    "2025-08-07": {
+      "tmax": 32.8,
+      "tmin": 25.1,
+      "tavg": 28.65,
+      "precip_sum": 2.0,
+      "rad_sum": 19.26,
+      "wind_avg": 7.89,
+      "cloud_avg": 75.5
+    },
+    "2025-08-08": {
+      "tmax": 33.2,
+      "tmin": 24.5,
+      "tavg": 28.35,
+      "precip_sum": 1.3,
+      "rad_sum": 22.54,
+      "wind_avg": 4.63,
+      "cloud_avg": 93.17
+    },
+    "2025-08-09": {
+      "tmax": 34.1,
+      "tmin": 25.5,
+      "tavg": 29.16,
+      "precip_sum": 0.3,
+      "rad_sum": 24.46,
+      "wind_avg": 6.24,
+      "cloud_avg": 67.96
+    },
+    "2025-08-10": {
+      "tmax": 32.4,
+      "tmin": 25.7,
+      "tavg": 28.88,
+      "precip_sum": 2.1,
+      "rad_sum": 20.88,
+      "wind_avg": 4.27,
+      "cloud_avg": 91.58
+    },
+    "2025-08-11": {
+      "tmax": 33.1,
+      "tmin": 26.2,
+      "tavg": 28.75,
+      "precip_sum": 6.5,
+      "rad_sum": 21.21,
+      "wind_avg": 5.9,
+      "cloud_avg": 92.08
+    },
+    "2025-08-12": {
+      "tmax": 32.9,
+      "tmin": 26.0,
+      "tavg": 28.47,
+      "precip_sum": 8.0,
+      "rad_sum": 19.46,
+      "wind_avg": 5.58,
+      "cloud_avg": 96.17
+    },
+    "2025-08-13": {
+      "tmax": 33.8,
+      "tmin": 26.0,
+      "tavg": 28.69,
+      "precip_sum": 3.2,
+      "rad_sum": 21.29,
+      "wind_avg": 5.55,
+      "cloud_avg": 56.83
+    },
+    "2025-08-14": {
+      "tmax": 27.6,
+      "tmin": 24.5,
+      "tavg": 25.72,
+      "precip_sum": 43.9,
+      "rad_sum": 5.62,
+      "wind_avg": 10.61,
+      "cloud_avg": 99.92
+    },
+    "2025-08-15": {
+      "tmax": 29.7,
+      "tmin": 23.4,
+      "tavg": 26.7,
+      "precip_sum": 12.4,
+      "rad_sum": 20.51,
+      "wind_avg": 12.91,
+      "cloud_avg": 83.54
+    },
+    "2025-08-16": {
+      "tmax": 32.5,
+      "tmin": 23.2,
+      "tavg": 27.55,
+      "precip_sum": 0.3,
+      "rad_sum": 24.32,
+      "wind_avg": 10.7,
+      "cloud_avg": 27.42
+    },
+    "2025-08-17": {
+      "tmax": 30.4,
+      "tmin": 24.8,
+      "tavg": 26.75,
+      "precip_sum": 12.1,
+      "rad_sum": 13.43,
+      "wind_avg": 15.05,
+      "cloud_avg": 74.62
+    },
+    "2025-08-18": {
+      "tmax": 28.7,
+      "tmin": 24.4,
+      "tavg": 25.7,
+      "precip_sum": 24.6,
+      "rad_sum": 10.68,
+      "wind_avg": 14.18,
+      "cloud_avg": 99.96
+    },
+    "2025-08-19": {
+      "tmax": 28.7,
+      "tmin": 24.4,
+      "tavg": 26.38,
+      "precip_sum": 13.2,
+      "rad_sum": 8.18,
+      "wind_avg": 9.04,
+      "cloud_avg": 100.0
+    },
+    "2025-08-20": {
+      "tmax": 32.0,
+      "tmin": 25.6,
+      "tavg": 28.28,
+      "precip_sum": 1.0,
+      "rad_sum": 20.14,
+      "wind_avg": 10.2,
+      "cloud_avg": 93.33
+    },
+    "2025-08-21": {
+      "tmax": 31.7,
+      "tmin": 26.1,
+      "tavg": 28.44,
+      "precip_sum": 0.4,
+      "rad_sum": 14.35,
+      "wind_avg": 7.74,
+      "cloud_avg": 99.25
+    },
+    "2025-08-22": {
+      "tmax": 31.6,
+      "tmin": 25.3,
+      "tavg": 28.2,
+      "precip_sum": 0.0,
+      "rad_sum": 12.72,
+      "wind_avg": 3.87,
+      "cloud_avg": 68.92
+    },
+    "2025-08-23": {
+      "tmax": 33.4,
+      "tmin": 24.9,
+      "tavg": 28.37,
+      "precip_sum": 4.0,
+      "rad_sum": 22.91,
+      "wind_avg": 7.78,
+      "cloud_avg": 48.67
+    },
+    "2025-08-24": {
+      "tmax": 30.0,
+      "tmin": 26.0,
+      "tavg": 27.85,
+      "precip_sum": 6.3,
+      "rad_sum": 17.45,
+      "wind_avg": 15.53,
+      "cloud_avg": 87.92
+    },
+    "2025-08-25": {
+      "tmax": 31.4,
+      "tmin": 25.8,
+      "tavg": 27.68,
+      "precip_sum": 2.2,
+      "rad_sum": 17.96,
+      "wind_avg": 11.0,
+      "cloud_avg": 97.67
+    },
+    "2025-08-26": {
+      "tmax": 32.7,
+      "tmin": 25.2,
+      "tavg": 28.51,
+      "precip_sum": 0.3,
+      "rad_sum": 23.31,
+      "wind_avg": 6.17,
+      "cloud_avg": 77.0
+    },
+    "2025-08-27": {
+      "tmax": 31.5,
+      "tmin": 24.5,
+      "tavg": 27.29,
+      "precip_sum": 11.4,
+      "rad_sum": 20.56,
+      "wind_avg": 4.13,
+      "cloud_avg": 33.54
+    },
+    "2025-08-28": {
+      "tmax": 31.0,
+      "tmin": 24.4,
+      "tavg": 27.01,
+      "precip_sum": 11.3,
+      "rad_sum": 13.79,
+      "wind_avg": 7.52,
+      "cloud_avg": 88.42
+    },
+    "2025-08-29": {
+      "tmax": 33.3,
+      "tmin": 25.8,
+      "tavg": 29.01,
+      "precip_sum": 0.1,
+      "rad_sum": 23.12,
+      "wind_avg": 14.22,
+      "cloud_avg": 94.71
+    },
+    "2025-08-30": {
+      "tmax": 31.4,
+      "tmin": 26.5,
+      "tavg": 28.11,
+      "precip_sum": 2.7,
+      "rad_sum": 19.69,
+      "wind_avg": 13.96,
+      "cloud_avg": 84.21
+    },
+    "2025-08-31": {
+      "tmax": 32.1,
+      "tmin": 25.3,
+      "tavg": 28.1,
+      "precip_sum": 1.9,
+      "rad_sum": 21.48,
+      "wind_avg": 7.94,
+      "cloud_avg": 88.29
+    },
+    "2025-09-01": {
+      "tmax": 33.2,
+      "tmin": 24.7,
+      "tavg": 28.63,
+      "precip_sum": 0.5,
+      "rad_sum": 21.85,
+      "wind_avg": 6.15,
+      "cloud_avg": 81.38
+    },
+    "2025-09-02": {
+      "tmax": 32.9,
+      "tmin": 25.2,
+      "tavg": 28.78,
+      "precip_sum": 0.8,
+      "rad_sum": 22.07,
+      "wind_avg": 7.44,
+      "cloud_avg": 71.33
+    },
+    "2025-09-03": {
+      "tmax": 33.7,
+      "tmin": 25.2,
+      "tavg": 28.98,
+      "precip_sum": 3.2,
+      "rad_sum": 19.46,
+      "wind_avg": 5.33,
+      "cloud_avg": 83.21
+    },
+    "2025-09-04": {
+      "tmax": 35.0,
+      "tmin": 25.3,
+      "tavg": 29.7,
+      "precip_sum": 0.0,
+      "rad_sum": 22.92,
+      "wind_avg": 6.66,
+      "cloud_avg": 52.83
+    },
+    "2025-09-05": {
+      "tmax": 35.2,
+      "tmin": 25.8,
+      "tavg": 30.03,
+      "precip_sum": 0.0,
+      "rad_sum": 22.51,
+      "wind_avg": 6.03,
+      "cloud_avg": 41.58
+    },
+    "2025-09-06": {
+      "tmax": 36.5,
+      "tmin": 25.5,
+      "tavg": 30.88,
+      "precip_sum": 0.0,
+      "rad_sum": 22.73,
+      "wind_avg": 5.45,
+      "cloud_avg": 27.25
+    },
+    "2025-09-07": {
+      "tmax": 31.3,
+      "tmin": 25.2,
+      "tavg": 27.81,
+      "precip_sum": 17.1,
+      "rad_sum": 15.62,
+      "wind_avg": 13.65,
+      "cloud_avg": 75.17
+    },
+    "2025-09-08": {
+      "tmax": 27.4,
+      "tmin": 24.5,
+      "tavg": 25.72,
+      "precip_sum": 45.9,
+      "rad_sum": 9.2,
+      "wind_avg": 22.92,
+      "cloud_avg": 100.0
+    },
+    "2025-09-09": {
+      "tmax": 31.7,
+      "tmin": 24.8,
+      "tavg": 27.15,
+      "precip_sum": 9.2,
+      "rad_sum": 16.89,
+      "wind_avg": 11.22,
+      "cloud_avg": 96.29
+    },
+    "2025-09-10": {
+      "tmax": 31.8,
+      "tmin": 24.1,
+      "tavg": 27.32,
+      "precip_sum": 11.3,
+      "rad_sum": 16.74,
+      "wind_avg": 6.29,
+      "cloud_avg": 92.88
+    },
+    "2025-09-11": {
+      "tmax": 32.6,
+      "tmin": 24.1,
+      "tavg": 27.86,
+      "precip_sum": 1.3,
+      "rad_sum": 20.9,
+      "wind_avg": 4.5,
+      "cloud_avg": 70.04
+    },
+    "2025-09-12": {
+      "tmax": 32.3,
+      "tmin": 24.2,
+      "tavg": 28.01,
+      "precip_sum": 1.2,
+      "rad_sum": 19.21,
+      "wind_avg": 5.06,
+      "cloud_avg": 21.96
+    },
+    "2025-09-13": {
+      "tmax": 32.7,
+      "tmin": 24.3,
+      "tavg": 28.25,
+      "precip_sum": 0.0,
+      "rad_sum": 21.42,
+      "wind_avg": 6.23,
+      "cloud_avg": 14.38
+    },
+    "2025-09-14": {
+      "tmax": 33.2,
+      "tmin": 24.0,
+      "tavg": 28.3,
+      "precip_sum": 0.0,
+      "rad_sum": 21.36,
+      "wind_avg": 4.64,
+      "cloud_avg": 10.71
+    },
+    "2025-09-15": {
+      "tmax": 33.4,
+      "tmin": 24.5,
+      "tavg": 28.44,
+      "precip_sum": 1.2,
+      "rad_sum": 20.47,
+      "wind_avg": 6.88,
+      "cloud_avg": 34.71
+    },
+    "2025-09-16": {
+      "tmax": 32.1,
+      "tmin": 25.2,
+      "tavg": 27.87,
+      "precip_sum": 2.0,
+      "rad_sum": 15.44,
+      "wind_avg": 7.76,
+      "cloud_avg": 89.33
+    },
+    "2025-09-17": {
+      "tmax": 32.5,
+      "tmin": 24.0,
+      "tavg": 27.76,
+      "precip_sum": 4.2,
+      "rad_sum": 19.24,
+      "wind_avg": 7.8,
+      "cloud_avg": 78.04
+    },
+    "2025-09-18": {
+      "tmax": 32.9,
+      "tmin": 24.6,
+      "tavg": 28.31,
+      "precip_sum": 2.2,
+      "rad_sum": 19.57,
+      "wind_avg": 7.42,
+      "cloud_avg": 58.25
+    },
+    "2025-09-19": {
+      "tmax": 32.2,
+      "tmin": 25.2,
+      "tavg": 28.2,
+      "precip_sum": 10.1,
+      "rad_sum": 13.28,
+      "wind_avg": 10.34,
+      "cloud_avg": 82.04
+    },
+    "2025-09-20": {
+      "tmax": 28.5,
+      "tmin": 24.3,
+      "tavg": 26.03,
+      "precip_sum": 17.8,
+      "rad_sum": 7.88,
+      "wind_avg": 9.76,
+      "cloud_avg": 97.33
+    },
+    "2025-09-21": {
+      "tmax": 29.9,
+      "tmin": 23.8,
+      "tavg": 25.85,
+      "precip_sum": 45.2,
+      "rad_sum": 10.64,
+      "wind_avg": 8.98,
+      "cloud_avg": 99.21
+    },
+    "2025-09-22": {
+      "tmax": 32.2,
+      "tmin": 23.4,
+      "tavg": 27.58,
+      "precip_sum": 0.8,
+      "rad_sum": 20.56,
+      "wind_avg": 8.15,
+      "cloud_avg": 50.42
+    },
+    "2025-09-23": {
+      "tmax": 31.8,
+      "tmin": 25.3,
+      "tavg": 27.82,
+      "precip_sum": 4.6,
+      "rad_sum": 15.94,
+      "wind_avg": 15.69,
+      "cloud_avg": 86.38
+    },
+    "2025-09-24": {
+      "tmax": 26.2,
+      "tmin": 24.3,
+      "tavg": 25.22,
+      "precip_sum": 79.1,
+      "rad_sum": 2.27,
+      "wind_avg": 38.62,
+      "cloud_avg": 100.0
+    },
+    "2025-09-25": {
+      "tmax": 28.8,
+      "tmin": 24.7,
+      "tavg": 26.06,
+      "precip_sum": 25.4,
+      "rad_sum": 13.95,
+      "wind_avg": 19.34,
+      "cloud_avg": 99.08
+    },
+    "2025-09-26": {
+      "tmax": 32.2,
+      "tmin": 24.8,
+      "tavg": 27.69,
+      "precip_sum": 0.9,
+      "rad_sum": 19.63,
+      "wind_avg": 11.07,
+      "cloud_avg": 93.96
+    },
+    "2025-09-27": {
+      "tmax": 32.4,
+      "tmin": 24.7,
+      "tavg": 28.25,
+      "precip_sum": 2.1,
+      "rad_sum": 20.1,
+      "wind_avg": 11.65,
+      "cloud_avg": 61.42
+    },
+    "2025-09-28": {
+      "tmax": 29.0,
+      "tmin": 26.3,
+      "tavg": 27.17,
+      "precip_sum": 9.4,
+      "rad_sum": 10.99,
+      "wind_avg": 11.29,
+      "cloud_avg": 93.96
+    },
+    "2025-09-29": {
+      "tmax": 31.8,
+      "tmin": 25.5,
+      "tavg": 28.02,
+      "precip_sum": 0.0,
+      "rad_sum": 19.67,
+      "wind_avg": 8.49,
+      "cloud_avg": 80.62
+    },
+    "2025-09-30": {
+      "tmax": 32.8,
+      "tmin": 24.9,
+      "tavg": 28.23,
+      "precip_sum": 0.0,
+      "rad_sum": 19.1,
+      "wind_avg": 3.32,
+      "cloud_avg": 93.96
+    },
+    "2025-10-01": {
+      "tmax": 33.2,
+      "tmin": 24.3,
+      "tavg": 28.0,
+      "precip_sum": 0.0,
+      "rad_sum": 19.78,
+      "wind_avg": 5.55,
+      "cloud_avg": 73.92
+    },
+    "2025-10-02": {
+      "tmax": 32.4,
+      "tmin": 24.0,
+      "tavg": 27.58,
+      "precip_sum": 0.4,
+      "rad_sum": 19.73,
+      "wind_avg": 6.4,
+      "cloud_avg": 28.42
+    },
+    "2025-10-03": {
+      "tmax": 32.2,
+      "tmin": 24.7,
+      "tavg": 28.08,
+      "precip_sum": 0.0,
+      "rad_sum": 19.64,
+      "wind_avg": 5.1,
+      "cloud_avg": 8.29
+    },
+    "2025-10-04": {
+      "tmax": 32.2,
+      "tmin": 24.8,
+      "tavg": 27.66,
+      "precip_sum": 10.7,
+      "rad_sum": 18.75,
+      "wind_avg": 10.76,
+      "cloud_avg": 55.25
+    },
+    "2025-10-05": {
+      "tmax": 28.8,
+      "tmin": 25.0,
+      "tavg": 26.2,
+      "precip_sum": 9.5,
+      "rad_sum": 11.07,
+      "wind_avg": 22.35,
+      "cloud_avg": 99.25
+    },
+    "2025-10-06": {
+      "tmax": 31.1,
+      "tmin": 25.1,
+      "tavg": 27.36,
+      "precip_sum": 2.8,
+      "rad_sum": 17.71,
+      "wind_avg": 12.19,
+      "cloud_avg": 67.54
+    },
+    "2025-10-07": {
+      "tmax": 32.6,
+      "tmin": 24.4,
+      "tavg": 28.01,
+      "precip_sum": 0.1,
+      "rad_sum": 18.82,
+      "wind_avg": 4.04,
+      "cloud_avg": 30.71
+    },
+    "2025-10-08": {
+      "tmax": 33.4,
+      "tmin": 24.4,
+      "tavg": 28.42,
+      "precip_sum": 0.0,
+      "rad_sum": 19.21,
+      "wind_avg": 6.39,
+      "cloud_avg": 27.54
+    },
+    "2025-10-09": {
+      "tmax": 32.2,
+      "tmin": 25.0,
+      "tavg": 28.03,
+      "precip_sum": 0.7,
+      "rad_sum": 18.43,
+      "wind_avg": 5.69,
+      "cloud_avg": 29.0
+    },
+    "2025-10-10": {
+      "tmax": 33.3,
+      "tmin": 25.0,
+      "tavg": 28.45,
+      "precip_sum": 0.1,
+      "rad_sum": 18.57,
+      "wind_avg": 5.34,
+      "cloud_avg": 26.38
+    },
+    "2025-10-11": {
+      "tmax": 33.0,
+      "tmin": 25.3,
+      "tavg": 28.55,
+      "precip_sum": 1.4,
+      "rad_sum": 18.83,
+      "wind_avg": 7.23,
+      "cloud_avg": 20.71
+    },
+    "2025-10-12": {
+      "tmax": 29.3,
+      "tmin": 24.9,
+      "tavg": 26.65,
+      "precip_sum": 5.2,
+      "rad_sum": 9.6,
+      "wind_avg": 6.82,
+      "cloud_avg": 91.62
+    },
+    "2025-10-13": {
+      "tmax": 30.7,
+      "tmin": 25.3,
+      "tavg": 27.55,
+      "precip_sum": 7.8,
+      "rad_sum": 14.7,
+      "wind_avg": 7.95,
+      "cloud_avg": 81.71
+    },
+    "2025-10-14": {
+      "tmax": 32.4,
+      "tmin": 25.4,
+      "tavg": 28.25,
+      "precip_sum": 0.6,
+      "rad_sum": 17.5,
+      "wind_avg": 7.24,
+      "cloud_avg": 44.33
+    },
+    "2025-10-15": {
+      "tmax": 33.8,
+      "tmin": 25.1,
+      "tavg": 28.83,
+      "precip_sum": 0.4,
+      "rad_sum": 18.52,
+      "wind_avg": 6.35,
+      "cloud_avg": 16.79
+    },
+    "2025-10-16": {
+      "tmax": 33.0,
+      "tmin": 25.8,
+      "tavg": 29.36,
+      "precip_sum": 0.1,
+      "rad_sum": 17.14,
+      "wind_avg": 7.88,
+      "cloud_avg": 18.62
+    },
+    "2025-10-17": {
+      "tmax": 34.1,
+      "tmin": 24.4,
+      "tavg": 29.33,
+      "precip_sum": 0.2,
+      "rad_sum": 18.34,
+      "wind_avg": 7.44,
+      "cloud_avg": 14.33
+    },
+    "2025-10-18": {
+      "tmax": 35.6,
+      "tmin": 25.1,
+      "tavg": 29.75,
+      "precip_sum": 0.0,
+      "rad_sum": 18.28,
+      "wind_avg": 6.38,
+      "cloud_avg": 18.17
+    },
+    "2025-10-19": {
+      "tmax": 33.7,
+      "tmin": 24.5,
+      "tavg": 28.84,
+      "precip_sum": 0.4,
+      "rad_sum": 18.51,
+      "wind_avg": 12.18,
+      "cloud_avg": 37.5
+    },
+    "2025-10-20": {
+      "tmax": 31.1,
+      "tmin": 23.1,
+      "tavg": 26.28,
+      "precip_sum": 0.1,
+      "rad_sum": 15.01,
+      "wind_avg": 17.9,
+      "cloud_avg": 91.54
+    },
+    "2025-10-21": {
+      "tmax": 22.2,
+      "tmin": 18.4,
+      "tavg": 20.55,
+      "precip_sum": 1.4,
+      "rad_sum": 5.41,
+      "wind_avg": 16.74,
+      "cloud_avg": 100.0
+    },
+    "2025-10-22": {
+      "tmax": 17.8,
+      "tmin": 14.8,
+      "tavg": 16.14,
+      "precip_sum": 9.4,
+      "rad_sum": 4.11,
+      "wind_avg": 15.45,
+      "cloud_avg": 100.0
+    },
+    "2025-10-23": {
+      "tmax": 21.4,
+      "tmin": 15.2,
+      "tavg": 18.23,
+      "precip_sum": 0.9,
+      "rad_sum": 8.46,
+      "wind_avg": 13.8,
+      "cloud_avg": 99.83
+    },
+    "2025-10-24": {
+      "tmax": 23.7,
+      "tmin": 18.2,
+      "tavg": 20.62,
+      "precip_sum": 0.0,
+      "rad_sum": 9.64,
+      "wind_avg": 11.14,
+      "cloud_avg": 90.12
+    },
+    "2025-10-25": {
+      "tmax": 27.0,
+      "tmin": 18.7,
+      "tavg": 22.52,
+      "precip_sum": 0.0,
+      "rad_sum": 13.27,
+      "wind_avg": 9.35,
+      "cloud_avg": 42.46
+    },
+    "2025-10-26": {
+      "tmax": 29.6,
+      "tmin": 21.1,
+      "tavg": 24.61,
+      "precip_sum": 0.0,
+      "rad_sum": 18.29,
+      "wind_avg": 11.03,
+      "cloud_avg": 46.0
+    },
+    "2025-10-27": {
+      "tmax": 26.2,
+      "tmin": 20.1,
+      "tavg": 22.43,
+      "precip_sum": 0.0,
+      "rad_sum": 11.03,
+      "wind_avg": 10.03,
+      "cloud_avg": 85.04
+    },
+    "2025-10-28": {
+      "tmax": 24.8,
+      "tmin": 19.0,
+      "tavg": 21.48,
+      "precip_sum": 2.9,
+      "rad_sum": 8.7,
+      "wind_avg": 9.94,
+      "cloud_avg": 91.08
+    },
+    "2025-10-29": {
+      "tmax": 27.0,
+      "tmin": 20.1,
+      "tavg": 23.19,
+      "precip_sum": 0.0,
+      "rad_sum": 10.03,
+      "wind_avg": 6.54,
+      "cloud_avg": 90.38
+    },
+    "2025-10-30": {
+      "tmax": 29.0,
+      "tmin": 21.5,
+      "tavg": 24.58,
+      "precip_sum": 0.0,
+      "rad_sum": 14.55,
+      "wind_avg": 6.55,
+      "cloud_avg": 62.17
+    },
+    "2025-10-31": {
+      "tmax": 29.8,
+      "tmin": 22.0,
+      "tavg": 25.26,
+      "precip_sum": 0.0,
+      "rad_sum": 14.24,
+      "wind_avg": 9.83,
+      "cloud_avg": 67.75
+    },
+    "2025-11-01": {
+      "tmax": 27.2,
+      "tmin": 19.9,
+      "tavg": 23.34,
+      "precip_sum": 0.1,
+      "rad_sum": 12.14,
+      "wind_avg": 9.96,
+      "cloud_avg": 94.96
+    },
+    "2025-11-02": {
+      "tmax": 26.0,
+      "tmin": 20.8,
+      "tavg": 22.88,
+      "precip_sum": 0.0,
+      "rad_sum": 11.46,
+      "wind_avg": 9.92,
+      "cloud_avg": 63.46
+    },
+    "2025-11-03": {
+      "tmax": 22.6,
+      "tmin": 18.3,
+      "tavg": 20.62,
+      "precip_sum": 1.9,
+      "rad_sum": 4.85,
+      "wind_avg": 11.62,
+      "cloud_avg": 94.62
+    },
+    "2025-11-04": {
+      "tmax": 20.6,
+      "tmin": 17.6,
+      "tavg": 18.87,
+      "precip_sum": 0.5,
+      "rad_sum": 6.33,
+      "wind_avg": 11.26,
+      "cloud_avg": 99.92
+    },
+    "2025-11-05": {
+      "tmax": 26.6,
+      "tmin": 17.3,
+      "tavg": 21.67,
+      "precip_sum": 0.0,
+      "rad_sum": 16.52,
+      "wind_avg": 8.87,
+      "cloud_avg": 84.17
+    },
+    "2025-11-06": {
+      "tmax": 28.6,
+      "tmin": 18.6,
+      "tavg": 23.59,
+      "precip_sum": 0.1,
+      "rad_sum": 17.11,
+      "wind_avg": 8.67,
+      "cloud_avg": 67.04
+    },
+    "2025-11-07": {
+      "tmax": 27.9,
+      "tmin": 23.4,
+      "tavg": 25.03,
+      "precip_sum": 0.4,
+      "rad_sum": 7.07,
+      "wind_avg": 11.96,
+      "cloud_avg": 87.71
+    },
+    "2025-11-08": {
+      "tmax": 30.7,
+      "tmin": 23.4,
+      "tavg": 26.24,
+      "precip_sum": 1.0,
+      "rad_sum": 12.97,
+      "wind_avg": 8.55,
+      "cloud_avg": 50.38
+    },
+    "2025-11-09": {
+      "tmax": 30.8,
+      "tmin": 23.0,
+      "tavg": 26.14,
+      "precip_sum": 0.0,
+      "rad_sum": 13.31,
+      "wind_avg": 10.36,
+      "cloud_avg": 59.54
+    },
+    "2025-11-10": {
+      "tmax": 29.3,
+      "tmin": 20.0,
+      "tavg": 23.88,
+      "precip_sum": 0.0,
+      "rad_sum": 15.41,
+      "wind_avg": 14.58,
+      "cloud_avg": 90.12
+    },
+    "2025-11-11": {
+      "tmax": 24.8,
+      "tmin": 19.9,
+      "tavg": 22.05,
+      "precip_sum": 0.0,
+      "rad_sum": 8.3,
+      "wind_avg": 16.38,
+      "cloud_avg": 94.29
+    },
+    "2025-11-12": {
+      "tmax": 26.9,
+      "tmin": 17.7,
+      "tavg": 21.32,
+      "precip_sum": 0.0,
+      "rad_sum": 16.34,
+      "wind_avg": 16.19,
+      "cloud_avg": 55.21
+    },
+    "2025-11-13": {
+      "tmax": 23.0,
+      "tmin": 18.3,
+      "tavg": 20.04,
+      "precip_sum": 0.6,
+      "rad_sum": 10.98,
+      "wind_avg": 13.42,
+      "cloud_avg": 94.33
+    },
+    "2025-11-14": {
+      "tmax": 25.4,
+      "tmin": 16.9,
+      "tavg": 20.67,
+      "precip_sum": 1.8,
+      "rad_sum": 11.58,
+      "wind_avg": 8.92,
+      "cloud_avg": 61.38
+    },
+    "2025-11-15": {
+      "tmax": 27.3,
+      "tmin": 18.6,
+      "tavg": 22.6,
+      "precip_sum": 0.0,
+      "rad_sum": 12.63,
+      "wind_avg": 6.25,
+      "cloud_avg": 66.88
+    },
+    "2025-11-16": {
+      "tmax": 27.9,
+      "tmin": 19.9,
+      "tavg": 23.43,
+      "precip_sum": 0.0,
+      "rad_sum": 16.59,
+      "wind_avg": 5.99,
+      "cloud_avg": 18.21
+    },
+    "2025-11-17": {
+      "tmax": 28.1,
+      "tmin": 18.3,
+      "tavg": 22.99,
+      "precip_sum": 0.0,
+      "rad_sum": 12.69,
+      "wind_avg": 6.78,
+      "cloud_avg": 64.79
+    },
+    "2025-11-18": {
+      "tmax": 22.1,
+      "tmin": 11.9,
+      "tavg": 17.2,
+      "precip_sum": 1.2,
+      "rad_sum": 7.46,
+      "wind_avg": 17.4,
+      "cloud_avg": 99.08
+    },
+    "2025-11-19": {
+      "tmax": 15.7,
+      "tmin": 10.9,
+      "tavg": 13.11,
+      "precip_sum": 1.5,
+      "rad_sum": 7.09,
+      "wind_avg": 13.88,
+      "cloud_avg": 97.62
+    },
+    "2025-11-20": {
+      "tmax": 16.8,
+      "tmin": 11.9,
+      "tavg": 13.85,
+      "precip_sum": 0.0,
+      "rad_sum": 5.94,
+      "wind_avg": 9.45,
+      "cloud_avg": 91.62
+    },
+    "2025-11-21": {
+      "tmax": 20.5,
+      "tmin": 13.2,
+      "tavg": 16.44,
+      "precip_sum": 0.0,
+      "rad_sum": 9.75,
+      "wind_avg": 10.05,
+      "cloud_avg": 67.21
+    },
+    "2025-11-22": {
+      "tmax": 24.5,
+      "tmin": 12.4,
+      "tavg": 18.12,
+      "precip_sum": 0.0,
+      "rad_sum": 16.69,
+      "wind_avg": 8.79,
+      "cloud_avg": 3.75
+    },
+    "2025-11-23": {
+      "tmax": 26.0,
+      "tmin": 13.0,
+      "tavg": 19.58,
+      "precip_sum": 0.0,
+      "rad_sum": 15.28,
+      "wind_avg": 6.46,
+      "cloud_avg": 38.5
+    },
+    "2025-11-24": {
+      "tmax": 26.8,
+      "tmin": 17.5,
+      "tavg": 22.0,
+      "precip_sum": 0.0,
+      "rad_sum": 11.77,
+      "wind_avg": 8.72,
+      "cloud_avg": 61.75
+    },
+    "2025-11-25": {
+      "tmax": 24.6,
+      "tmin": 16.8,
+      "tavg": 20.45,
+      "precip_sum": 0.0,
+      "rad_sum": 17.08,
+      "wind_avg": 15.41,
+      "cloud_avg": 43.83
+    },
+    "2025-11-26": {
+      "tmax": 23.2,
+      "tmin": 12.2,
+      "tavg": 17.46,
+      "precip_sum": 0.0,
+      "rad_sum": 16.98,
+      "wind_avg": 10.04,
+      "cloud_avg": 64.33
+    },
+    "2025-11-27": {
+      "tmax": 23.0,
+      "tmin": 12.7,
+      "tavg": 17.34,
+      "precip_sum": 0.0,
+      "rad_sum": 15.95,
+      "wind_avg": 14.2,
+      "cloud_avg": 97.54
+    },
+    "2025-11-28": {
+      "tmax": 22.7,
+      "tmin": 11.4,
+      "tavg": 16.74,
+      "precip_sum": 0.0,
+      "rad_sum": 17.15,
+      "wind_avg": 9.79,
+      "cloud_avg": 81.88
+    },
+    "2025-11-29": {
+      "tmax": 24.4,
+      "tmin": 10.3,
+      "tavg": 17.72,
+      "precip_sum": 0.0,
+      "rad_sum": 15.65,
+      "wind_avg": 5.04,
+      "cloud_avg": 26.58
+    },
+    "2025-11-30": {
+      "tmax": 23.7,
+      "tmin": 17.6,
+      "tavg": 19.84,
+      "precip_sum": 1.4,
+      "rad_sum": 7.26,
+      "wind_avg": 6.1,
+      "cloud_avg": 86.71
+    },
+    "2025-12-01": {
+      "tmax": 25.5,
+      "tmin": 16.5,
+      "tavg": 20.4,
+      "precip_sum": 0.1,
+      "rad_sum": 7.85,
+      "wind_avg": 5.21,
+      "cloud_avg": 53.08
+    },
+    "2025-12-02": {
+      "tmax": 26.2,
+      "tmin": 19.8,
+      "tavg": 22.29,
+      "precip_sum": 2.6,
+      "rad_sum": 9.37,
+      "wind_avg": 5.68,
+      "cloud_avg": 86.67
+    },
+    "2025-12-03": {
+      "tmax": 23.0,
+      "tmin": 17.1,
+      "tavg": 20.26,
+      "precip_sum": 1.0,
+      "rad_sum": 9.14,
+      "wind_avg": 10.49,
+      "cloud_avg": 83.25
+    },
+    "2025-12-04": {
+      "tmax": 22.0,
+      "tmin": 15.7,
+      "tavg": 18.26,
+      "precip_sum": 0.0,
+      "rad_sum": 11.5,
+      "wind_avg": 6.58,
+      "cloud_avg": 51.12
+    },
+    "2025-12-05": {
+      "tmax": 24.5,
+      "tmin": 15.9,
+      "tavg": 19.81,
+      "precip_sum": 0.0,
+      "rad_sum": 14.89,
+      "wind_avg": 5.69,
+      "cloud_avg": 25.83
+    },
+    "2025-12-06": {
+      "tmax": 24.2,
+      "tmin": 15.1,
+      "tavg": 18.83,
+      "precip_sum": 0.0,
+      "rad_sum": 15.44,
+      "wind_avg": 5.18,
+      "cloud_avg": 3.38
+    },
+    "2025-12-07": {
+      "tmax": 25.1,
+      "tmin": 13.4,
+      "tavg": 19.2,
+      "precip_sum": 0.0,
+      "rad_sum": 13.72,
+      "wind_avg": 5.42,
+      "cloud_avg": 60.71
+    },
+    "2025-12-08": {
+      "tmax": 25.9,
+      "tmin": 16.9,
+      "tavg": 20.95,
+      "precip_sum": 0.0,
+      "rad_sum": 15.78,
+      "wind_avg": 9.79,
+      "cloud_avg": 23.58
+    },
+    "2025-12-09": {
+      "tmax": 24.7,
+      "tmin": 15.0,
+      "tavg": 19.32,
+      "precip_sum": 0.0,
+      "rad_sum": 15.57,
+      "wind_avg": 6.38,
+      "cloud_avg": 19.5
+    },
+    "2025-12-10": {
+      "tmax": 20.6,
+      "tmin": 17.7,
+      "tavg": 18.93,
+      "precip_sum": 0.6,
+      "rad_sum": 3.31,
+      "wind_avg": 4.68,
+      "cloud_avg": 99.75
+    },
+    "2025-12-11": {
+      "tmax": 25.4,
+      "tmin": 16.9,
+      "tavg": 21.03,
+      "precip_sum": 0.0,
+      "rad_sum": 7.67,
+      "wind_avg": 5.31,
+      "cloud_avg": 82.29
+    },
+    "2025-12-12": {
+      "tmax": 23.7,
+      "tmin": 19.3,
+      "tavg": 21.08,
+      "precip_sum": 0.0,
+      "rad_sum": 9.78,
+      "wind_avg": 10.41,
+      "cloud_avg": 52.08
+    },
+    "2025-12-13": {
+      "tmax": 21.4,
+      "tmin": 12.3,
+      "tavg": 17.38,
+      "precip_sum": 6.3,
+      "rad_sum": 4.49,
+      "wind_avg": 12.6,
+      "cloud_avg": 77.67
+    },
+    "2025-12-14": {
+      "tmax": 18.6,
+      "tmin": 11.7,
+      "tavg": 14.31,
+      "precip_sum": 0.0,
+      "rad_sum": 9.62,
+      "wind_avg": 11.75,
+      "cloud_avg": 85.92
+    },
+    "2025-12-15": {
+      "tmax": 19.6,
+      "tmin": 9.5,
+      "tavg": 14.62,
+      "precip_sum": 0.0,
+      "rad_sum": 10.48,
+      "wind_avg": 5.1,
+      "cloud_avg": 47.25
+    },
+    "2025-12-16": {
+      "tmax": 23.8,
+      "tmin": 12.2,
+      "tavg": 18.34,
+      "precip_sum": 0.0,
+      "rad_sum": 13.9,
+      "wind_avg": 5.89,
+      "cloud_avg": 29.38
+    },
+    "2025-12-17": {
+      "tmax": 26.8,
+      "tmin": 15.5,
+      "tavg": 20.5,
+      "precip_sum": 0.0,
+      "rad_sum": 15.0,
+      "wind_avg": 7.99,
+      "cloud_avg": 8.71
+    },
+    "2025-12-18": {
+      "tmax": 24.8,
+      "tmin": 14.3,
+      "tavg": 19.42,
+      "precip_sum": 0.0,
+      "rad_sum": 15.37,
+      "wind_avg": 7.24,
+      "cloud_avg": 7.5
+    },
+    "2025-12-19": {
+      "tmax": 24.5,
+      "tmin": 17.2,
+      "tavg": 20.52,
+      "precip_sum": 0.6,
+      "rad_sum": 13.4,
+      "wind_avg": 6.55,
+      "cloud_avg": 50.5
+    },
+    "2025-12-20": {
+      "tmax": 26.5,
+      "tmin": 18.0,
+      "tavg": 22.13,
+      "precip_sum": 0.6,
+      "rad_sum": 13.13,
+      "wind_avg": 6.93,
+      "cloud_avg": 37.42
+    },
+    "2025-12-21": {
+      "tmax": 27.3,
+      "tmin": 17.9,
+      "tavg": 22.32,
+      "precip_sum": 0.0,
+      "rad_sum": 14.21,
+      "wind_avg": 9.35,
+      "cloud_avg": 13.46
+    },
+    "2025-12-22": {
+      "tmax": 23.1,
+      "tmin": 16.8,
+      "tavg": 19.85,
+      "precip_sum": 0.0,
+      "rad_sum": 12.58,
+      "wind_avg": 9.13,
+      "cloud_avg": 50.0
+    },
+    "2025-12-23": {
+      "tmax": 24.5,
+      "tmin": 16.4,
+      "tavg": 20.24,
+      "precip_sum": 0.0,
+      "rad_sum": 13.9,
+      "wind_avg": 8.22,
+      "cloud_avg": 33.71
+    },
+    "2025-12-24": {
+      "tmax": 27.7,
+      "tmin": 16.8,
+      "tavg": 21.6,
+      "precip_sum": 0.0,
+      "rad_sum": 13.62,
+      "wind_avg": 4.59,
+      "cloud_avg": 25.88
+    },
+    "2025-12-25": {
+      "tmax": 19.9,
+      "tmin": 13.4,
+      "tavg": 15.67,
+      "precip_sum": 0.3,
+      "rad_sum": 10.46,
+      "wind_avg": 16.97,
+      "cloud_avg": 74.75
+    },
+    "2025-12-26": {
+      "tmax": 14.7,
+      "tmin": 10.6,
+      "tavg": 12.69,
+      "precip_sum": 0.0,
+      "rad_sum": 7.9,
+      "wind_avg": 11.03,
+      "cloud_avg": 95.38
+    },
+    "2025-12-27": {
+      "tmax": 19.4,
+      "tmin": 11.4,
+      "tavg": 14.79,
+      "precip_sum": 0.0,
+      "rad_sum": 12.33,
+      "wind_avg": 6.47,
+      "cloud_avg": 55.0
+    },
+    "2025-12-28": {
+      "tmax": 21.5,
+      "tmin": 10.0,
+      "tavg": 15.83,
+      "precip_sum": 0.2,
+      "rad_sum": 13.08,
+      "wind_avg": 3.35,
+      "cloud_avg": 23.58
+    },
+    "2025-12-29": {
+      "tmax": 23.1,
+      "tmin": 10.8,
+      "tavg": 16.95,
+      "precip_sum": 0.0,
+      "rad_sum": 14.3,
+      "wind_avg": 2.64,
+      "cloud_avg": 19.5
+    },
+    "2025-12-30": {
+      "tmax": 24.2,
+      "tmin": 12.7,
+      "tavg": 18.2,
+      "precip_sum": 0.0,
+      "rad_sum": 13.89,
+      "wind_avg": 5.27,
+      "cloud_avg": 18.42
+    },
+    "2025-12-31": {
+      "tmax": 22.8,
+      "tmin": 12.9,
+      "tavg": 17.85,
+      "precip_sum": 0.0,
+      "rad_sum": 10.62,
+      "wind_avg": 6.26,
+      "cloud_avg": 80.08
+    },
+    "2026-01-01": {
+      "tmax": 22.5,
+      "tmin": 14.7,
+      "tavg": 18.13,
+      "precip_sum": 0.3,
+      "rad_sum": 10.08,
+      "wind_avg": 9.92,
+      "cloud_avg": 48.83
+    },
+    "2026-01-02": {
+      "tmax": 17.4,
+      "tmin": 9.9,
+      "tavg": 13.74,
+      "precip_sum": 0.0,
+      "rad_sum": 15.79,
+      "wind_avg": 13.43,
+      "cloud_avg": 9.5
+    },
+    "2026-01-03": {
+      "tmax": 16.9,
+      "tmin": 7.2,
+      "tavg": 11.7,
+      "precip_sum": 0.0,
+      "rad_sum": 14.22,
+      "wind_avg": 7.86,
+      "cloud_avg": 21.42
+    },
+    "2026-01-04": {
+      "tmax": 20.8,
+      "tmin": 10.8,
+      "tavg": 15.36,
+      "precip_sum": 0.0,
+      "rad_sum": 15.96,
+      "wind_avg": 6.05,
+      "cloud_avg": 15.0
+    },
+    "2026-01-05": {
+      "tmax": 21.5,
+      "tmin": 10.3,
+      "tavg": 15.38,
+      "precip_sum": 0.0,
+      "rad_sum": 15.34,
+      "wind_avg": 9.94,
+      "cloud_avg": 16.12
+    },
+    "2026-01-06": {
+      "tmax": 16.3,
+      "tmin": 8.9,
+      "tavg": 12.17,
+      "precip_sum": 0.0,
+      "rad_sum": 15.71,
+      "wind_avg": 14.11,
+      "cloud_avg": 27.17
+    },
+    "2026-01-07": {
+      "tmax": 16.7,
+      "tmin": 6.6,
+      "tavg": 11.22,
+      "precip_sum": 0.0,
+      "rad_sum": 16.83,
+      "wind_avg": 10.89,
+      "cloud_avg": 0.0
+    },
+    "2026-01-08": {
+      "tmax": 18.9,
+      "tmin": 6.8,
+      "tavg": 12.43,
+      "precip_sum": 0.0,
+      "rad_sum": 17.16,
+      "wind_avg": 10.62,
+      "cloud_avg": 18.38
+    },
+    "2026-01-09": {
+      "tmax": 20.1,
+      "tmin": 6.8,
+      "tavg": 13.02,
+      "precip_sum": 0.0,
+      "rad_sum": 17.06,
+      "wind_avg": 6.38,
+      "cloud_avg": 63.46
+    },
+    "2026-01-10": {
+      "tmax": 22.2,
+      "tmin": 7.2,
+      "tavg": 14.57,
+      "precip_sum": 0.0,
+      "rad_sum": 16.84,
+      "wind_avg": 6.09,
+      "cloud_avg": 47.62
+    },
+    "2026-01-11": {
+      "tmax": 21.4,
+      "tmin": 9.8,
+      "tavg": 15.41,
+      "precip_sum": 0.0,
+      "rad_sum": 17.0,
+      "wind_avg": 8.57,
+      "cloud_avg": 52.25
+    },
+    "2026-01-12": {
+      "tmax": 23.8,
+      "tmin": 10.2,
+      "tavg": 16.49,
+      "precip_sum": 0.0,
+      "rad_sum": 16.23,
+      "wind_avg": 4.91,
+      "cloud_avg": 7.0
+    },
+    "2026-01-13": {
+      "tmax": 24.9,
+      "tmin": 11.0,
+      "tavg": 17.6,
+      "precip_sum": 0.0,
+      "rad_sum": 16.78,
+      "wind_avg": 6.01,
+      "cloud_avg": 2.58
+    },
+    "2026-01-14": {
+      "tmax": 23.8,
+      "tmin": 11.8,
+      "tavg": 17.55,
+      "precip_sum": 0.0,
+      "rad_sum": 16.91,
+      "wind_avg": 7.77,
+      "cloud_avg": 0.17
+    },
+    "2026-01-15": {
+      "tmax": 26.7,
+      "tmin": 11.6,
+      "tavg": 18.44,
+      "precip_sum": 0.0,
+      "rad_sum": 16.81,
+      "wind_avg": 5.28,
+      "cloud_avg": 2.21
+    },
+    "2026-01-16": {
+      "tmax": 26.9,
+      "tmin": 11.5,
+      "tavg": 18.73,
+      "precip_sum": 0.0,
+      "rad_sum": 16.6,
+      "wind_avg": 5.14,
+      "cloud_avg": 9.92
+    },
+    "2026-01-17": {
+      "tmax": 26.4,
+      "tmin": 13.5,
+      "tavg": 19.63,
+      "precip_sum": 0.0,
+      "rad_sum": 12.99,
+      "wind_avg": 5.17,
+      "cloud_avg": 27.58
+    },
+    "2026-01-18": {
+      "tmax": 26.1,
+      "tmin": 16.2,
+      "tavg": 20.34,
+      "precip_sum": 0.0,
+      "rad_sum": 17.02,
+      "wind_avg": 8.83,
+      "cloud_avg": 19.08
+    },
+    "2026-01-19": {
+      "tmax": 26.1,
+      "tmin": 14.1,
+      "tavg": 19.11,
+      "precip_sum": 0.0,
+      "rad_sum": 15.39,
+      "wind_avg": 6.69,
+      "cloud_avg": 20.83
+    },
+    "2026-01-20": {
+      "tmax": 22.0,
+      "tmin": 14.4,
+      "tavg": 17.61,
+      "precip_sum": 0.0,
+      "rad_sum": 9.22,
+      "wind_avg": 7.81,
+      "cloud_avg": 65.42
+    },
+    "2026-01-21": {
+      "tmax": 15.3,
+      "tmin": 10.7,
+      "tavg": 12.64,
+      "precip_sum": 0.0,
+      "rad_sum": 10.2,
+      "wind_avg": 12.26,
+      "cloud_avg": 95.88
+    },
+    "2026-01-22": {
+      "tmax": 13.1,
+      "tmin": 8.3,
+      "tavg": 10.27,
+      "precip_sum": 0.1,
+      "rad_sum": 13.29,
+      "wind_avg": 11.53,
+      "cloud_avg": 73.42
+    },
+    "2026-01-23": {
+      "tmax": 13.7,
+      "tmin": 8.1,
+      "tavg": 10.34,
+      "precip_sum": 0.0,
+      "rad_sum": 8.34,
+      "wind_avg": 7.91,
+      "cloud_avg": 80.71
+    },
+    "2026-01-24": {
+      "tmax": 22.4,
+      "tmin": 8.7,
+      "tavg": 13.76,
+      "precip_sum": 0.0,
+      "rad_sum": 15.24,
+      "wind_avg": 4.04,
+      "cloud_avg": 42.25
+    },
+    "2026-01-25": {
+      "tmax": 23.2,
+      "tmin": 10.5,
+      "tavg": 16.89,
+      "precip_sum": 0.0,
+      "rad_sum": 17.28,
+      "wind_avg": 8.2,
+      "cloud_avg": 39.04
+    },
+    "2026-01-26": {
+      "tmax": 25.0,
+      "tmin": 15.2,
+      "tavg": 19.71,
+      "precip_sum": 0.0,
+      "rad_sum": 16.34,
+      "wind_avg": 5.94,
+      "cloud_avg": 37.12
+    },
+    "2026-01-27": {
+      "tmax": 27.4,
+      "tmin": 14.7,
+      "tavg": 20.62,
+      "precip_sum": 0.0,
+      "rad_sum": 17.32,
+      "wind_avg": 6.18,
+      "cloud_avg": 23.96
+    },
+    "2026-01-28": {
+      "tmax": 23.0,
+      "tmin": 14.3,
+      "tavg": 18.69,
+      "precip_sum": 0.0,
+      "rad_sum": 17.67,
+      "wind_avg": 8.71,
+      "cloud_avg": 6.62
+    },
+    "2026-01-29": {
+      "tmax": 23.0,
+      "tmin": 14.5,
+      "tavg": 18.34,
+      "precip_sum": 0.3,
+      "rad_sum": 14.72,
+      "wind_avg": 9.55,
+      "cloud_avg": 44.08
+    },
+    "2026-01-30": {
+      "tmax": 18.9,
+      "tmin": 15.5,
+      "tavg": 17.44,
+      "precip_sum": 18.2,
+      "rad_sum": 3.87,
+      "wind_avg": 6.76,
+      "cloud_avg": 93.25
+    },
+    "2026-01-31": {
+      "tmax": 18.1,
+      "tmin": 14.6,
+      "tavg": 16.22,
+      "precip_sum": 5.6,
+      "rad_sum": 8.3,
+      "wind_avg": 11.98,
+      "cloud_avg": 91.79
+    },
+    "2026-02-01": {
+      "tmax": 18.7,
+      "tmin": 10.7,
+      "tavg": 14.11,
+      "precip_sum": 0.4,
+      "rad_sum": 14.08,
+      "wind_avg": 8.9,
+      "cloud_avg": 52.88
+    },
+    "2026-02-02": {
+      "tmax": 20.2,
+      "tmin": 10.1,
+      "tavg": 14.79,
+      "precip_sum": 0.0,
+      "rad_sum": 18.23,
+      "wind_avg": 9.07,
+      "cloud_avg": 4.96
+    },
+    "2026-02-03": {
+      "tmax": 20.8,
+      "tmin": 11.4,
+      "tavg": 15.98,
+      "precip_sum": 0.0,
+      "rad_sum": 17.65,
+      "wind_avg": 7.38,
+      "cloud_avg": 59.17
+    },
+    "2026-02-04": {
+      "tmax": 23.5,
+      "tmin": 14.8,
+      "tavg": 18.3,
+      "precip_sum": 0.0,
+      "rad_sum": 12.39,
+      "wind_avg": 6.58,
+      "cloud_avg": 52.0
+    },
+    "2026-02-05": {
+      "tmax": 26.6,
+      "tmin": 14.0,
+      "tavg": 19.63,
+      "precip_sum": 0.0,
+      "rad_sum": 16.06,
+      "wind_avg": 5.17,
+      "cloud_avg": 43.04
+    },
+    "2026-02-06": {
+      "tmax": 27.2,
+      "tmin": 14.7,
+      "tavg": 20.75,
+      "precip_sum": 0.2,
+      "rad_sum": 15.96,
+      "wind_avg": 3.64,
+      "cloud_avg": 37.5
+    },
+    "2026-02-07": {
+      "tmax": 24.2,
+      "tmin": 17.1,
+      "tavg": 20.08,
+      "precip_sum": 0.1,
+      "rad_sum": 12.73,
+      "wind_avg": 10.63,
+      "cloud_avg": 73.12
+    },
+    "2026-02-08": {
+      "tmax": 17.9,
+      "tmin": 13.0,
+      "tavg": 15.49,
+      "precip_sum": 0.0,
+      "rad_sum": 10.7,
+      "wind_avg": 13.91,
+      "cloud_avg": 65.17
+    },
+    "2026-02-09": {
+      "tmax": 18.4,
+      "tmin": 11.5,
+      "tavg": 14.8,
+      "precip_sum": 0.0,
+      "rad_sum": 10.32,
+      "wind_avg": 9.01,
+      "cloud_avg": 77.67
+    },
+    "2026-02-10": {
+      "tmax": 21.5,
+      "tmin": 14.6,
+      "tavg": 17.42,
+      "precip_sum": 0.7,
+      "rad_sum": 6.56,
+      "wind_avg": 6.81,
+      "cloud_avg": 77.21
+    },
+    "2026-02-11": {
+      "tmax": 26.2,
+      "tmin": 15.2,
+      "tavg": 20.29,
+      "precip_sum": 0.0,
+      "rad_sum": 17.8,
+      "wind_avg": 6.43,
+      "cloud_avg": 37.83
+    },
+    "2026-02-12": {
+      "tmax": 23.5,
+      "tmin": 15.8,
+      "tavg": 18.67,
+      "precip_sum": 0.1,
+      "rad_sum": 10.49,
+      "wind_avg": 7.67,
+      "cloud_avg": 54.62
+    },
+    "2026-02-13": {
+      "tmax": 26.1,
+      "tmin": 16.2,
+      "tavg": 20.43,
+      "precip_sum": 0.0,
+      "rad_sum": 14.47,
+      "wind_avg": 6.79,
+      "cloud_avg": 54.71
+    },
+    "2026-02-14": {
+      "tmax": 28.5,
+      "tmin": 14.4,
+      "tavg": 21.04,
+      "precip_sum": 0.0,
+      "rad_sum": 19.0,
+      "wind_avg": 6.67,
+      "cloud_avg": 27.21
+    },
+    "2026-02-15": {
+      "tmax": 28.4,
+      "tmin": 18.5,
+      "tavg": 22.31,
+      "precip_sum": 0.1,
+      "rad_sum": 14.07,
+      "wind_avg": 6.7,
+      "cloud_avg": 58.12
+    },
+    "2026-02-16": {
+      "tmax": 29.9,
+      "tmin": 20.3,
+      "tavg": 23.6,
+      "precip_sum": 0.1,
+      "rad_sum": 16.19,
+      "wind_avg": 6.71,
+      "cloud_avg": 61.62
+    },
+    "2026-02-17": {
+      "tmax": 21.8,
+      "tmin": 16.3,
+      "tavg": 19.73,
+      "precip_sum": 0.0,
+      "rad_sum": 10.57,
+      "wind_avg": 10.49,
+      "cloud_avg": 68.83
+    },
+    "2026-02-18": {
+      "tmax": 23.8,
+      "tmin": 14.3,
+      "tavg": 18.6,
+      "precip_sum": 0.0,
+      "rad_sum": 19.25,
+      "wind_avg": 8.82,
+      "cloud_avg": 26.21
+    },
+    "2026-02-19": {
+      "tmax": 26.0,
+      "tmin": 15.5,
+      "tavg": 19.76,
+      "precip_sum": 0.0,
+      "rad_sum": 18.19,
+      "wind_avg": 6.58,
+      "cloud_avg": 31.88
+    },
+    "2026-02-20": {
+      "tmax": 27.0,
+      "tmin": 16.0,
+      "tavg": 20.65,
+      "precip_sum": 0.0,
+      "rad_sum": 17.73,
+      "wind_avg": 8.42,
+      "cloud_avg": 29.0
+    },
+    "2026-02-21": {
+      "tmax": 27.0,
+      "tmin": 15.7,
+      "tavg": 20.63,
+      "precip_sum": 0.1,
+      "rad_sum": 14.5,
+      "wind_avg": 9.35,
+      "cloud_avg": 37.08
+    },
+    "2026-02-22": {
+      "tmax": 27.8,
+      "tmin": 18.4,
+      "tavg": 22.5,
+      "precip_sum": 0.8,
+      "rad_sum": 16.34,
+      "wind_avg": 6.6,
+      "cloud_avg": 34.83
+    },
+    "2026-02-23": {
+      "tmax": 26.5,
+      "tmin": 17.4,
+      "tavg": 21.61,
+      "precip_sum": 0.0,
+      "rad_sum": 15.99,
+      "wind_avg": 9.73,
+      "cloud_avg": 50.29
+    },
+    "2026-02-24": {
+      "tmax": 27.7,
+      "tmin": 20.2,
+      "tavg": 23.0,
+      "precip_sum": 0.6,
+      "rad_sum": 10.57,
+      "wind_avg": 5.8,
+      "cloud_avg": 86.67
+    },
+    "2026-02-25": {
+      "tmax": 28.3,
+      "tmin": 19.7,
+      "tavg": 22.87,
+      "precip_sum": 0.1,
+      "rad_sum": 10.3,
+      "wind_avg": 6.59,
+      "cloud_avg": 83.54
+    },
+    "2026-02-26": {
+      "tmax": 25.9,
+      "tmin": 19.2,
+      "tavg": 22.08,
+      "precip_sum": 0.9,
+      "rad_sum": 12.96,
+      "wind_avg": 10.85,
+      "cloud_avg": 68.75
+    },
+    "2026-02-27": {
+      "tmax": 26.1,
+      "tmin": 19.0,
+      "tavg": 22.45,
+      "precip_sum": 2.2,
+      "rad_sum": 9.45,
+      "wind_avg": 7.27,
+      "cloud_avg": 77.04
+    },
+    "2026-02-28": {
+      "tmax": 23.9,
+      "tmin": 19.5,
+      "tavg": 21.35,
+      "precip_sum": 5.7,
+      "rad_sum": 6.89,
+      "wind_avg": 13.53,
+      "cloud_avg": 100.0
+    },
+    "2026-03-01": {
+      "tmax": 26.0,
+      "tmin": 19.9,
+      "tavg": 22.33,
+      "precip_sum": 0.7,
+      "rad_sum": 10.68,
+      "wind_avg": 14.99,
+      "cloud_avg": 75.12
+    },
+    "2026-03-02": {
+      "tmax": 28.2,
+      "tmin": 19.3,
+      "tavg": 23.46,
+      "precip_sum": 12.0,
+      "rad_sum": 12.99,
+      "wind_avg": 8.42,
+      "cloud_avg": 72.08
+    },
+    "2026-03-03": {
+      "tmax": 19.8,
+      "tmin": 15.3,
+      "tavg": 17.3,
+      "precip_sum": 23.1,
+      "rad_sum": 7.11,
+      "wind_avg": 11.55,
+      "cloud_avg": 81.25
+    },
+    "2026-03-04": {
+      "tmax": 18.4,
+      "tmin": 13.4,
+      "tavg": 15.42,
+      "precip_sum": 25.9,
+      "rad_sum": 6.13,
+      "wind_avg": 9.45,
+      "cloud_avg": 99.96
+    },
+    "2026-03-05": {
+      "tmax": 23.6,
+      "tmin": 14.8,
+      "tavg": 18.7,
+      "precip_sum": 0.0,
+      "rad_sum": 16.35,
+      "wind_avg": 7.22,
+      "cloud_avg": 83.5
+    },
+    "2026-03-06": {
+      "tmax": 22.7,
+      "tmin": 13.7,
+      "tavg": 18.38,
+      "precip_sum": 0.0,
+      "rad_sum": 21.16,
+      "wind_avg": 9.45,
+      "cloud_avg": 27.92
+    },
+    "2026-03-07": {
+      "tmax": 23.6,
+      "tmin": 15.4,
+      "tavg": 18.73,
+      "precip_sum": 0.0,
+      "rad_sum": 18.6,
+      "wind_avg": 7.87,
+      "cloud_avg": 23.67
+    },
+    "2026-03-08": {
+      "tmax": 24.2,
+      "tmin": 15.2,
+      "tavg": 19.31,
+      "precip_sum": 0.0,
+      "rad_sum": 20.48,
+      "wind_avg": 8.31,
+      "cloud_avg": 25.12
+    },
+    "2026-03-09": {
+      "tmax": 22.6,
+      "tmin": 16.5,
+      "tavg": 19.29,
+      "precip_sum": 0.5,
+      "rad_sum": 7.42,
+      "wind_avg": 8.38,
+      "cloud_avg": 85.88
+    },
+    "2026-03-10": {
+      "tmax": 17.9,
+      "tmin": 14.0,
+      "tavg": 15.79,
+      "precip_sum": 0.8,
+      "rad_sum": 6.6,
+      "wind_avg": 8.27,
+      "cloud_avg": 91.92
+    },
+    "2026-03-11": {
+      "tmax": 21.6,
+      "tmin": 13.6,
+      "tavg": 17.2,
+      "precip_sum": 0.2,
+      "rad_sum": 12.5,
+      "wind_avg": 5.08,
+      "cloud_avg": 59.12
+    },
+    "2026-03-12": {
+      "tmax": 25.2,
+      "tmin": 13.4,
+      "tavg": 18.53,
+      "precip_sum": 0.0,
+      "rad_sum": 21.31,
+      "wind_avg": 7.06,
+      "cloud_avg": 25.54
+    },
+    "2026-03-13": {
+      "tmax": 22.2,
+      "tmin": 14.7,
+      "tavg": 17.86,
+      "precip_sum": 0.0,
+      "rad_sum": 22.05,
+      "wind_avg": 10.82,
+      "cloud_avg": 23.5
+    },
+    "2026-03-14": {
+      "tmax": 23.5,
+      "tmin": 13.4,
+      "tavg": 18.07,
+      "precip_sum": 0.0,
+      "rad_sum": 20.92,
+      "wind_avg": 9.55,
+      "cloud_avg": 8.71
+    },
+    "2026-03-15": {
+      "tmax": 25.8,
+      "tmin": 14.9,
+      "tavg": 19.6,
+      "precip_sum": 0.0,
+      "rad_sum": 20.84,
+      "wind_avg": 7.97,
+      "cloud_avg": 7.58
+    },
+    "2026-03-16": {
+      "tmax": 25.8,
+      "tmin": 15.6,
+      "tavg": 19.92,
+      "precip_sum": 0.0,
+      "rad_sum": 21.39,
+      "wind_avg": 7.57,
+      "cloud_avg": 0.42
+    },
+    "2026-03-17": {
+      "tmax": 24.5,
+      "tmin": 17.5,
+      "tavg": 20.68,
+      "precip_sum": 1.1,
+      "rad_sum": 14.86,
+      "wind_avg": 10.42,
+      "cloud_avg": 21.75
+    },
+    "2026-03-18": {
+      "tmax": 27.9,
+      "tmin": 17.2,
+      "tavg": 22.52,
+      "precip_sum": 0.0,
+      "rad_sum": 15.71,
+      "wind_avg": 6.62,
+      "cloud_avg": 33.0
+    },
+    "2026-03-19": {
+      "tmax": 28.9,
+      "tmin": 17.6,
+      "tavg": 22.73,
+      "precip_sum": 0.4,
+      "rad_sum": 19.46,
+      "wind_avg": 6.28,
+      "cloud_avg": 23.04
+    },
+    "2026-03-20": {
+      "tmax": 26.7,
+      "tmin": 19.3,
+      "tavg": 22.33,
+      "precip_sum": 2.2,
+      "rad_sum": 15.07,
+      "wind_avg": 11.52,
+      "cloud_avg": 73.67
+    },
+    "2026-03-21": {
+      "tmax": 25.6,
+      "tmin": 20.5,
+      "tavg": 22.23,
+      "precip_sum": 1.5,
+      "rad_sum": 9.01,
+      "wind_avg": 10.19,
+      "cloud_avg": 83.42
+    },
+    "2026-03-22": {
+      "tmax": 27.5,
+      "tmin": 19.8,
+      "tavg": 22.88,
+      "precip_sum": 0.0,
+      "rad_sum": 14.6,
+      "wind_avg": 10.34,
+      "cloud_avg": 50.79
+    },
+    "2026-03-23": {
+      "tmax": 29.5,
+      "tmin": 19.0,
+      "tavg": 23.52,
+      "precip_sum": 0.0,
+      "rad_sum": 17.35,
+      "wind_avg": 7.55,
+      "cloud_avg": 29.38
+    },
+    "2026-03-24": {
+      "tmax": 29.9,
+      "tmin": 19.5,
+      "tavg": 24.03,
+      "precip_sum": 0.2,
+      "rad_sum": 16.36,
+      "wind_avg": 7.28,
+      "cloud_avg": 44.42
+    },
+    "2026-03-25": {
+      "tmax": 31.5,
+      "tmin": 20.5,
+      "tavg": 25.05,
+      "precip_sum": 0.0,
+      "rad_sum": 19.53,
+      "wind_avg": 5.65,
+      "cloud_avg": 36.58
+    },
+    "2026-03-26": {
+      "tmax": 30.7,
+      "tmin": 22.2,
+      "tavg": 25.33,
+      "precip_sum": 0.1,
+      "rad_sum": 16.76,
+      "wind_avg": 10.38,
+      "cloud_avg": 53.75
+    },
+    "2026-03-27": {
+      "tmax": 29.6,
+      "tmin": 22.1,
+      "tavg": 25.09,
+      "precip_sum": 0.4,
+      "rad_sum": 13.79,
+      "wind_avg": 7.86,
+      "cloud_avg": 70.12
+    },
+    "2026-03-28": {
+      "tmax": 28.8,
+      "tmin": 21.9,
+      "tavg": 24.37,
+      "precip_sum": 3.2,
+      "rad_sum": 11.61,
+      "wind_avg": 8.62,
+      "cloud_avg": 59.46
+    },
+    "2026-03-29": {
+      "tmax": 28.8,
+      "tmin": 22.1,
+      "tavg": 24.74,
+      "precip_sum": 0.8,
+      "rad_sum": 14.29,
+      "wind_avg": 10.81,
+      "cloud_avg": 52.12
+    },
+    "2026-03-30": {
+      "tmax": 30.5,
+      "tmin": 22.2,
+      "tavg": 25.15,
+      "precip_sum": 0.8,
+      "rad_sum": 16.39,
+      "wind_avg": 12.01,
+      "cloud_avg": 47.12
+    },
+    "2026-03-31": {
+      "tmax": 29.7,
+      "tmin": 22.1,
+      "tavg": 25.35,
+      "precip_sum": 17.3,
+      "rad_sum": 16.63,
+      "wind_avg": 12.65,
+      "cloud_avg": 73.71
+    },
+    "2026-04-01": {
+      "tmax": 30.4,
+      "tmin": 18.1,
+      "tavg": 23.5,
+      "precip_sum": 0.1,
+      "rad_sum": 19.75,
+      "wind_avg": 7.82,
+      "cloud_avg": 55.29
+    },
+    "2026-04-02": {
+      "tmax": 27.0,
+      "tmin": 21.8,
+      "tavg": 23.96,
+      "precip_sum": 1.4,
+      "rad_sum": 16.23,
+      "wind_avg": 14.03,
+      "cloud_avg": 70.42
+    },
+    "2026-04-03": {
+      "tmax": 30.3,
+      "tmin": 23.1,
+      "tavg": 25.95,
+      "precip_sum": 1.0,
+      "rad_sum": 16.93,
+      "wind_avg": 17.59,
+      "cloud_avg": 60.08
+    },
+    "2026-04-04": {
+      "tmax": 25.6,
+      "tmin": 21.4,
+      "tavg": 23.22,
+      "precip_sum": 19.8,
+      "rad_sum": 10.39,
+      "wind_avg": 6.85,
+      "cloud_avg": 63.62
+    },
+    "2026-04-05": {
+      "tmax": 27.2,
+      "tmin": 21.3,
+      "tavg": 23.91,
+      "precip_sum": 5.3,
+      "rad_sum": 14.28,
+      "wind_avg": 10.98,
+      "cloud_avg": 74.83
+    },
+    "2026-04-06": {
+      "tmax": 30.4,
+      "tmin": 23.5,
+      "tavg": 26.25,
+      "precip_sum": 3.9,
+      "rad_sum": 17.06,
+      "wind_avg": 13.16,
+      "cloud_avg": 72.17
+    },
+    "2026-04-07": {
+      "tmax": 32.2,
+      "tmin": 24.2,
+      "tavg": 27.29,
+      "precip_sum": 1.3,
+      "rad_sum": 17.29,
+      "wind_avg": 8.22,
+      "cloud_avg": 45.83
+    },
+    "2026-04-08": {
+      "tmax": 26.3,
+      "tmin": 23.2,
+      "tavg": 24.5,
+      "precip_sum": 3.0,
+      "rad_sum": 10.36,
+      "wind_avg": 16.96,
+      "cloud_avg": 96.67
+    },
+    "2026-04-09": {
+      "tmax": 29.9,
+      "tmin": 23.1,
+      "tavg": 25.61,
+      "precip_sum": 0.2,
+      "rad_sum": 16.98,
+      "wind_avg": 14.66,
+      "cloud_avg": 52.25
+    },
+    "2026-04-10": {
+      "tmax": 31.1,
+      "tmin": 23.2,
+      "tavg": 26.4,
+      "precip_sum": 0.0,
+      "rad_sum": 20.96,
+      "wind_avg": 13.19,
+      "cloud_avg": 15.21
+    },
+    "2026-04-11": {
+      "tmax": 30.4,
+      "tmin": 23.7,
+      "tavg": 26.5,
+      "precip_sum": 0.1,
+      "rad_sum": 17.45,
+      "wind_avg": 13.95,
+      "cloud_avg": 54.75
+    },
+    "2026-04-12": {
+      "tmax": 30.2,
+      "tmin": 24.1,
+      "tavg": 26.62,
+      "precip_sum": 0.4,
+      "rad_sum": 17.91,
+      "wind_avg": 13.22,
+      "cloud_avg": 62.42
+    },
+    "2026-04-13": {
+      "tmax": 30.8,
+      "tmin": 23.8,
+      "tavg": 26.64,
+      "precip_sum": 0.0,
+      "rad_sum": 18.73,
+      "wind_avg": 12.49,
+      "cloud_avg": 33.29
+    },
+    "2026-04-14": {
+      "tmax": 31.8,
+      "tmin": 24.1,
+      "tavg": 27.01,
+      "precip_sum": 0.0,
+      "rad_sum": 20.15,
+      "wind_avg": 10.5,
+      "cloud_avg": 30.25
+    },
+    "2026-04-15": {
+      "tmax": 30.7,
+      "tmin": 23.8,
+      "tavg": 26.64,
+      "precip_sum": 0.0,
+      "rad_sum": 17.94,
+      "wind_avg": 10.27,
+      "cloud_avg": 40.79
+    },
+    "2026-04-16": {
+      "tmax": 29.9,
+      "tmin": 23.3,
+      "tavg": 26.08,
+      "precip_sum": 1.9,
+      "rad_sum": 17.55,
+      "wind_avg": 10.06,
+      "cloud_avg": 30.75
+    },
+    "2026-04-17": {
+      "tmax": 28.2,
+      "tmin": 21.8,
+      "tavg": 23.85,
+      "precip_sum": 25.7,
+      "rad_sum": 11.04,
+      "wind_avg": 5.71,
+      "cloud_avg": 65.29
+    },
+    "2026-04-18": {
+      "tmax": 28.2,
+      "tmin": 20.7,
+      "tavg": 24.42,
+      "precip_sum": 0.6,
+      "rad_sum": 15.87,
+      "wind_avg": 6.12,
+      "cloud_avg": 45.33
+    },
+    "2026-04-19": {
+      "tmax": 30.5,
+      "tmin": 21.3,
+      "tavg": 25.51,
+      "precip_sum": 0.0,
+      "rad_sum": 22.33,
+      "wind_avg": 6.48,
+      "cloud_avg": 38.62
+    },
+    "2026-04-20": {
+      "tmax": 29.9,
+      "tmin": 22.5,
+      "tavg": 24.78,
+      "precip_sum": 20.2,
+      "rad_sum": 14.21,
+      "wind_avg": 8.06,
+      "cloud_avg": 73.62
+    },
+    "2026-04-21": {
+      "tmax": 31.1,
+      "tmin": 23.3,
+      "tavg": 26.03,
+      "precip_sum": 0.2,
+      "rad_sum": 21.83,
+      "wind_avg": 10.37,
+      "cloud_avg": 44.38
+    },
+    "2026-04-22": {
+      "tmax": 29.8,
+      "tmin": 23.1,
+      "tavg": 26.28,
+      "precip_sum": 0.3,
+      "rad_sum": 18.32,
+      "wind_avg": 12.56,
+      "cloud_avg": 53.92
+    },
+    "2026-04-23": {
+      "tmax": 25.5,
+      "tmin": 19.6,
+      "tavg": 22.49,
+      "precip_sum": 3.7,
+      "rad_sum": 8.92,
+      "wind_avg": 8.45,
+      "cloud_avg": 98.46
+    },
+    "2026-04-24": {
+      "tmax": 20.2,
+      "tmin": 17.9,
+      "tavg": 19.18,
+      "precip_sum": 78.8,
+      "rad_sum": 5.19,
+      "wind_avg": 9.0,
+      "cloud_avg": 99.88
+    },
+    "2026-04-25": {
+      "tmax": 26.9,
+      "tmin": 17.2,
+      "tavg": 21.8,
+      "precip_sum": 0.0,
+      "rad_sum": 24.24,
+      "wind_avg": 6.72,
+      "cloud_avg": 26.38
+    },
+    "2026-04-26": {
+      "tmax": 29.3,
+      "tmin": 19.9,
+      "tavg": 23.88,
+      "precip_sum": 0.0,
+      "rad_sum": 19.76,
+      "wind_avg": 6.78,
+      "cloud_avg": 69.92
+    },
+    "2026-04-27": {
+      "tmax": 27.4,
+      "tmin": 22.0,
+      "tavg": 24.45,
+      "precip_sum": 1.1,
+      "rad_sum": 13.88,
+      "wind_avg": 8.98,
+      "cloud_avg": 96.08
+    },
+    "2026-04-28": {
+      "tmax": 28.5,
+      "tmin": 22.1,
+      "tavg": 24.38,
+      "precip_sum": 8.7,
+      "rad_sum": 16.6,
+      "wind_avg": 9.48,
+      "cloud_avg": 84.83
+    },
+    "2026-04-29": {
+      "tmax": 28.2,
+      "tmin": 20.9,
+      "tavg": 23.64,
+      "precip_sum": 22.6,
+      "rad_sum": 13.02,
+      "wind_avg": 8.57,
+      "cloud_avg": 80.17
+    },
+    "2026-04-30": {
+      "tmax": 23.6,
+      "tmin": 17.5,
+      "tavg": 20.71,
+      "precip_sum": 0.0,
+      "rad_sum": 17.77,
+      "wind_avg": 9.15,
+      "cloud_avg": 66.12
+    },
+    "2026-05-01": {
+      "tmax": 26.7,
+      "tmin": 18.5,
+      "tavg": 22.47,
+      "precip_sum": 0.1,
+      "rad_sum": 16.57,
+      "wind_avg": 8.28,
+      "cloud_avg": 68.42
+    },
+    "2026-05-02": {
+      "tmax": 28.6,
+      "tmin": 22.5,
+      "tavg": 25.23,
+      "precip_sum": 1.2,
+      "rad_sum": 17.79,
+      "wind_avg": 11.28,
+      "cloud_avg": 89.25
+    },
+    "2026-05-03": {
+      "tmax": 27.7,
+      "tmin": 22.3,
+      "tavg": 24.45,
+      "precip_sum": 20.7,
+      "rad_sum": 10.7,
+      "wind_avg": 7.1,
+      "cloud_avg": 91.88
+    },
+    "2026-05-04": {
+      "tmax": 25.1,
+      "tmin": 20.6,
+      "tavg": 22.35,
+      "precip_sum": 2.1,
+      "rad_sum": 9.92,
+      "wind_avg": 7.71,
+      "cloud_avg": 96.92
+    },
+    "2026-05-05": {
+      "tmax": 26.7,
+      "tmin": 20.3,
+      "tavg": 22.26,
+      "precip_sum": 11.9,
+      "rad_sum": 11.74,
+      "wind_avg": 7.59,
+      "cloud_avg": 96.21
+    },
+    "2026-05-06": {
+      "tmax": 26.3,
+      "tmin": 21.0,
+      "tavg": 23.43,
+      "precip_sum": 1.0,
+      "rad_sum": 11.61,
+      "wind_avg": 8.61,
+      "cloud_avg": 73.17
+    },
+    "2026-05-07": {
+      "tmax": 29.9,
+      "tmin": 22.2,
+      "tavg": 25.62,
+      "precip_sum": 1.7,
+      "rad_sum": 21.32,
+      "wind_avg": 8.3,
+      "cloud_avg": 54.92
+    },
+    "2026-05-08": {
+      "tmax": 29.2,
+      "tmin": 22.9,
+      "tavg": 25.61,
+      "precip_sum": 7.0,
+      "rad_sum": 15.51,
+      "wind_avg": 4.01,
+      "cloud_avg": 92.25
+    },
+    "2026-05-09": {
+      "tmax": 25.2,
+      "tmin": 22.5,
+      "tavg": 23.65,
+      "precip_sum": 13.8,
+      "rad_sum": 5.9,
+      "wind_avg": 7.47,
+      "cloud_avg": 96.67
+    },
+    "2026-05-10": {
+      "tmax": 27.6,
+      "tmin": 22.1,
+      "tavg": 24.23,
+      "precip_sum": 2.0,
+      "rad_sum": 12.22,
+      "wind_avg": 4.24,
+      "cloud_avg": 80.5
+    },
+    "2026-05-11": {
+      "tmax": 30.6,
+      "tmin": 21.6,
+      "tavg": 25.75,
+      "precip_sum": 2.4,
+      "rad_sum": 20.61,
+      "wind_avg": 5.88,
+      "cloud_avg": 58.04
+    },
+    "2026-05-12": {
+      "tmax": 32.1,
+      "tmin": 23.8,
+      "tavg": 27.35,
+      "precip_sum": 1.9,
+      "rad_sum": 23.22,
+      "wind_avg": 6.5,
+      "cloud_avg": 79.96
+    },
+    "2026-05-13": {
+      "tmax": 32.9,
+      "tmin": 24.7,
+      "tavg": 28.06,
+      "precip_sum": 0.3,
+      "rad_sum": 24.48,
+      "wind_avg": 11.28,
+      "cloud_avg": 64.92
+    },
+    "2026-05-14": {
+      "tmax": 30.2,
+      "tmin": 25.5,
+      "tavg": 27.05,
+      "precip_sum": 18.7,
+      "rad_sum": 14.57,
+      "wind_avg": 9.76,
+      "cloud_avg": 70.5
+    },
+    "2026-05-15": {
+      "tmax": 30.5,
+      "tmin": 23.4,
+      "tavg": 26.38,
+      "precip_sum": 18.1,
+      "rad_sum": 19.56,
+      "wind_avg": 9.14,
+      "cloud_avg": 82.92
+    },
+    "2026-05-16": {
+      "tmax": 28.6,
+      "tmin": 23.6,
+      "tavg": 25.68,
+      "precip_sum": 6.0,
+      "rad_sum": 18.02,
+      "wind_avg": 18.22,
+      "cloud_avg": 85.58
+    },
+    "2026-05-17": {
+      "tmax": 27.9,
+      "tmin": 23.6,
+      "tavg": 24.85,
+      "precip_sum": 5.4,
+      "rad_sum": 14.16,
+      "wind_avg": 19.2,
+      "cloud_avg": 83.46
+    },
+    "2026-05-18": {
+      "tmax": 28.2,
+      "tmin": 24.0,
+      "tavg": 25.22,
+      "precip_sum": 9.6,
+      "rad_sum": 12.94,
+      "wind_avg": 16.31,
+      "cloud_avg": 80.79
+    },
+    "2026-05-19": {
+      "tmax": 26.9,
+      "tmin": 23.9,
+      "tavg": 25.15,
+      "precip_sum": 22.2,
+      "rad_sum": 6.88,
+      "wind_avg": 11.91,
+      "cloud_avg": 99.12
+    },
+    "2026-05-20": {
+      "tmax": 28.9,
+      "tmin": 24.3,
+      "tavg": 25.76,
+      "precip_sum": 29.1,
+      "rad_sum": 9.33,
+      "wind_avg": 9.93,
+      "cloud_avg": 97.58
+    },
+    "2026-05-21": {
+      "tmax": 30.9,
+      "tmin": 24.2,
+      "tavg": 26.9,
+      "precip_sum": 19.3,
+      "rad_sum": 13.5,
+      "wind_avg": 9.4,
+      "cloud_avg": 99.0
+    },
+    "2026-05-22": {
+      "tmax": 32.8,
+      "tmin": 24.9,
+      "tavg": 28.42,
+      "precip_sum": 1.5,
+      "rad_sum": 22.58,
+      "wind_avg": 11.86,
+      "cloud_avg": 87.75
+    },
+    "2026-05-23": {
+      "tmax": 31.6,
+      "tmin": 25.8,
+      "tavg": 28.51,
+      "precip_sum": 5.8,
+      "rad_sum": 18.27,
+      "wind_avg": 11.12,
+      "cloud_avg": 79.12
+    },
+    "2026-05-24": {
+      "tmax": 33.4,
+      "tmin": 26.6,
+      "tavg": 29.61,
+      "precip_sum": 1.1,
+      "rad_sum": 22.19,
+      "wind_avg": 13.54,
+      "cloud_avg": 77.62
+    },
+    "2026-05-25": {
+      "tmax": 33.4,
+      "tmin": 27.0,
+      "tavg": 29.65,
+      "precip_sum": 2.0,
+      "rad_sum": 25.61,
+      "wind_avg": 14.02,
+      "cloud_avg": 45.46
+    },
+    "2026-05-26": {
+      "tmax": 34.4,
+      "tmin": 26.8,
+      "tavg": 30.09,
+      "precip_sum": 0.3,
+      "rad_sum": 25.62,
+      "wind_avg": 11.07,
+      "cloud_avg": 62.54
+    },
+    "2026-05-27": {
+      "tmax": 35.1,
+      "tmin": 27.0,
+      "tavg": 30.43,
+      "precip_sum": 0.2,
+      "rad_sum": 25.0,
+      "wind_avg": 8.4,
+      "cloud_avg": 71.46
+    },
+    "2026-05-28": {
+      "tmax": 35.6,
+      "tmin": 27.0,
+      "tavg": 30.69,
+      "precip_sum": 0.9,
+      "rad_sum": 25.49,
+      "wind_avg": 6.61,
+      "cloud_avg": 21.17
+    },
+    "2026-05-29": {
+      "tmax": 35.6,
+      "tmin": 26.2,
+      "tavg": 30.27,
+      "precip_sum": 1.5,
+      "rad_sum": 25.11,
+      "wind_avg": 6.3,
+      "cloud_avg": 42.42
+    },
+    "2026-05-30": {
+      "tmax": 33.5,
+      "tmin": 25.3,
+      "tavg": 28.86,
+      "precip_sum": 1.6,
+      "rad_sum": 21.81,
+      "wind_avg": 5.66,
+      "cloud_avg": 68.62
+    },
+    "2026-05-31": {
+      "tmax": 31.1,
+      "tmin": 24.8,
+      "tavg": 27.72,
+      "precip_sum": 11.5,
+      "rad_sum": 19.39,
+      "wind_avg": 6.48,
+      "cloud_avg": 55.17
+    },
+    "2026-06-01": {
+      "tmax": 33.2,
+      "tmin": 25.7,
+      "tavg": 29.05,
+      "precip_sum": 4.1,
+      "rad_sum": 22.49,
+      "wind_avg": 5.96,
+      "cloud_avg": 43.88
+    },
+    "2026-06-02": {
+      "tmax": 34.8,
+      "tmin": 26.4,
+      "tavg": 29.71,
+      "precip_sum": 1.6,
+      "rad_sum": 23.01,
+      "wind_avg": 6.51,
+      "cloud_avg": 44.5
+    },
+    "2026-06-03": {
+      "tmax": 35.2,
+      "tmin": 27.2,
+      "tavg": 30.62,
+      "precip_sum": 1.4,
+      "rad_sum": 24.64,
+      "wind_avg": 8.27,
+      "cloud_avg": 37.12
+    },
+    "2026-06-04": {
+      "tmax": 35.7,
+      "tmin": 26.7,
+      "tavg": 30.95,
+      "precip_sum": 0.7,
+      "rad_sum": 25.7,
+      "wind_avg": 7.1,
+      "cloud_avg": 10.79
+    },
+    "2026-06-05": {
+      "tmax": 35.6,
+      "tmin": 25.7,
+      "tavg": 29.35,
+      "precip_sum": 14.5,
+      "rad_sum": 20.47,
+      "wind_avg": 7.79,
+      "cloud_avg": 78.54
+    },
+    "2026-06-06": {
+      "tmax": 33.1,
+      "tmin": 25.8,
+      "tavg": 28.16,
+      "precip_sum": 14.2,
+      "rad_sum": 14.71,
+      "wind_avg": 6.96,
+      "cloud_avg": 91.5
+    },
+    "2026-06-07": {
+      "tmax": 32.6,
+      "tmin": 23.4,
+      "tavg": 27.99,
+      "precip_sum": 20.6,
+      "rad_sum": 19.74,
+      "wind_avg": 7.36,
+      "cloud_avg": 97.04
+    },
+    "2026-06-08": {
+      "tmax": 30.5,
+      "tmin": 25.4,
+      "tavg": 27.22,
+      "precip_sum": 30.6,
+      "rad_sum": 14.56,
+      "wind_avg": 9.18,
+      "cloud_avg": 98.33
+    },
+    "2026-06-09": {
+      "tmax": 27.6,
+      "tmin": 23.6,
+      "tavg": 25.51,
+      "precip_sum": 3.6,
+      "rad_sum": 13.82,
+      "wind_avg": 10.36,
+      "cloud_avg": 98.54
+    },
+    "2026-06-10": {
+      "tmax": 29.6,
+      "tmin": 23.0,
+      "tavg": 26.05,
+      "precip_sum": 0.0,
+      "rad_sum": 17.43,
+      "wind_avg": 7.2,
+      "cloud_avg": 96.79
+    },
+    "2026-06-11": {
+      "tmax": 30.7,
+      "tmin": 23.6,
+      "tavg": 26.72,
+      "precip_sum": 0.4,
+      "rad_sum": 19.23,
+      "wind_avg": 6.2,
+      "cloud_avg": 78.46
+    },
+    "2026-06-12": {
+      "tmax": 32.2,
+      "tmin": 24.3,
+      "tavg": 27.01,
+      "precip_sum": 9.4,
+      "rad_sum": 21.42,
+      "wind_avg": 5.91,
+      "cloud_avg": 75.38
+    },
+    "2026-06-13": {
+      "tmax": 31.5,
+      "tmin": 25.2,
+      "tavg": 27.77,
+      "precip_sum": 4.5,
+      "rad_sum": 18.46,
+      "wind_avg": 11.66,
+      "cloud_avg": 94.75
+    },
+    "2026-06-14": {
+      "tmax": 29.4,
+      "tmin": 24.7,
+      "tavg": 26.39,
+      "precip_sum": 32.1,
+      "rad_sum": 11.53,
+      "wind_avg": 12.11,
+      "cloud_avg": 99.17
+    },
+    "2026-06-15": {
+      "tmax": 30.9,
+      "tmin": 24.9,
+      "tavg": 26.09,
+      "precip_sum": 22.6,
+      "rad_sum": 11.8,
+      "wind_avg": 7.85,
+      "cloud_avg": 99.46
+    },
+    "2026-06-16": {
+      "tmax": 26.2,
+      "tmin": 24.9,
+      "tavg": 25.35,
+      "precip_sum": 88.6,
+      "rad_sum": 4.09,
+      "wind_avg": 7.82,
+      "cloud_avg": 100.0
+    },
+    "2026-06-17": {
+      "tmax": 30.7,
+      "tmin": 24.4,
+      "tavg": 25.95,
+      "precip_sum": 16.9,
+      "rad_sum": 15.75,
+      "wind_avg": 12.41,
+      "cloud_avg": 89.71
+    },
+    "2026-06-18": {
+      "tmax": 26.6,
+      "tmin": 24.0,
+      "tavg": 25.13,
+      "precip_sum": 37.5,
+      "rad_sum": 3.4,
+      "wind_avg": 11.36,
+      "cloud_avg": 97.29
+    },
+    "2026-06-19": {
+      "tmax": 31.9,
+      "tmin": 24.8,
+      "tavg": 27.8,
+      "precip_sum": 3.8,
+      "rad_sum": 16.73,
+      "wind_avg": 13.96,
+      "cloud_avg": 96.21
+    },
+    "2026-06-20": {
+      "tmax": 33.1,
+      "tmin": 26.4,
+      "tavg": 29.56,
+      "precip_sum": 0.7,
+      "rad_sum": 25.55,
+      "wind_avg": 13.12,
+      "cloud_avg": 83.12
+    },
+    "2026-06-21": {
+      "tmax": 33.4,
+      "tmin": 26.3,
+      "tavg": 29.55,
+      "precip_sum": 1.1,
+      "rad_sum": 25.34,
+      "wind_avg": 11.03,
+      "cloud_avg": 80.21
+    },
+    "2026-06-22": {
+      "tmax": 34.4,
+      "tmin": 26.3,
+      "tavg": 29.84,
+      "precip_sum": 2.7,
+      "rad_sum": 25.37,
+      "wind_avg": 10.29,
+      "cloud_avg": 22.92
+    },
+    "2026-06-23": {
+      "tmax": 33.7,
+      "tmin": 27.0,
+      "tavg": 29.75,
+      "precip_sum": 4.0,
+      "rad_sum": 23.94,
+      "wind_avg": 9.7,
+      "cloud_avg": 19.54
+    },
+    "2026-06-24": {
+      "tmax": 33.9,
+      "tmin": 27.0,
+      "tavg": 30.43,
+      "precip_sum": 3.2,
+      "rad_sum": 25.2,
+      "wind_avg": 7.87,
+      "cloud_avg": 47.17
+    },
+    "2026-06-25": {
+      "tmax": 33.3,
+      "tmin": 26.6,
+      "tavg": 29.19,
+      "precip_sum": 12.5,
+      "rad_sum": 17.67,
+      "wind_avg": 4.95,
+      "cloud_avg": 93.58
+    },
+    "2026-06-26": {
+      "tmax": 30.7,
+      "tmin": 26.0,
+      "tavg": 27.78,
+      "precip_sum": 9.5,
+      "rad_sum": 15.75,
+      "wind_avg": 5.27,
+      "cloud_avg": 96.75
+    },
+    "2026-06-27": {
+      "tmax": 30.3,
+      "tmin": 26.0,
+      "tavg": 27.39,
+      "precip_sum": 14.3,
+      "rad_sum": 13.89,
+      "wind_avg": 4.49,
+      "cloud_avg": 96.62
+    },
+    "2026-06-28": {
+      "tmax": 29.2,
+      "tmin": 24.7,
+      "tavg": 26.5,
+      "precip_sum": 48.6,
+      "rad_sum": 10.3,
+      "wind_avg": 6.83,
+      "cloud_avg": 99.5
+    },
+    "2026-06-29": {
+      "tmax": 32.2,
+      "tmin": 24.9,
+      "tavg": 27.52,
+      "precip_sum": 8.3,
+      "rad_sum": 17.91,
+      "wind_avg": 8.09,
+      "cloud_avg": 99.04
+    },
+    "2026-06-30": {
+      "tmax": 31.9,
+      "tmin": 25.9,
+      "tavg": 28.44,
+      "precip_sum": 11.2,
+      "rad_sum": 18.0,
+      "wind_avg": 7.92,
+      "cloud_avg": 91.54
+    },
+    "2026-07-01": {
+      "tmax": 32.7,
+      "tmin": 26.0,
+      "tavg": 29.2,
+      "precip_sum": 1.3,
+      "rad_sum": 23.59,
+      "wind_avg": 7.0,
+      "cloud_avg": 86.83
+    },
+    "2026-07-02": {
+      "tmax": 31.8,
+      "tmin": 25.6,
+      "tavg": 28.78,
+      "precip_sum": 7.5,
+      "rad_sum": 24.26,
+      "wind_avg": 14.1,
+      "cloud_avg": 55.71
+    },
+    "2026-07-03": {
+      "tmax": 31.5,
+      "tmin": 25.8,
+      "tavg": 27.82,
+      "precip_sum": 13.3,
+      "rad_sum": 18.88,
+      "wind_avg": 16.53,
+      "cloud_avg": 79.83
+    },
+    "2026-07-04": {
+      "tmax": 28.5,
+      "tmin": 25.1,
+      "tavg": 26.36,
+      "precip_sum": 27.0,
+      "rad_sum": 11.87,
+      "wind_avg": 14.02,
+      "cloud_avg": 97.88
+    },
+    "2026-07-05": {
+      "tmax": 31.7,
+      "tmin": 26.7,
+      "tavg": 28.96,
+      "precip_sum": 4.6,
+      "rad_sum": 20.15,
+      "wind_avg": 16.25,
+      "cloud_avg": 81.33
+    },
+    "2026-07-06": {
+      "tmax": 30.5,
+      "tmin": 24.8,
+      "tavg": 27.08,
+      "precip_sum": 16.9,
+      "rad_sum": 18.78,
+      "wind_avg": 14.45,
+      "cloud_avg": 96.5
+    },
+    "2026-07-07": {
+      "tmax": 28.6,
+      "tmin": 24.5,
+      "tavg": 25.93,
+      "precip_sum": 32.9,
+      "rad_sum": 10.1,
+      "wind_avg": 11.65,
+      "cloud_avg": 97.79
+    },
+    "2026-07-08": {
+      "tmax": 31.0,
+      "tmin": 25.4,
+      "tavg": 27.8,
+      "precip_sum": 1.6,
+      "rad_sum": 15.02,
+      "wind_avg": 11.32,
+      "cloud_avg": 85.5
+    },
+    "2026-07-09": {
+      "tmax": 31.9,
+      "tmin": 25.1,
+      "tavg": 28.41,
+      "precip_sum": 4.1,
+      "rad_sum": 17.45,
+      "wind_avg": 7.13,
+      "cloud_avg": 64.17
+    },
+    "2026-07-10": {
+      "tmax": 32.8,
+      "tmin": 25.9,
+      "tavg": 28.78,
+      "precip_sum": 3.2,
+      "rad_sum": 16.8,
+      "wind_avg": 5.81,
+      "cloud_avg": 83.79
+    },
+    "2026-07-11": {
+      "tmax": 34.8,
+      "tmin": 25.2,
+      "tavg": 29.92,
+      "precip_sum": 0.3,
+      "rad_sum": 26.73,
+      "wind_avg": 5.92,
+      "cloud_avg": 11.58
+    },
+    "2026-07-12": {
+      "tmax": 36.1,
+      "tmin": 27.2,
+      "tavg": 31.09,
+      "precip_sum": 2.4,
+      "rad_sum": 26.19,
+      "wind_avg": 7.5,
+      "cloud_avg": 48.21
+    },
+    "2026-07-13": {
+      "tmax": 34.3,
+      "tmin": 26.6,
+      "tavg": 30.09,
+      "precip_sum": 4.3,
+      "rad_sum": 23.03,
+      "wind_avg": 6.68,
+      "cloud_avg": 95.75
+    },
+    "2026-07-14": {
+      "tmax": 29.3,
+      "tmin": 25.9,
+      "tavg": 26.77,
+      "precip_sum": 21.1,
+      "rad_sum": 11.18,
+      "wind_avg": 8.02,
+      "cloud_avg": 98.17
+    },
+    "2026-07-15": {
+      "tmax": 28.4,
+      "tmin": 24.7,
+      "tavg": 26.18,
+      "precip_sum": 16.9,
+      "rad_sum": 10.84,
+      "wind_avg": 11.82,
+      "cloud_avg": 94.62
+    },
+    "2026-07-16": {
+      "tmax": 28.2,
+      "tmin": 24.9,
+      "tavg": 26.29,
+      "precip_sum": 20.3,
+      "rad_sum": 7.58,
+      "wind_avg": 8.83,
+      "cloud_avg": 96.21
+    },
+    "2026-07-17": {
+      "tmax": 31.2,
+      "tmin": 25.1,
+      "tavg": 27.5,
+      "precip_sum": 12.7,
+      "rad_sum": 14.64,
+      "wind_avg": 9.04,
+      "cloud_avg": 95.46
+    },
+    "2026-07-18": {
+      "tmax": 32.3,
+      "tmin": 26.0,
+      "tavg": 28.17,
+      "precip_sum": 9.5,
+      "rad_sum": 18.2,
+      "wind_avg": 7.65,
+      "cloud_avg": 86.33
+    },
+    "2026-07-19": {
+      "tmax": 32.9,
+      "tmin": 26.9,
+      "tavg": 28.57,
+      "precip_sum": 8.7,
+      "rad_sum": 19.82,
+      "wind_avg": 7.77,
+      "cloud_avg": 98.25
+    },
+    "2026-07-20": {
+      "tmax": 31.3,
+      "tmin": 26.6,
+      "tavg": 28.36,
+      "precip_sum": 1.6,
+      "rad_sum": 12.73,
+      "wind_avg": 8.44,
+      "cloud_avg": 96.21
+    },
+    "2026-07-21": {
+      "tmax": 29.9,
+      "tmin": 25.6,
+      "tavg": 27.63,
+      "precip_sum": 16.6,
+      "rad_sum": 14.35,
+      "wind_avg": 9.03,
+      "cloud_avg": 64.75
+    },
+    "2026-07-22": {
+      "tmax": 33.0,
+      "tmin": 25.8,
+      "tavg": 28.99,
+      "precip_sum": 0.6,
+      "rad_sum": 24.69,
+      "wind_avg": 10.13,
+      "cloud_avg": 15.54
+    },
+    "2026-07-23": {
+      "tmax": 32.9,
+      "tmin": 25.4,
+      "tavg": 28.99,
+      "precip_sum": 3.1,
+      "rad_sum": 25.03,
+      "wind_avg": 6.86,
+      "cloud_avg": 26.54
+    },
+    "2026-07-24": {
+      "tmax": 33.9,
+      "tmin": 24.8,
+      "tavg": 29.44,
+      "precip_sum": 0.1,
+      "rad_sum": 25.96,
+      "wind_avg": 4.24,
+      "cloud_avg": 17.46
+    },
+    "2026-07-25": {
+      "tmax": 33.9,
+      "tmin": 25.6,
+      "tavg": 28.6,
+      "precip_sum": 14.1,
+      "rad_sum": 20.92,
+      "wind_avg": 9.37,
+      "cloud_avg": 94.29
+    },
+    "2026-07-26": {
+      "tmax": 27.9,
+      "tmin": 24.9,
+      "tavg": 25.96,
+      "precip_sum": 42.8,
+      "rad_sum": 7.1,
+      "wind_avg": 18.4,
+      "cloud_avg": 99.83
+    },
+    "2026-07-27": {
+      "tmax": 30.8,
+      "tmin": 23.9,
+      "tavg": 26.62,
+      "precip_sum": 14.1,
+      "rad_sum": 13.96,
+      "wind_avg": 11.38,
+      "cloud_avg": 94.17
+    },
+    "2026-07-28": {
+      "tmax": 28.7,
+      "tmin": 24.8,
+      "tavg": 26.87,
+      "precip_sum": 10.4,
+      "rad_sum": 12.64,
+      "wind_avg": 9.67,
+      "cloud_avg": 96.96
+    },
+    "2026-07-29": {
+      "tmax": 27.0,
+      "tmin": 24.0,
+      "tavg": 25.46,
+      "precip_sum": 43.3,
+      "rad_sum": 8.39,
+      "wind_avg": 10.62,
+      "cloud_avg": 99.79
+    }
+  },
   "results": {
     "2025-01-01": [
       {

@@ -196,6 +196,7 @@ output = {
     'generated': datetime.now().isoformat(),
     'total_days': len(all_results),
     'top_n': 5,
+    'features': {d: {k: round(v, 2) if isinstance(v, float) else v for k, v in feat.items()} for d, feat in features.items()},
     'results': all_results,
 }
 with open('data/similarity_results.json', 'w', encoding='utf-8') as f:

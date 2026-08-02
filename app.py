@@ -653,11 +653,12 @@ with tab4:
     def _load_similarity_db():
         sim_path = os.path.join(os.path.dirname(__file__), "data", "similarity_results.json")
         if not os.path.exists(sim_path):
-            return {}
+            return {}, {}
         with open(sim_path, "r", encoding="utf-8") as f:
-            return _json.load(f).get("results", {})
+            raw = _json.load(f)
+        return raw.get("results", {}), raw.get("features", {})
 
-    similarity_db = _load_similarity_db()
+    similarity_db, similarity_features = _load_similarity_db()
     sim_dates = sorted(similarity_db.keys())
     sim_min = sim_dates[0] if sim_dates else "2025-01-01"
     sim_max = sim_dates[-1] if sim_dates else "2026-07-29"
@@ -755,21 +756,20 @@ with tab4:
                             ds = 0 if dm in [12,1,2] else 1 if dm in [3,4,5] else 2 if dm in [6,7,8] else 3
                             if ds != t_s:
                                 continue
-                            pre = similarity_db.get(d_str, [])
-                            if not pre:
+                            c = similarity_features.get(d_str)
+                            if not c:
                                 continue
-                            c = pre[0]  # 该日期在预计算中的特征值
-                            c_rainy = c["precip_sum"] >= 0.5
+                            c_rainy = c.get("precip_sum", 0) >= 0.5
                             if t_rainy != c_rainy:
                                 continue
 
-                            # z-score 标准化（用预计算时相同的参数近似）
-                            tmax_d = abs(t_tmax - c["tmax"]) / 8.0  # 夏季温度 std ≈ 8
-                            tmin_d = abs(t_tmin - c["tmin"]) / 7.0
-                            rad_d = abs(t_rad - c["rad_sum"]) / 8.0
+                            tmax_d = abs(t_tmax - c.get("tmax", t_tmax)) / 8.0
+                            tmin_d = abs(t_tmin - c.get("tmin", t_tmin)) / 7.0
+                            rad_d = abs(t_rad - c.get("rad_sum", t_rad)) / 8.0
                             delta = (target_date - d_dt.date()).days
                             decay = 1.0 - np.exp(-max(delta, 0) / 180.0) if delta > 90 else 0.0
                             score = 0.25 * tmax_d + 0.25 * tmin_d + 0.05 * rad_d + 0.1 * decay
+                            c["_date"] = d_str
                             scored.append((d_str, score, c))
 
                         scored.sort(key=lambda x: x[1])
@@ -780,18 +780,22 @@ with tab4:
                         for d_str, score, c in scored[:3]:
                             dd = datetime.strptime(d_str, "%Y-%m-%d")
                             sim = max(30.0, round(100.0 * np.exp(-score / sigma), 1))
+                            dm = dd.month
+                            ds = 0 if dm in [12,1,2] else 1 if dm in [3,4,5] else 2 if dm in [6,7,8] else 3
+                            dp = c.get("precip_sum", 0)
+                            pl = 0 if dp < 0.1 else 1 if dp < 1 else 2 if dp < 10 else 3 if dp < 25 else 4 if dp < 50 else 5
                             similar_days.append({
                                 "date": dd,
                                 "similarity_score": round(score, 4),
                                 "similarity_pct": sim,
-                                "tmax": c["tmax"],
-                                "tmin": c["tmin"],
-                                "precip_sum": c["precip_sum"],
-                                "precip_level": c.get("precip_level", 0),
-                                "rad_daily_sum": c["rad_sum"],
+                                "tmax": c.get("tmax"),
+                                "tmin": c.get("tmin"),
+                                "precip_sum": dp,
+                                "precip_level": pl,
+                                "rad_daily_sum": c.get("rad_sum"),
                                 "dew_point_avg": None,
-                                "season_label": season_names[c["season"]],
-                                "weekday_label": weekday_names[c["weekday"]],
+                                "season_label": season_names[ds],
+                                "weekday_label": weekday_names[dd.weekday()],
                                 "distance_components": {},
                             })
 
