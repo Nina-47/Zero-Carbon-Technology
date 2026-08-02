@@ -640,13 +640,26 @@ with tab3:
                 )
 
 # ============================================================
-# Tab 4: 相似日分析
-# ============================================================
 with tab4:
     st.subheader("🔮 相似日分析")
 
     load_available = has_load_data()
     load_start, load_end = query_load_date_range()
+
+    import json as _json
+
+    @st.cache_data(ttl=86400, show_spinner=False)
+    def _load_similarity_db():
+        sim_path = os.path.join(os.path.dirname(__file__), "data", "similarity_results.json")
+        if not os.path.exists(sim_path):
+            return {}
+        with open(sim_path, "r", encoding="utf-8") as f:
+            return _json.load(f).get("results", {})
+
+    similarity_db = _load_similarity_db()
+    sim_dates = sorted(similarity_db.keys())
+    sim_min = sim_dates[0] if sim_dates else "2025-01-01"
+    sim_max = sim_dates[-1] if sim_dates else "2026-07-29"
 
     if not load_available:
         st.info(
@@ -682,124 +695,66 @@ with tab4:
         st.subheader("🎯 选择目标日")
 
         today = datetime.now().date()
-        min_date = today - timedelta(days=30)
-        max_date = today + timedelta(days=7)
+        min_date = datetime.strptime(sim_min, "%Y-%m-%d").date()
+        max_date = min(datetime.strptime(sim_max, "%Y-%m-%d").date(), today + timedelta(days=7))
 
         col_t1, col_t2 = st.columns([2, 1])
         with col_t1:
             target_date = st.date_input(
                 "选择要分析的目标日期",
-                value=today + timedelta(days=1),
+                value=min(today + timedelta(days=1), max_date),
                 min_value=min_date,
                 max_value=max_date,
                 key="similar_day_target_date",
             )
         with col_t2:
-            st.caption("")
-            st.caption("")
+            st.caption(f"可用范围: {sim_min} ~ {sim_max}")
+            st.caption(f"共 {len(sim_dates)} 天预计算数据")
             search_btn = st.button("🔍 查找相似日", type="primary",
                                    use_container_width=True, key="similar_day_search")
 
         if search_btn:
-            target_dt = datetime.combine(target_date, datetime.min.time())
             target_date_str = target_date.strftime("%Y-%m-%d")
 
-            loc = LOCATIONS[primary_loc]
-
-            with st.spinner("正在获取目标日天气数据..."):
-                if target_date >= today:
-                    # 未来日期：从内存预报数据取
-                    forecast_df = all_weather[primary_loc].get("forecast", pd.DataFrame())
-                    if forecast_df.empty:
-                        st.warning("暂无预报数据，请先加载天气数据。")
-                        target_wx = pd.DataFrame()
-                    else:
-                        target_wx = forecast_df[forecast_df["datetime"].dt.date == target_date].copy()
+            if target_date_str not in similarity_db:
+                st.warning(f"目标日 {target_date_str} 不在预计算范围内（{sim_min} ~ {sim_max}）。")
+            else:
+                precomputed = similarity_db[target_date_str]
+                if not precomputed:
+                    st.warning("未找到相似日。")
                 else:
-                    # 历史日期：从 SQLite 查询，没有则拉 API
-                    hist_start = target_date_str + "T00:00:00"
-                    hist_end = target_date_str + "T23:59:59"
-                    target_wx = query_weather_data(
-                        [primary_loc], hist_start, hist_end, data_types=["historical", "forecast"],
-                    )
-                    if target_wx.empty:
-                        target_wx = fetch_historical_safe(
-                            loc["latitude"], loc["longitude"], primary_loc,
-                            target_date_str, target_date_str, st.session_state.data_status,
-                        )
-                        if not target_wx.empty:
-                            target_wx = convert_units(target_wx)
-                            insert_weather_data(target_wx)
+                    season_names = ["冬", "春", "夏", "秋"]
+                    weekday_names = ["一", "二", "三", "四", "五", "六", "日"]
 
-            with st.spinner("正在加载历史天气候选池..."):
-                # 候选池：从 SQLite weather_hourly 读取全部历史数据
-                candidate_wx = query_weather_data(
-                    [primary_loc],
-                    "2025-01-01T00:00:00",
-                    (today + timedelta(days=1)).strftime("%Y-%m-%dT00:00:00"),
-                    data_types=["historical", "forecast"],
-                )
-                if not candidate_wx.empty and "datetime" in candidate_wx.columns:
-                    candidate_wx = candidate_wx[candidate_wx["datetime"].dt.date != target_date]
-                    candidate_days = candidate_wx["datetime"].dt.date.nunique()
-                    st.info(f"候选池: {candidate_days} 天 (2025-01-01 ~ {today})")
-                    if candidate_days < 30:
-                        st.warning(f"⚠️ 候选池仅 {candidate_days} 天，相似日精度受限。")
-                else:
-                    st.warning("候选池为空，请确保已加载天气数据。")
+                    similar_days = []
+                    for item in precomputed[:3]:
+                        d = datetime.strptime(item["date"], "%Y-%m-%d")
+                        similar_days.append({
+                            "date": d,
+                            "similarity_score": item["distance"],
+                            "similarity_pct": item["similarity_pct"],
+                            "tmax": item["tmax"],
+                            "tmin": item["tmin"],
+                            "precip_sum": item["precip_sum"],
+                            "precip_level": item.get("precip_level", 0),
+                            "rad_daily_sum": item["rad_sum"],
+                            "dew_point_avg": None,
+                            "season_label": season_names[item["season"]],
+                            "weekday_label": weekday_names[item["weekday"]],
+                            "distance_components": {},
+                        })
 
-            with st.spinner("正在计算相似日..."):
-                if target_wx.empty:
-                    st.warning(f"目标日 {target_date_str} 无天气数据，请选择其他日期。")
-                elif candidate_wx.empty:
-                    st.warning("历史天气候选池为空，请确保已拉取天气数据。")
-                else:
-                    combined_wx = pd.concat(
-                        [candidate_wx, target_wx], ignore_index=True
-                    ).drop_duplicates(subset=["datetime"])
-                    combined_wx = combined_wx.dropna(subset=["datetime"])
-                    combined_wx = combined_wx.sort_values("datetime") if not combined_wx.empty else combined_wx
-
-                    candidate_days = candidate_wx["datetime"].dt.date.nunique() if not candidate_wx.empty else 0
-                    if candidate_days < 30:
-                        st.info(f"⚠️ 历史天气数据仅 {candidate_days} 天，候选池较小，相似日精度可能受限。")
-
-                    target_daily = compute_daily_weather(target_wx)
-                    similar_days = find_similar_days(combined_wx, target_dt, n=3)
-
-                    if not similar_days:
-                        st.warning("未能找到相似日。请确保有足够的历史天气数据。")
-                    else:
-                        st.session_state.similar_days = similar_days
-                        st.session_state.target_date_str = target_date_str
-                        st.session_state.similar_search_done = True
-
-                        if not target_daily.empty:
-                            tr = target_daily.iloc[0]
-                            st.session_state.target_summary = {
-                                "tmax": tr.get("tmax"), "tmin": tr.get("tmin"),
-                                "precip_sum": tr.get("precip_sum"), "precip_level": int(tr.get("precip_level", 0)),
-                                "rad_daily_sum": tr.get("rad_daily_sum"), "dew_point_avg": tr.get("dew_point_avg"),
-                            }
-                        else:
-                            st.session_state.target_summary = {}
-                        st.session_state.target_weather = target_wx
-
-                        # 候选池 < 30 天时标注提示
-                        candidate_days = candidate_wx["datetime"].dt.date.nunique() if not candidate_wx.empty else 0
-                        if candidate_days < 30:
-                            st.info(f"⚠️ 历史天气数据仅 {candidate_days} 天，候选池较小，相似日精度可能受限。建议拉取更多历史天气。")
+                    st.session_state.similar_days = similar_days
+                    st.session_state.target_date_str = target_date_str
+                    st.session_state.similar_search_done = True
+                    st.session_state.target_weather = None
 
         if st.session_state.get("similar_search_done"):
             similar_days = st.session_state.get("similar_days", [])
-            target_summary = st.session_state.get("target_summary", {})
-            target_date_str_2 = st.session_state.get("target_date_str", "")
-            target_wx = st.session_state.get("target_weather")
+            target_date_str = st.session_state.get("target_date_str", "")
 
             st.divider()
-            if target_summary:
-                render_target_weather_card(target_summary, target_date_str_2)
-            st.divider()
+            st.caption(f"相似日数据已预计算（{len(sim_dates)} 天，算法 v2），查表响应 < 1 秒。")
 
             if similar_days:
                 render_similar_day_cards(similar_days)
@@ -814,8 +769,8 @@ with tab4:
 
                 st.subheader("📈 负荷曲线叠加对比")
                 st.plotly_chart(
-                    plot_similar_day_overlay(target_date_str_2, similar_days, load_data_map,
-                                             target_weather=target_wx, location_label=primary_label),
+                    plot_similar_day_overlay(target_date_str, similar_days, load_data_map,
+                                             target_weather=None, location_label=primary_label),
                     use_container_width=True,
                 )
                 st.subheader("🔬 相似度因子分解")
@@ -828,8 +783,6 @@ with tab4:
 # 自动刷新逻辑
 # ============================================================
 if auto_refresh:
-    # Streamlit 自动刷新：利用 st.rerun() + time.sleep
-    # 注意：这会在每次 rerun 时触发，我们用 session_state 控制
     import time
 
     if "last_refresh" not in st.session_state:
@@ -839,16 +792,12 @@ if auto_refresh:
     if elapsed > CACHE_TTL_SECONDS:
         st.session_state.last_refresh = datetime.now()
         st.cache_data.clear()
-        # 不自动 rerun 以避免无限循环；依赖用户交互或外部 ping 触发
-        # 自动刷新由外部 uptime 服务每 30 分钟 ping 实现
 
-# 清理过期预报（每次加载时静默执行）
 try:
     clean_old_forecasts(7)
 except Exception:
     pass
 
-# 保存设置
 if auto_refresh != (get_setting("auto_refresh", "true") == "true"):
     save_setting("auto_refresh", "true" if auto_refresh else "false")
 save_setting("default_history_days", str(history_days))
