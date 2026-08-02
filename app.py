@@ -950,11 +950,14 @@ with tab4:
 
                 if export_rows:
                     export_df = pd.DataFrame(export_rows)
-                    # 生成 Excel
+                    # 转置：行=小时，列=日期
+                    export_df_t = export_df.set_index("类型").T
+                    export_df_t.index.name = "小时"
+
                     from io import BytesIO
                     output = BytesIO()
                     with pd.ExcelWriter(output, engine="openpyxl") as writer:
-                        export_df.to_excel(writer, sheet_name="24h负荷", index=False)
+                        export_df_t.to_excel(writer, sheet_name="24h负荷", index=True)
                     output.seek(0)
 
                     st.download_button(
