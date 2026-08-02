@@ -190,6 +190,9 @@ def query_weather_data(
         except Exception:
             df["datetime"] = pd.to_datetime(df["datetime"], errors="coerce")
             df = df.dropna(subset=["datetime"])
+        # 统一去掉时区信息，避免 tz-aware vs tz-naive 排序冲突
+        if df["datetime"].dt.tz is not None:
+            df["datetime"] = df["datetime"].dt.tz_localize(None)
 
     return df
 
@@ -333,6 +336,9 @@ def get_load_by_date(date_str: str) -> pd.DataFrame:
         except Exception:
             df["datetime"] = pd.to_datetime(df["datetime"], errors="coerce")
             df = df.dropna(subset=["datetime"])
+        # 统一去掉时区信息，避免 tz-aware vs tz-naive 排序冲突
+        if df["datetime"].dt.tz is not None:
+            df["datetime"] = df["datetime"].dt.tz_localize(None)
     return df
 
 

@@ -129,6 +129,10 @@ def _seed_weather_db():
         df.columns = ["date", "element"] + list(range(24))
 
         _conn = sqlite3.connect(_db_path)
+        # 清空旧数据（可能有 tz-aware datetime 导致排序冲突）
+        _conn.execute("DELETE FROM weather_hourly WHERE source='seed'")
+        # 同时清空旧 API 数据中的 tz 后缀
+        _conn.execute("UPDATE weather_hourly SET datetime = REPLACE(datetime, '+08:00', '') WHERE datetime LIKE '%+08:00'")
         inserted = 0
         for _, row in df.iterrows():
             date_val = str(row["date"])[:10]
@@ -737,7 +741,8 @@ with tab4:
                     combined_wx = pd.concat(
                         [candidate_wx, target_wx], ignore_index=True
                     ).drop_duplicates(subset=["datetime"])
-                    combined_wx = combined_wx.dropna(subset=["datetime"]).sort_values("datetime")
+                    combined_wx = combined_wx.dropna(subset=["datetime"])
+                    combined_wx = combined_wx.sort_values("datetime") if not combined_wx.empty else combined_wx
 
                     candidate_days = candidate_wx["datetime"].dt.date.nunique() if not candidate_wx.empty else 0
                     if candidate_days < 30:
