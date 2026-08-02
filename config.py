@@ -97,7 +97,7 @@ QWATHER_HISTORY_URL = "https://devapi.qweather.com/v7/historical/weather"
 # ============================================================
 # 默认设置
 # ============================================================
-DEFAULT_HISTORY_DAYS = 365
+DEFAULT_HISTORY_DAYS = 7
 DEFAULT_FORECAST_DAYS = 3
 CACHE_TTL_SECONDS = 1800       # 30 分钟
 API_TIMEOUT_SECONDS = 10       # API 超时阈值

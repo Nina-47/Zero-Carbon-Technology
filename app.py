@@ -651,21 +651,45 @@ with tab4:
                             target_wx = convert_units(target_wx)
                             insert_weather_data(target_wx)
 
-            with st.spinner("正在加载历史天气候选池..."):
-                # 候选池：直接用 SQLite 中已有的历史+预报数据（侧边栏拉取时会自动写入）
-                one_year_ago = (today - timedelta(days=365)).strftime("%Y-%m-%dT00:00:00")
-                candidate_wx = query_weather_data(
-                    [primary_loc],
-                    one_year_ago,
-                    (today + timedelta(days=1)).strftime("%Y-%m-%dT00:00:00"),
-                    data_types=["historical", "forecast"],
+            with st.spinner("正在拉取近一年历史天气（约 10-30 秒）..."):
+                # 候选池：用 Forecast API 的 past_days 参数拉取近一年逐小时数据
+                one_year_ago_str = (today - timedelta(days=365)).strftime("%Y-%m-%d")
+                yesterday_str = (today - timedelta(days=1)).strftime("%Y-%m-%d")
+
+                @st.cache_data(ttl=3600, show_spinner=False)
+                def _fetch_yearly_candidates(lat, lon, loc_id, start, end):
+                    raw = fetch_historical_safe(lat, lon, loc_id, start, end, DataSourceStatus())
+                    if not raw.empty:
+                        raw = convert_units(raw)
+                        insert_weather_data(raw)
+                    return raw
+
+                candidate_wx = _fetch_yearly_candidates(
+                    loc["latitude"], loc["longitude"], primary_loc,
+                    one_year_ago_str, yesterday_str,
                 )
+
                 if not candidate_wx.empty and "datetime" in candidate_wx.columns:
                     candidate_wx = candidate_wx[candidate_wx["datetime"].dt.date != target_date]
                     candidate_days = candidate_wx["datetime"].dt.date.nunique()
-                    st.info(f"候选池: {candidate_days} 天历史天气")
+                    st.info(f"候选池: {candidate_days} 天")
                     if candidate_days < 30:
-                        st.warning(f"⚠️ 候选池不足 30 天，相似日精度受限。请将侧边栏「历史回溯」调大后刷新以拉取更多数据。")
+                        st.warning(f"⚠️ 候选池仅 {candidate_days} 天，相似日精度受限。")
+                else:
+                    st.warning("API 数据拉取失败，尝试使用 SQLite 本地数据...")
+                    one_year_ago = (today - timedelta(days=365)).strftime("%Y-%m-%dT00:00:00")
+                    candidate_wx = query_weather_data(
+                        [primary_loc],
+                        one_year_ago,
+                        (today + timedelta(days=1)).strftime("%Y-%m-%dT00:00:00"),
+                        data_types=["historical", "forecast"],
+                    )
+                    if not candidate_wx.empty and "datetime" in candidate_wx.columns:
+                        candidate_wx = candidate_wx[candidate_wx["datetime"].dt.date != target_date]
+                        candidate_days = candidate_wx["datetime"].dt.date.nunique()
+                        st.info(f"候选池(本地): {candidate_days} 天")
+                        if candidate_days < 30:
+                            st.warning(f"⚠️ 候选池仅 {candidate_days} 天，相似日精度受限。")
 
             with st.spinner("正在计算相似日..."):
                 if target_wx.empty:
