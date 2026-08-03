@@ -84,8 +84,8 @@ def init_db():
     conn.commit()
     conn.close()
 
-    # 负荷历史表（独立连接，避免 WAL 锁冲突）
     init_load_table()
+    init_calendar_table()
 
 
 def insert_weather_data(df: pd.DataFrame) -> int:
@@ -262,19 +262,30 @@ def init_load_table():
         load_mw REAL NOT NULL,
         weekday TEXT,
         daily_total REAL,
+        company TEXT,
         source_file TEXT,
         imported_at TEXT NOT NULL DEFAULT (datetime('now')),
-        UNIQUE(datetime)
+        UNIQUE(datetime, company)
     )
     """)
     cursor.execute(
         "CREATE INDEX IF NOT EXISTS idx_load_datetime ON load_history(datetime)"
     )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_load_company ON load_history(company)"
+    )
+
+    # 兼容旧表：如果缺少 company 列就添加
+    try:
+        cursor.execute("SELECT company FROM load_history LIMIT 1")
+    except Exception:
+        cursor.execute("ALTER TABLE load_history ADD COLUMN company TEXT")
+
     conn.commit()
     conn.close()
 
 
-def import_load_from_df(df: pd.DataFrame, source_file: str = "") -> int:
+def import_load_from_df(df: pd.DataFrame, source_file: str = "", company: str = "") -> int:
     """
     批量导入负荷数据（INSERT OR REPLACE）。
 
@@ -296,18 +307,22 @@ def import_load_from_df(df: pd.DataFrame, source_file: str = "") -> int:
         daily_totals = df.groupby(df_date)["load_mw"].transform("sum")
         df["daily_total"] = daily_totals
 
+    if "company" not in df.columns and company:
+        df["company"] = company
+
     inserted = 0
     for _, row in df.iterrows():
         try:
             cursor.execute(
                 "INSERT OR REPLACE INTO load_history "
-                "(datetime, load_mw, weekday, daily_total, source_file) "
-                "VALUES (?, ?, ?, ?, ?)",
+                "(datetime, load_mw, weekday, daily_total, company, source_file) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
                 (
                     str(row["datetime"]),
                     float(row["load_mw"]) if not pd.isna(row["load_mw"]) else None,
                     str(row.get("weekday", "")),
                     float(row.get("daily_total", 0)) if not pd.isna(row.get("daily_total", 0)) else None,
+                    str(row.get("company", company)),
                     source_file,
                 ),
             )
@@ -320,15 +335,23 @@ def import_load_from_df(df: pd.DataFrame, source_file: str = "") -> int:
     return inserted
 
 
-def get_load_by_date(date_str: str) -> pd.DataFrame:
+def get_load_by_date(date_str: str, company: str = None) -> pd.DataFrame:
     """获取指定日期完整的 24 小时负荷曲线。"""
     conn = get_connection()
-    df = pd.read_sql_query(
-        "SELECT datetime, load_mw, weekday, daily_total "
-        "FROM load_history WHERE date(datetime) = ? "
-        "ORDER BY datetime ASC",
-        conn, params=(date_str,),
-    )
+    if company:
+        df = pd.read_sql_query(
+            "SELECT datetime, load_mw, weekday, daily_total, company "
+            "FROM load_history WHERE date(datetime) = ? AND company = ? "
+            "ORDER BY datetime ASC",
+            conn, params=(date_str, company),
+        )
+    else:
+        df = pd.read_sql_query(
+            "SELECT datetime, load_mw, weekday, daily_total, company "
+            "FROM load_history WHERE date(datetime) = ? "
+            "ORDER BY datetime ASC",
+            conn, params=(date_str,),
+        )
     conn.close()
     if not df.empty:
         try:
@@ -336,38 +359,163 @@ def get_load_by_date(date_str: str) -> pd.DataFrame:
         except Exception:
             df["datetime"] = pd.to_datetime(df["datetime"], errors="coerce")
             df = df.dropna(subset=["datetime"])
-        # 统一去掉时区信息，避免 tz-aware vs tz-naive 排序冲突
         if df["datetime"].dt.tz is not None:
             df["datetime"] = df["datetime"].dt.tz_localize(None)
     return df
 
 
-def query_load_date_range() -> tuple[str | None, str | None]:
+def query_load_date_range(company: str = None) -> tuple[str | None, str | None]:
     """获取负荷数据的可用日期范围。"""
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute(
-        "SELECT MIN(date(datetime)), MAX(date(datetime)) FROM load_history"
-    )
+    if company:
+        cursor.execute(
+            "SELECT MIN(date(datetime)), MAX(date(datetime)) FROM load_history WHERE company = ?",
+            (company,),
+        )
+    else:
+        cursor.execute(
+            "SELECT MIN(date(datetime)), MAX(date(datetime)) FROM load_history"
+        )
     row = cursor.fetchone()
     conn.close()
     return (row[0], row[1]) if row else (None, None)
 
 
-def has_load_data() -> bool:
+def has_load_data(company: str = None) -> bool:
     """检查是否已有负荷数据。"""
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT COUNT(*) FROM load_history")
+    if company:
+        cursor.execute("SELECT COUNT(*) FROM load_history WHERE company = ?", (company,))
+    else:
+        cursor.execute("SELECT COUNT(*) FROM load_history")
     count = cursor.fetchone()[0]
     conn.close()
     return count > 0
 
 
-def delete_load_data():
+def delete_load_data(company: str = None):
     """清空负荷历史数据。"""
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM load_history")
+    if company:
+        cursor.execute("DELETE FROM load_history WHERE company = ?", (company,))
+    else:
+        cursor.execute("DELETE FROM load_history")
+    conn.commit()
+    conn.close()
+
+
+def query_load_all(company: str = None) -> pd.DataFrame:
+    """获取全部负荷历史数据（用于预测）。"""
+    conn = get_connection()
+    if company:
+        df = pd.read_sql_query(
+            "SELECT datetime, load_mw, weekday, daily_total, company "
+            "FROM load_history WHERE company = ? ORDER BY datetime ASC",
+            conn, params=(company,),
+        )
+    else:
+        df = pd.read_sql_query(
+            "SELECT datetime, load_mw, weekday, daily_total, company "
+            "FROM load_history ORDER BY datetime ASC",
+            conn,
+        )
+    conn.close()
+    if not df.empty:
+        df["datetime"] = pd.to_datetime(df["datetime"], format="mixed", errors="coerce")
+        if df["datetime"].dt.tz is not None:
+            df["datetime"] = df["datetime"].dt.tz_localize(None)
+    return df
+
+
+def get_load_companies() -> list[str]:
+    """获取已导入的负荷数据公司列表。"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT DISTINCT company FROM load_history WHERE company IS NOT NULL AND company != ''")
+    rows = cursor.fetchall()
+    conn.close()
+    return [r[0] for r in rows]
+
+
+# ============================================================
+# 排班日历表
+# ============================================================
+
+def init_calendar_table():
+    """初始化排班日历表。"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS production_calendar (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        company TEXT NOT NULL,
+        date TEXT NOT NULL,
+        day_type TEXT NOT NULL DEFAULT 'production',
+        day_type_weight REAL DEFAULT 1.0,
+        source TEXT DEFAULT 'weekly_rule',
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE(company, date)
+    )
+    """)
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_calendar_company_date "
+        "ON production_calendar(company, date)"
+    )
+    conn.commit()
+    conn.close()
+
+
+def import_calendar_from_df(df: pd.DataFrame, company: str, source: str = "upload") -> int:
+    """导入排班日历数据。"""
+    if df.empty:
+        return 0
+    conn = get_connection()
+    cursor = conn.cursor()
+    inserted = 0
+    for _, row in df.iterrows():
+        try:
+            cursor.execute(
+                "INSERT OR REPLACE INTO production_calendar "
+                "(company, date, day_type, day_type_weight, source) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (
+                    company,
+                    str(row["date"]),
+                    str(row.get("day_type", "production")),
+                    float(row.get("day_type_weight", 1.0)),
+                    source,
+                ),
+            )
+            inserted += 1
+        except Exception:
+            pass
+    conn.commit()
+    conn.close()
+    return inserted
+
+
+def get_calendar(company: str) -> pd.DataFrame:
+    """获取指定公司的排班日历。"""
+    conn = get_connection()
+    df = pd.read_sql_query(
+        "SELECT date, day_type, day_type_weight, source "
+        "FROM production_calendar WHERE company = ? ORDER BY date ASC",
+        conn, params=(company,),
+    )
+    conn.close()
+    return df
+
+
+def delete_calendar(company: str = None):
+    """清空排班日历。"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    if company:
+        cursor.execute("DELETE FROM production_calendar WHERE company = ?", (company,))
+    else:
+        cursor.execute("DELETE FROM production_calendar")
     conn.commit()
     conn.close()

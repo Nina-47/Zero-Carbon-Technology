@@ -105,6 +105,23 @@ MAX_HISTORY_DAYS = 365          # 历史回溯上限
 TIMEZONE = "Asia/Shanghai"
 
 # ============================================================
+# 负荷预测配置
+# ============================================================
+PREDICTION_COMPANIES = ["A公司", "B公司", "C公司"]  # A公司, B公司, C公司
+DEFAULT_FORECAST_DAYS_LIMIT = 31
+DEFAULT_KNN_K = 5
+DEFAULT_PRODUCTION_DAYS = [0, 1, 2, 3, 4]
+
+DAY_TYPE_MAP = {
+    "production": {"label": "生产日", "weight": 1.0},
+    "rest": {"label": "休息日", "weight": 0.7},
+    "holiday": {"label": "节假日", "weight": 0.4},
+}
+
+WEATHER_CORRECTION_WINDOWS = [14, 21, 28, 42, 56]
+REG_STRENGTHS = [0.0, 0.2, 0.4, 0.6]
+
+# ============================================================
 # 相似日因子权重（基于395天工业负荷相关性分析标定）
 # 数据: Tmin r=0.694 > Tmax r=0.569 > 露点 r=0.673 > 季节(秋0.76/冬-0.23) > 降水
 # 辐射对工业负荷几乎无关(r≈0), 星期效应仅0.7%, 均下调
