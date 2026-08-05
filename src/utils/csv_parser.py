@@ -284,19 +284,17 @@ def _detect_load_format(df: pd.DataFrame) -> tuple[str, str | None, list[str] | 
 def _is_date_column(df: pd.DataFrame, col: str) -> bool:
     """检测列是否为日期格式。"""
     try:
-        vals = df[col].dropna().head(5)
+        vals = df[col].dropna()
         if len(vals) == 0:
             return False
+        sample = vals.head(5)
         for fmt in ["%Y-%m-%d", "%Y/%m/%d", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S"]:
             try:
-                converted = pd.to_datetime(vals, format=fmt)
-                if converted.notna().all():
+                if pd.to_datetime(sample, format=fmt).notna().all():
                     return True
             except Exception:
                 continue
-        # 自动推断
-        converted = pd.to_datetime(vals, infer_datetime_format=True)
-        return converted.notna().all()
+        return pd.to_datetime(sample, format="mixed", errors="coerce").notna().all()
     except Exception:
         return False
 

@@ -110,7 +110,7 @@ TIMEZONE = "Asia/Shanghai"
 PREDICTION_COMPANIES = ["A公司", "B公司", "C公司"]  # A公司, B公司, C公司
 DEFAULT_FORECAST_DAYS_LIMIT = 31
 DEFAULT_KNN_K = 5
-DEFAULT_PRODUCTION_DAYS = [0, 1, 2, 3, 4]
+DEFAULT_PRODUCTION_DAYS = [(0, "周一"), (1, "周二"), (2, "周三"), (3, "周四"), (4, "周五")]
 
 DAY_TYPE_MAP = {
     "production": {"label": "生产日", "weight": 1.0},
@@ -120,6 +120,17 @@ DAY_TYPE_MAP = {
 
 WEATHER_CORRECTION_WINDOWS = [14, 21, 28, 42, 56]
 REG_STRENGTHS = [0.0, 0.2, 0.4, 0.6]
+
+WEATHER_CORRECTION_PARAMS = {
+    "hot_temp_threshold": 35,
+    "hot_temp_factor": 1.03,
+    "cold_temp_threshold": 5,
+    "cold_temp_factor": 1.02,
+    "heavy_rain_threshold": 10,
+    "heavy_rain_factor": 0.98,
+    "solar_max_reduction": 0.05,
+    "solar_reference_rad": 5000.0,
+}
 
 # ============================================================
 # 相似日因子权重（基于395天工业负荷相关性分析标定）

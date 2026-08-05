@@ -12,10 +12,12 @@ DB_PATH = os.path.join(DB_DIR, "weather.db")
 
 
 def get_connection() -> sqlite3.Connection:
-    """获取 SQLite 连接（WAL 模式，避免锁冲突）。"""
+    """获取 SQLite 连接（WAL 模式，优化写入性能）。"""
     os.makedirs(DB_DIR, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
+    conn.execute("PRAGMA cache_size=-8000")
     conn.execute("PRAGMA foreign_keys=ON")
     return conn
 
@@ -90,7 +92,7 @@ def init_db():
 
 def insert_weather_data(df: pd.DataFrame) -> int:
     """
-    批量插入/替换天气数据（逐行 INSERT OR REPLACE，兼容 Python 3.14）。
+    批量插入/替换天气数据（executemany 批量写入，兼容 Python 3.14）。
 
     返回
     ----
@@ -102,37 +104,32 @@ def insert_weather_data(df: pd.DataFrame) -> int:
     conn = get_connection()
     cursor = conn.cursor()
 
-    # 只保留数据库表中存在的列
     db_columns = ["location_id", "datetime", "data_type", "source"] + list(EXPORT_PARAMS.keys())
     available_cols = [c for c in db_columns if c in df.columns]
     insert_df = df[available_cols].copy()
 
-    # datetime 转字符串
     if "datetime" in insert_df.columns and pd.api.types.is_datetime64_any_dtype(insert_df["datetime"]):
         insert_df["datetime"] = insert_df["datetime"].dt.strftime("%Y-%m-%dT%H:%M:%S%z")
 
     col_names = ", ".join(available_cols)
     placeholders = ", ".join(["?"] * len(available_cols))
-
     sql = f"INSERT OR REPLACE INTO weather_hourly ({col_names}) VALUES ({placeholders})"
 
-    inserted = 0
+    rows = []
     for _, row in insert_df.iterrows():
         values = []
         for col in available_cols:
             val = row[col]
-            # NaN → None (SQLite NULL)
             try:
                 if pd.isna(val):
                     val = None
             except (TypeError, ValueError):
                 pass
             values.append(val)
-        try:
-            cursor.execute(sql, tuple(values))
-            inserted += 1
-        except Exception:
-            pass  # 跳过单行插入失败，不影响整体
+        rows.append(tuple(values))
+
+    cursor.executemany(sql, rows)
+    inserted = cursor.rowcount
 
     conn.commit()
     conn.close()
@@ -287,7 +284,7 @@ def init_load_table():
 
 def import_load_from_df(df: pd.DataFrame, source_file: str = "", company: str = "") -> int:
     """
-    批量导入负荷数据（INSERT OR REPLACE）。
+    批量导入负荷数据（executemany 批量写入）。
 
     返回: 插入的行数。
     """
@@ -310,26 +307,27 @@ def import_load_from_df(df: pd.DataFrame, source_file: str = "", company: str = 
     if "company" not in df.columns and company:
         df["company"] = company
 
-    inserted = 0
+    rows = []
     for _, row in df.iterrows():
-        try:
-            cursor.execute(
-                "INSERT OR REPLACE INTO load_history "
-                "(datetime, load_mw, weekday, daily_total, company, source_file) "
-                "VALUES (?, ?, ?, ?, ?, ?)",
-                (
-                    str(row["datetime"]),
-                    float(row["load_mw"]) if not pd.isna(row["load_mw"]) else None,
-                    str(row.get("weekday", "")),
-                    float(row.get("daily_total", 0)) if not pd.isna(row.get("daily_total", 0)) else None,
-                    str(row.get("company", company)),
-                    source_file,
-                ),
-            )
-            inserted += 1
-        except Exception:
-            pass
+        load_val = row.get("load_mw", None)
+        daily_val = row.get("daily_total", None)
+        rows.append((
+            str(row["datetime"]),
+            float(load_val) if load_val is not None and not pd.isna(load_val) else None,
+            str(row.get("weekday", "")),
+            float(daily_val) if daily_val is not None and not pd.isna(daily_val) else None,
+            str(row.get("company", company)),
+            source_file,
+        ))
 
+    cursor.executemany(
+        "INSERT OR REPLACE INTO load_history "
+        "(datetime, load_mw, weekday, daily_total, company, source_file) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        rows,
+    )
+
+    inserted = cursor.rowcount
     conn.commit()
     conn.close()
     return inserted
@@ -469,29 +467,30 @@ def init_calendar_table():
 
 
 def import_calendar_from_df(df: pd.DataFrame, company: str, source: str = "upload") -> int:
-    """导入排班日历数据。"""
+    """批量导入排班日历数据。"""
     if df.empty:
         return 0
     conn = get_connection()
     cursor = conn.cursor()
-    inserted = 0
+
+    rows = []
     for _, row in df.iterrows():
-        try:
-            cursor.execute(
-                "INSERT OR REPLACE INTO production_calendar "
-                "(company, date, day_type, day_type_weight, source) "
-                "VALUES (?, ?, ?, ?, ?)",
-                (
-                    company,
-                    str(row["date"]),
-                    str(row.get("day_type", "production")),
-                    float(row.get("day_type_weight", 1.0)),
-                    source,
-                ),
-            )
-            inserted += 1
-        except Exception:
-            pass
+        rows.append((
+            company,
+            str(row["date"]),
+            str(row.get("day_type", "production")),
+            float(row.get("day_type_weight", 1.0)),
+            source,
+        ))
+
+    cursor.executemany(
+        "INSERT OR REPLACE INTO production_calendar "
+        "(company, date, day_type, day_type_weight, source) "
+        "VALUES (?, ?, ?, ?, ?)",
+        rows,
+    )
+
+    inserted = cursor.rowcount
     conn.commit()
     conn.close()
     return inserted

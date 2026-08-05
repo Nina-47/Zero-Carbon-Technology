@@ -9,7 +9,7 @@ from . import DEFAULT_PRODUCTION_DAYS, DAY_TYPE_MAP
 def generate_calendar_from_rule(
     start_date: str,
     end_date: str,
-    production_days: list[int] = None,
+    production_days: list = None,
     special_dates: dict = None,
 ) -> pd.DataFrame:
     """
@@ -33,6 +33,8 @@ def generate_calendar_from_rule(
     if special_dates is None:
         special_dates = {}
 
+    prod_day_nums = {d[0] if isinstance(d, tuple) else d for d in production_days}
+
     start = datetime.strptime(start_date, "%Y-%m-%d")
     end = datetime.strptime(end_date, "%Y-%m-%d")
 
@@ -42,7 +44,7 @@ def generate_calendar_from_rule(
         date_str = current.strftime("%Y-%m-%d")
         if date_str in special_dates:
             day_type = special_dates[date_str]
-        elif current.weekday() in production_days:
+        elif current.weekday() in prod_day_nums:
             day_type = "production"
         else:
             day_type = "rest"

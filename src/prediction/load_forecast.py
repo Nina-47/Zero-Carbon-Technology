@@ -9,6 +9,7 @@ from . import (
     COMPANIES, DAY_TYPE_MAP,
     DEFAULT_KNN_K, DEFAULT_FORECAST_HORIZON,
     DEFAULT_MIN_WINDOW, WEATHER_CORRECTION_WINDOWS, REG_STRENGTHS,
+    WEATHER_CORRECTION_PARAMS,
 )
 from .calendar import generate_calendar_from_rule
 
@@ -234,14 +235,15 @@ def _apply_weather_correction(
         tavg = wx["tavg"]
         base_pred = corrected.loc[dt]
 
-        if tavg > 35:
-            base_pred *= 1.03
-        elif tavg < 5:
-            base_pred *= 1.02
+        p = WEATHER_CORRECTION_PARAMS
+        if tavg > p["hot_temp_threshold"]:
+            base_pred *= p["hot_temp_factor"]
+        elif tavg < p["cold_temp_threshold"]:
+            base_pred *= p["cold_temp_factor"]
 
         precip = wx.get("precip_sum", 0)
-        if not pd.isna(precip) and precip > 10:
-            base_pred *= 0.98
+        if not pd.isna(precip) and precip > p["heavy_rain_threshold"]:
+            base_pred *= p["heavy_rain_factor"]
 
         corrected.loc[dt] = base_pred
 
@@ -374,10 +376,9 @@ def _adjust_for_solar(profile: np.ndarray, rad_sum: float) -> np.ndarray:
     if rad_sum <= 0:
         return profile
 
-    # rad_sum 通常在 1000~8000 W/m²·day 量级（W/m² 求和）
-    # 归一化到 [0, 1]：5000 以上视为强辐射
-    intensity = min(rad_sum / 5000.0, 1.0)
-    solar_reduction = 0.05 * intensity
+    p = WEATHER_CORRECTION_PARAMS
+    intensity = min(rad_sum / p["solar_reference_rad"], 1.0)
+    solar_reduction = p["solar_max_reduction"] * intensity
 
     adjusted = profile.copy()
     midday_hours = [11, 12, 13, 14]
