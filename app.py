@@ -1373,35 +1373,44 @@ with tab5:
                 use_container_width=True,
             )
 
-            # 数据表 + 导出
-            daily_report = hourly_df.groupby("date").agg(
-                日均负荷_MW=("load_mw", "mean"), 日峰荷_MW=("load_mw", "max"),
-                日谷荷_MW=("load_mw", "min"), 日总用电量_MWh=("load_mw", "sum"),
-                峰谷差_MW=("load_mw", lambda x: x.max() - x.min()),
-            ).reset_index()
-            daily_report.columns = ["日期", "日均负荷_MW", "日峰荷_MW", "日谷荷_MW", "日总用电量_MWh", "峰谷差_MW"]
-            daily_report["日期"] = daily_report["日期"].astype(str)
-
-            # 只导出预测日（历史最后一天之后）
-            last_hist_date = pd.Timestamp(daily_series.index[-1])
+            # 目标日24h逐时负荷数据表
             forecast_hourly = hourly_df[
-                hourly_df["datetime"] > last_hist_date
-            ][["datetime", "load_mw", "daily_total_mwh", "profile_std_mw"]]
+                hourly_df["datetime"] > pd.Timestamp(daily_series.index[-1])
+            ][["datetime", "hour", "load_mw", "daily_total_mwh", "profile_std_mw"]]
+            forecast_hourly["date"] = forecast_hourly["datetime"].dt.strftime("%Y-%m-%d")
+
+            pred_dates = sorted(forecast_hourly["date"].unique())
 
             with st.expander("📋 预测数据表 + 导出", expanded=False):
-                st.dataframe(daily_report, use_container_width=True, height=250, hide_index=True)
-                from io import BytesIO
-                output = BytesIO()
-                with pd.ExcelWriter(output, engine="openpyxl") as writer:
-                    daily_report.to_excel(writer, sheet_name="日汇总", index=False)
-                    forecast_hourly.to_excel(writer, sheet_name="逐时数据", index=False)
-                output.seek(0)
-                st.download_button(
-                    f"⬇️ 下载 {pred_company} 预测日逐时负荷 Excel", data=output,
-                    file_name=f"{pred_company}_预测日逐时负荷_{datetime.now().strftime('%Y%m%d')}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True,
-                )
+                col_d, col_x = st.columns([1, 3])
+                with col_d:
+                    selected_date = st.selectbox("目标日", pred_dates, key="target_date_select")
+                with col_x:
+                    if selected_date:
+                        day_data = forecast_hourly[forecast_hourly["date"] == selected_date].copy()
+                        day_data["时刻"] = day_data["hour"].apply(lambda h: f"{int(h):02d}:00")
+                        day_data["负荷_MW"] = day_data["load_mw"].round(2)
+                        day_data["日总量_MWh"] = day_data["daily_total_mwh"].round(1)
+                        day_total = day_data["负荷_MW"].sum()
+                        st.caption(f"{selected_date} | 日总量: {day_total:.1f} MWh | 峰谷差: {day_data['负荷_MW'].max() - day_data['负荷_MW'].min():.1f} MW")
+
+                if selected_date:
+                    display_df = day_data[["时刻", "负荷_MW", "日总量_MWh"]]
+                    st.dataframe(display_df, use_container_width=True, height=420, hide_index=True)
+
+                    from io import BytesIO
+                    output = BytesIO()
+                    day_data[["时刻", "负荷_MW", "日总量_MWh", "profile_std_mw"]].to_csv(
+                        output, index=False, encoding="utf-8-sig",
+                    )
+                    output.seek(0)
+                    st.download_button(
+                        f"⬇️ 下载 {pred_company} {selected_date} 24h逐时负荷 CSV",
+                        data=output,
+                        file_name=f"{pred_company}_{selected_date}_逐时负荷.csv",
+                        mime="text/csv",
+                        use_container_width=True,
+                    )
 
 # ============================================================
 # 自动刷新逻辑
