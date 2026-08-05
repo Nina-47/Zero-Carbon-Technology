@@ -1020,18 +1020,42 @@ with tab4:
                     export_df_t.index.name = "小时"
 
                     from io import BytesIO
-                    output = BytesIO()
-                    with pd.ExcelWriter(output, engine="openpyxl") as writer:
-                        export_df_t.to_excel(writer, sheet_name="24h负荷", index=True)
-                    output.seek(0)
+                    col_a, col_b = st.columns(2)
+                    with col_a:
+                        output1 = BytesIO()
+                        with pd.ExcelWriter(output1, engine="openpyxl") as writer:
+                            export_df_t.to_excel(writer, sheet_name="24h负荷", index=True)
+                        output1.seek(0)
+                        st.download_button(
+                            label=f"⬇️ 横表导出 ({target_date_str})",
+                            data=output1,
+                            file_name=f"相似日负荷_{target_date_str}.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            use_container_width=True,
+                        )
 
-                    st.download_button(
-                        label=f"⬇️ 下载 Excel ({target_date_str})",
-                        data=output,
-                        file_name=f"相似日负荷_{target_date_str}.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        use_container_width=True,
-                    )
+                    with col_b:
+                        long_rows = []
+                        for _, row in export_df.iterrows():
+                            typ = row["类型"]
+                            sim = row["相似度"]
+                            for h in range(24):
+                                long_rows.append({
+                                    "类型": typ, "相似度": sim,
+                                    "小时": h, "负荷_MW": row[f"{h:02d}h"],
+                                })
+                        long_df = pd.DataFrame(long_rows)
+                        output2 = BytesIO()
+                        with pd.ExcelWriter(output2, engine="openpyxl") as writer:
+                            long_df.to_excel(writer, sheet_name="逐时数据", index=False)
+                        output2.seek(0)
+                        st.download_button(
+                            label=f"⬇️ 逐时数据导出 ({target_date_str})",
+                            data=output2,
+                            file_name=f"相似日逐时数据_{target_date_str}.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            use_container_width=True,
+                        )
                 else:
                     st.caption("暂无负荷数据可导出。")
 
