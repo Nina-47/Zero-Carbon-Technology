@@ -1350,8 +1350,8 @@ with tab5:
                     forecast_hourly.to_excel(writer, sheet_name="逐时数据", index=False)
                 output.seek(0)
                 st.download_button(
-                    f"⬇️ 下载 {pred_company} 预测 Excel", data=output,
-                    file_name=f"{pred_company}_负荷预测_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                    f"⬇️ 下载 {pred_company} 预测日逐时负荷 Excel", data=output,
+                    file_name=f"{pred_company}_预测日逐时负荷_{datetime.now().strftime('%Y%m%d')}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     use_container_width=True,
                 )
