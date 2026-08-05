@@ -69,9 +69,10 @@ EXPORT_PARAMS = {
 }
 
 # API 请求参数列表（逗号分隔字符串，用于 URL 构建）
-# 排除 openmeteo 不支持的参数：mean_sea_level_pressure（仅 ERA5-Land）+ 派生字段
-_EXCLUDE_FORECAST = {"mean_sea_level_pressure", "apparent_temp_cn"}
-_EXCLUDE_ARCHIVE = {"apparent_temp_cn"}
+# mean_sea_level_pressure 仅 Forecast API 支持，Archive API 不支持
+# apparent_temp_cn 是派生字段，两个 API 都不支持
+_EXCLUDE_FORECAST = {"apparent_temp_cn"}
+_EXCLUDE_ARCHIVE = {"mean_sea_level_pressure", "apparent_temp_cn"}
 FORECAST_PARAMS_STR = ",".join(k for k in EXPORT_PARAMS if k not in _EXCLUDE_FORECAST)
 ARCHIVE_PARAMS_STR = ",".join(k for k in EXPORT_PARAMS if k not in _EXCLUDE_ARCHIVE)
 
