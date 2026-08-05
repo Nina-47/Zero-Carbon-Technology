@@ -169,53 +169,71 @@ def _seed_weather_db():
 
         _conn = sqlite3.connect(_db_path)
         _conn.execute("DELETE FROM weather_hourly")
-        _conn.execute("UPDATE weather_hourly SET datetime = REPLACE(datetime, '+08:00', '') WHERE datetime LIKE '%+08:00'")
 
-        # 聚合: (date, hour) → {temperature_2m, precipitation, ...}
-        from collections import defaultdict
-        records = defaultdict(dict)
-        for _, row in df.iterrows():
-            date_val = str(row["date"])[:10]
-            element = str(row["element"])
-            col_name = element_map.get(element)
-            if col_name is None:
-                continue
-            for h in range(24):
-                val = row[h]
-                if pd.isna(val):
-                    continue
-                dt = f"{date_val}T{h:02d}:00:00"
-                records[dt][col_name] = float(val)
+        # 用 melt 向量化替代 iterrows 逐行聚合
+        df["element_en"] = df["element"].map(element_map)
+        df = df.dropna(subset=["element_en"])
+        df["date"] = df["date"].astype(str).str[:10]
 
+        id_vars = ["date", "element_en"]
+        value_vars = list(range(24))
+        melted = df.melt(id_vars=id_vars, value_vars=value_vars, var_name="hour", value_name="value")
+        melted = melted.dropna(subset=["value"])
+        melted["datetime"] = melted["date"] + "T" + melted["hour"].astype(str).str.zfill(2) + ":00:00"
+
+        pivoted = melted.pivot_table(
+            index=["date", "hour", "datetime"],
+            columns="element_en",
+            values="value",
+            aggfunc="first",
+        ).reset_index()
+
+        now = pd.Timestamp.now().isoformat()
         cols = ["location_id", "datetime", "data_type", "source",
                 "temperature_2m", "precipitation", "wind_speed_10m",
                 "wind_direction_10m", "cloud_cover", "shortwave_radiation", "fetched_at"]
         phs = ",".join(["?"] * len(cols))
         sql = f"INSERT OR REPLACE INTO weather_hourly ({','.join(cols)}) VALUES ({phs})"
-        now = pd.Timestamp.now().isoformat()
-        inserted = 0
-        for dt, vals in records.items():
-            row = [
-                "zhongshan", dt, "historical", "seed",
-                vals.get("temperature_2m"),
-                vals.get("precipitation"),
-                vals.get("wind_speed_10m"),
-                vals.get("wind_direction_10m"),
-                vals.get("cloud_cover"),
-                vals.get("shortwave_radiation"),
+
+        rows = []
+        for _, r in pivoted.iterrows():
+            rows.append((
+                "zhongshan", r["datetime"], "historical", "seed",
+                r.get("temperature_2m"),
+                r.get("precipitation"),
+                r.get("wind_speed_10m"),
+                r.get("wind_direction_10m"),
+                r.get("cloud_cover"),
+                r.get("shortwave_radiation"),
                 now,
-            ]
-            try:
-                _conn.execute(sql, row)
-                inserted += 1
-            except Exception:
-                pass
+            ))
+
+        _conn.executemany(sql, rows)
         _conn.commit()
         _conn.close()
     except Exception:
         pass
 
 _seed_weather_db()
+
+
+def _build_hourly_export(company: str) -> BytesIO:
+    """导出指定公司的全部历史逐时负荷为 Excel。"""
+    from io import BytesIO
+    df = query_load_all(company)
+    if df.empty:
+        df = pd.DataFrame({"提示": ["暂无数据"]})
+    else:
+        df = df.rename(columns={
+            "datetime": "时间", "load_mw": "负荷_MW",
+            "weekday": "星期", "daily_total": "日总_MWh",
+        })
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, sheet_name="逐时负荷", index=False)
+    output.seek(0)
+    return output
+
 
 # Session State 初始化
 if "load_df" not in st.session_state:
@@ -248,63 +266,51 @@ if "weather_forecast_df" not in st.session_state:
     st.session_state.weather_forecast_df = None
 
 # ============================================================
-# 数据获取（带缓存）
+# 数据获取（SQLite 优先，缺失时拉取 API + Streamlit 内存缓存）
 # ============================================================
-@st.cache_data(ttl=CACHE_TTL_SECONDS, show_spinner="正在获取天气数据...")
-def fetch_all_weather_data(
-    location_key: str,
-    history_days: int,
-    forecast_days: int,
-) -> dict:
-    """
-    获取指定地点的历史+预报数据，写入 SQLite 后返回。
-
-    返回
-    ----
-    dict: {"historical": DataFrame, "forecast": DataFrame, "status": DataSourceStatus}
-    """
-    status = DataSourceStatus()
+@st.cache_data(ttl=CACHE_TTL_SECONDS, show_spinner=False)
+def load_cached_or_fetch(location_key: str, history_days: int, forecast_days: int) -> dict:
+    """优先从 SQLite 读取缓存，缺失时才拉取 API。"""
     loc = LOCATIONS[location_key]
+    status = DataSourceStatus()
 
-    result = {"historical": pd.DataFrame(), "forecast": pd.DataFrame(), "status": status}
-
-    forecast_end = (datetime.now() + timedelta(days=forecast_days)).strftime("%Y-%m-%d")
-    forecast_start = datetime.now().strftime("%Y-%m-%d")
+    now = datetime.now()
+    hist_start = (now - timedelta(days=history_days)).strftime("%Y-%m-%d")
+    hist_end = now.strftime("%Y-%m-%d")
+    forecast_end = (now + timedelta(days=forecast_days)).strftime("%Y-%m-%d")
+    forecast_start = now.strftime("%Y-%m-%d")
 
     if loc.get("is_aggregate"):
-        # 广东省平均
-        result["historical"] = fetch_guangdong_average("historical", status, history_days, forecast_days)
-        result["forecast"] = fetch_guangdong_average("forecast", status, history_days, forecast_days)
+        from src.aggregation.province_avg import fetch_guangdong_average
+        historical = fetch_guangdong_average("historical", status, history_days, forecast_days)
+        forecast = fetch_guangdong_average("forecast", status, history_days, forecast_days)
     else:
-        # 单点城市
-        hist_start, hist_end = date_range_dates(history_days, 0)
-        result["historical"] = fetch_historical_safe(
-            loc["latitude"], loc["longitude"], location_key, hist_start, hist_end, status,
-        )
-        result["forecast"] = fetch_forecast_safe(
-            loc["latitude"], loc["longitude"], location_key, forecast_days, status,
-        )
+        historical = query_weather_data([location_key], hist_start, hist_end, ["historical"])
+        forecast = query_weather_data([location_key], forecast_start, forecast_end, ["forecast"])
 
-    # 广东省平均已在 fetch_guangdong_average 内部逐城 convert_units
-    # 单点城市需要在此处调用 convert_units
-    if not loc.get("is_aggregate"):
-        if not result["historical"].empty:
-            result["historical"] = convert_units(result["historical"])
-        if not result["forecast"].empty:
-            result["forecast"] = convert_units(result["forecast"])
+        expected_hist_hours = history_days * 24
+        expected_forecast_hours = forecast_days * 24
 
-    # 写入数据库
-    if not result["historical"].empty:
-        insert_weather_data(result["historical"])
-    if not result["forecast"].empty:
-        insert_weather_data(result["forecast"])
+        if len(historical) < expected_hist_hours * 0.8:
+            historical = fetch_historical_safe(
+                loc["latitude"], loc["longitude"], location_key, hist_start, hist_end, status,
+            )
+            if not historical.empty:
+                insert_weather_data(historical)
 
-    return result
+        if len(forecast) < expected_forecast_hours * 0.8:
+            forecast = fetch_forecast_safe(
+                loc["latitude"], loc["longitude"], location_key, forecast_days, status,
+            )
+            if not forecast.empty:
+                insert_weather_data(forecast)
 
+        if not historical.empty:
+            historical = convert_units(historical)
+        if not forecast.empty:
+            forecast = convert_units(forecast)
 
-def load_cached_or_fetch(location_key: str, history_days: int, forecast_days: int) -> dict:
-    """优先从 SQLite 读取，缓存过期则拉取 API。"""
-    return fetch_all_weather_data(location_key, history_days, forecast_days)
+    return {"historical": historical, "forecast": forecast, "status": status}
 
 
 # ============================================================
@@ -1036,320 +1042,314 @@ with tab5:
     st.subheader("🔌 污水厂负荷预测")
     st.caption("基于历史负荷 + 排班日历 + 天气预报，预测未来逐时负荷")
 
-    # ---- Step 1: 选择公司 + 上传历史负荷 ----
-    st.markdown("### 📤 Step 1: 历史负荷数据")
-
-    col_comp, col_info = st.columns([1, 2])
-    with col_comp:
-        pred_company = st.selectbox(
-            "选择公司",
-            options=PREDICTION_COMPANIES,
-            key="pred_company_select",
-        )
-
-    load_has = has_load_data(pred_company)
-    load_start, load_end = query_load_date_range(pred_company)
-
-    with col_info:
+    # ---- 顶部操作栏 ----
+    c1, c2, c3, c4 = st.columns([2, 2, 1, 1])
+    with c1:
+        pred_company = st.selectbox("选择公司", options=PREDICTION_COMPANIES, key="pred_company_select")
+    with c2:
+        load_has = has_load_data(pred_company)
+        load_start, load_end = query_load_date_range(pred_company)
         if load_has:
-            st.success(f"✅ {pred_company} 已有数据: {load_start} ~ {load_end}")
+            st.success(f"✅ {pred_company}: {load_start} ~ {load_end}")
         else:
-            st.info(f"💡 {pred_company} 暂无历史负荷数据，请上传")
+            st.info(f"💡 {pred_company} 暂无数据")
+    with c3:
+        st.write("")
+        st.write("")
+        if st.button("📂 导入数据", use_container_width=True, key="toggle_import"):
+            st.session_state._show_import = not st.session_state.get("_show_import", False)
+    with c4:
+        if load_has:
+            st.write("")
+            st.write("")
+            st.download_button(
+                label="📥 导出", data=_build_hourly_export(pred_company),
+                file_name=f"{pred_company}_逐时负荷_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+            )
 
-    upload_col1, upload_col2 = st.columns(2)
-    with upload_col1:
-        uploaded_load = st.file_uploader(
-            f"上传 {pred_company} 历史负荷文件",
-            type=["csv", "xlsx", "xls"],
-            key="pred_load_uploader",
-        )
-    with upload_col2:
-        st.caption("支持格式: Excel (.xlsx) / CSV 宽表 / CSV 长表")
-        st.caption("宽表: 日期列 + 24列逐时负荷")
-        st.caption("长表: datetime + load_mw")
+    # ---- 导入面板 ----
+    if st.session_state.get("_show_import", False) or not load_has:
+        with st.expander("📂 数据导入", expanded=not load_has):
+            uploaded_load = st.file_uploader(
+                f"上传 {pred_company} 负荷文件 (Excel/CSV)", type=["csv", "xlsx", "xls"],
+                key="pred_load_uploader",
+            )
+            if uploaded_load is not None:
+                from src.utils.csv_parser import parse_load_history_upload
+                file_bytes = uploaded_load.getvalue()
+                load_hist_df, error_msg = parse_load_history_upload(file_bytes, uploaded_load.name)
+                if error_msg:
+                    st.error(error_msg)
+                elif load_hist_df is not None and not load_hist_df.empty:
+                    load_hist_df["company"] = pred_company
+                    n = import_load_from_df(load_hist_df, uploaded_load.name, pred_company)
+                    st.success(f"✅ 已导入 {pred_company} {n} 条负荷记录")
+                    st.session_state._show_import = False
+                    st.rerun()
 
-    if uploaded_load is not None:
-        from src.utils.csv_parser import parse_load_history_upload
+            st.divider()
+            st.caption("或分别上传各公司数据：")
+            batch_cols = st.columns(3)
+            for i, company in enumerate(PREDICTION_COMPANIES):
+                with batch_cols[i]:
+                    co_has = has_load_data(company)
+                    icon = "✅" if co_has else "⬜"
+                    st.caption(f"{icon} {company}")
+                    co_file = st.file_uploader(
+                        company, type=["csv", "xlsx", "xls"],
+                        key=f"batch_load_{company}", label_visibility="collapsed",
+                    )
+                    if co_file is not None:
+                        co_bytes = co_file.getvalue()
+                        co_df, co_err = parse_load_history_upload(co_bytes, co_file.name)
+                        if co_err:
+                            st.error(co_err)
+                        elif co_df is not None and not co_df.empty:
+                            co_df["company"] = company
+                            import_load_from_df(co_df, co_file.name, company)
+                            st.success(f"✅ {company}")
+                            st.rerun()
 
-        file_bytes = uploaded_load.getvalue()
-        load_hist_df, error_msg = parse_load_history_upload(file_bytes, uploaded_load.name)
-        if error_msg:
-            st.error(error_msg)
-        elif load_hist_df is not None and not load_hist_df.empty:
-            load_hist_df["company"] = pred_company
-            n_imported = import_load_from_df(load_hist_df, uploaded_load.name, pred_company)
-            st.success(f"✅ 已导入 {pred_company} {n_imported} 条负荷记录")
-            st.rerun()
+        if not load_has:
+            st.info("👆 请先导入历史负荷数据")
+            st.stop()
 
-    if not load_has:
-        st.info("👆 请先上传历史负荷数据")
-        st.stop()
-
-    st.divider()
-
-    # ---- Step 2: 排班计划 ----
-    st.markdown("### 📅 Step 2: 排班计划")
-
+    # ---- 排班 + 天气 ----
     existing_cal = get_calendar(pred_company)
-    cal_has_data = not existing_cal.empty
+    if not existing_cal.empty:
+        st.session_state.calendar_df = existing_cal
 
-    cal_mode = st.radio(
-        "排班模式",
-        options=["weekly_rule", "upload"],
-        format_func=lambda x: "周规律 + 特殊日" if x == "weekly_rule" else "上传完整排班表",
-        horizontal=True,
-        key="cal_mode",
-    )
-
-    if cal_mode == "weekly_rule":
-        col_days, col_special = st.columns(2)
-        with col_days:
+    with st.expander("📅 排班日历", expanded=False):
+        cal_mode = st.radio(
+            "排班模式", options=["weekly_rule", "upload"],
+            format_func=lambda x: "周规律" if x == "weekly_rule" else "上传排班表",
+            horizontal=True, key="cal_mode",
+        )
+        if cal_mode == "weekly_rule":
             prod_days = st.multiselect(
                 "每周生产日",
                 options=[(0, "周一"), (1, "周二"), (2, "周三"), (3, "周四"), (4, "周五"), (5, "周六"), (6, "周日")],
-                default=DEFAULT_PRODUCTION_DAYS,
-                format_func=lambda x: x[1],
-                key="prod_days_select",
+                default=DEFAULT_PRODUCTION_DAYS, format_func=lambda x: x[1], key="prod_days_select",
             )
-            prod_day_nums = [d[0] for d in prod_days]
-        with col_special:
             special_dates_input = st.text_area(
-                "特殊日（每行一个: YYYY-MM-DD,类型）",
-                placeholder="2026-07-01,holiday\n2026-07-05,rest",
-                height=100,
-                key="special_dates_input",
-                help="类型: production=生产日, rest=休息日, holiday=节假日",
+                "特殊日（YYYY-MM-DD,类型）", placeholder="2026-10-01,holiday",
+                height=68, key="special_dates_input",
             )
-
-        if st.button("🔄 生成排班日历", key="gen_calendar", use_container_width=True):
-            special_dates = {}
-            if special_dates_input.strip():
-                for line in special_dates_input.strip().split("\n"):
-                    parts = [p.strip() for p in line.split(",")]
-                    if len(parts) >= 2:
-                        special_dates[parts[0]] = parts[1]
-
-            if load_start and load_end:
-                cal_df = generate_calendar_from_rule(
-                    load_start, load_end, prod_day_nums, special_dates
-                )
-                # 扩展到预测范围
-                from datetime import datetime, timedelta
-                forecast_end_dt = datetime.strptime(load_end, "%Y-%m-%d") + timedelta(days=DEFAULT_FORECAST_DAYS_LIMIT)
-                cal_extended = generate_calendar_from_rule(
-                    load_end, forecast_end_dt.strftime("%Y-%m-%d"), prod_day_nums, special_dates
-                )
-                cal_df = pd.concat([cal_df, cal_extended[cal_extended["date"] > cal_df["date"].max()]], ignore_index=True)
-
-                delete_calendar(pred_company)
-                import_calendar_from_df(cal_df, pred_company, "weekly_rule")
-                st.session_state.calendar_df = cal_df
-                st.success(f"✅ 已生成 {len(cal_df)} 天排班日历")
-                st.rerun()
-
-    else:
-        uploaded_cal = st.file_uploader(
-            "上传排班表 (CSV/Excel: 日期 + 类型)",
-            type=["csv", "xlsx", "xls"],
-            key="cal_uploader",
-        )
-        if uploaded_cal is not None:
-            try:
-                if uploaded_cal.name.endswith(".csv"):
-                    cal_raw = pd.read_csv(uploaded_cal)
-                else:
-                    cal_raw = pd.read_excel(uploaded_cal)
+            if st.button("🔄 生成排班日历", key="gen_calendar"):
+                prod_day_nums = [d[0] for d in prod_days]
+                special_dates = {}
+                if special_dates_input.strip():
+                    for line in special_dates_input.strip().split("\n"):
+                        parts = [p.strip() for p in line.split(",")]
+                        if len(parts) >= 2:
+                            special_dates[parts[0]] = parts[1]
+                if load_start and load_end:
+                    cal_df = generate_calendar_from_rule(load_start, load_end, prod_day_nums, special_dates)
+                    forecast_end_dt = datetime.strptime(load_end, "%Y-%m-%d") + timedelta(days=DEFAULT_FORECAST_DAYS_LIMIT)
+                    cal_ext = generate_calendar_from_rule(load_end, forecast_end_dt.strftime("%Y-%m-%d"), prod_day_nums, special_dates)
+                    cal_df = pd.concat([cal_df, cal_ext[cal_ext["date"] > cal_df["date"].max()]], ignore_index=True)
+                    delete_calendar(pred_company)
+                    import_calendar_from_df(cal_df, pred_company, "weekly_rule")
+                    st.session_state.calendar_df = cal_df
+                    st.success(f"✅ 已生成 {len(cal_df)} 天排班日历")
+                    st.rerun()
+        else:
+            uploaded_cal = st.file_uploader("上传排班表", type=["csv", "xlsx"], key="cal_uploader")
+            if uploaded_cal is not None:
+                cal_raw = pd.read_csv(uploaded_cal) if uploaded_cal.name.endswith(".csv") else pd.read_excel(uploaded_cal)
                 cal_df = parse_calendar_upload(cal_raw)
                 if cal_df.empty:
-                    st.error("无法解析排班表，请检查格式。需包含日期列 + 类型列。")
+                    st.error("无法解析排班表")
                 else:
                     delete_calendar(pred_company)
                     import_calendar_from_df(cal_df, pred_company, "upload")
                     st.session_state.calendar_df = cal_df
                     st.success(f"✅ 已导入 {len(cal_df)} 天排班数据")
                     st.rerun()
-            except Exception as e:
-                st.error(f"文件读取失败: {e}")
+        if not existing_cal.empty:
+            st.caption(f"当前排班: {len(existing_cal)} 天")
 
-    st.session_state.calendar_df = existing_cal
+    with st.expander("🌤️ 天气预报", expanded=False):
+        st.caption("在表格中直接填写天气预报数据：")
+        wx_has = False
+        if "weather_editor_df" not in st.session_state:
+            dates = pd.date_range(datetime.now(), periods=7, freq="D")
+            st.session_state.weather_editor_df = pd.DataFrame({
+                "date": dates.strftime("%Y-%m-%d"),
+                "tmax": [32.0] * 7,
+                "tmin": [25.0] * 7,
+                "humidity_avg": [75.0] * 7,
+                "precip_sum": [0.0] * 7,
+                "rad_sum": [5000.0] * 7,
+            })
+        wx_days = st.slider("预报天数", 1, 31, 7, 1, key="wx_days")
+        current_df = st.session_state.weather_editor_df
+        if len(current_df) < wx_days:
+            extra = wx_days - len(current_df)
+            last_date = pd.Timestamp(current_df["date"].iloc[-1])
+            new_rows = pd.DataFrame({
+                "date": pd.date_range(last_date + pd.Timedelta(days=1), periods=extra, freq="D").strftime("%Y-%m-%d"),
+                "tmax": [current_df["tmax"].iloc[-1]] * extra,
+                "tmin": [current_df["tmin"].iloc[-1]] * extra,
+                "humidity_avg": [current_df["humidity_avg"].iloc[-1]] * extra,
+                "precip_sum": [0.0] * extra,
+                "rad_sum": [current_df["rad_sum"].iloc[-1]] * extra,
+            })
+            current_df = pd.concat([current_df, new_rows], ignore_index=True)
+        elif len(current_df) > wx_days:
+            current_df = current_df.head(wx_days)
 
-    if cal_has_data:
-        with st.expander(f"📋 当前排班 ({len(existing_cal)} 天)", expanded=False):
-            display_cal = existing_cal.copy()
-            display_cal["日期类型"] = display_cal["day_type"].map(
-                lambda x: DAY_TYPE_MAP.get(x, {}).get("label", x)
-            )
-            st.dataframe(display_cal[["date", "日期类型", "day_type_weight"]], use_container_width=True, hide_index=True)
+        edited = st.data_editor(
+            current_df,
+            column_config={
+                "date": st.column_config.TextColumn("日期", disabled=True),
+                "tmax": st.column_config.NumberColumn("最高温 °C", min_value=-20.0, max_value=50.0, step=0.5, format="%.1f"),
+                "tmin": st.column_config.NumberColumn("最低温 °C", min_value=-20.0, max_value=50.0, step=0.5, format="%.1f"),
+                "humidity_avg": st.column_config.NumberColumn("湿度 %", min_value=0.0, max_value=100.0, step=1.0, format="%.0f"),
+                "precip_sum": st.column_config.NumberColumn("降水 mm", min_value=0.0, max_value=500.0, step=1.0, format="%.1f"),
+                "rad_sum": st.column_config.NumberColumn("辐射 W/m²·d", min_value=0.0, max_value=15000.0, step=100.0, format="%.0f"),
+            },
+            use_container_width=True,
+            num_rows="fixed",
+            height=250,
+            key="weather_editor",
+        )
+        st.session_state.weather_editor_df = edited
 
-    st.divider()
+        if st.button("✅ 确认天气数据", use_container_width=True, key="confirm_wx"):
+            st.session_state.weather_forecast_df = edited.rename(columns={"date": "date"})
+            st.success(f"✅ 已保存 {len(edited)} 天天气预报")
+            st.rerun()
 
-    # ---- Step 3: 天气预报 ----
-    st.markdown("### 🌤️ Step 3: 天气预报（可选）")
+        wx_has = st.session_state.weather_forecast_df is not None and not st.session_state.weather_forecast_df.empty
+        st.caption(f"已保存: {len(st.session_state.weather_forecast_df)} 天" if wx_has else "✏️ 填完点「确认天气数据」即可生效")
 
-    uploaded_wx = st.file_uploader(
-        "上传目标日天气预报 (CSV/Excel: 日期 + 最高温 + 最低温 + 湿度 + 降水 + 辐射)",
-        type=["csv", "xlsx", "xls"],
-        key="wx_forecast_uploader",
-    )
-    if uploaded_wx is not None:
-        try:
-            if uploaded_wx.name.endswith(".csv"):
-                wx_raw = pd.read_csv(uploaded_wx)
-            else:
-                wx_raw = pd.read_excel(uploaded_wx)
-            wx_df = parse_weather_forecast_upload(wx_raw)
-            if wx_df is None or wx_df.empty:
-                st.error("无法解析天气预报，请检查格式。")
-            else:
-                st.session_state.weather_forecast_df = wx_df
-                st.success(f"✅ 已加载 {len(wx_df)} 天天气预报")
-        except Exception as e:
-            st.error(f"文件读取失败: {e}")
-
-    if st.session_state.weather_forecast_df is not None and not st.session_state.weather_forecast_df.empty:
-        with st.expander(f"📋 天气预报预览 ({len(st.session_state.weather_forecast_df)} 天)", expanded=False):
-            st.dataframe(st.session_state.weather_forecast_df, use_container_width=True, hide_index=True)
-    else:
-        st.caption("💡 不上传则使用历史均值预测（无天气修正）")
-
-    st.divider()
-
-    # ---- Step 4: 预测参数 ----
-    st.markdown("### ⚙️ Step 4: 预测参数")
-
-    col_p1, col_p2, col_p3 = st.columns(3)
+    # ---- 预测参数 + 运行 ----
+    col_p1, col_p2, col_p3 = st.columns([1, 1, 2])
     with col_p1:
-        forecast_horizon = st.slider(
-            "预测天数",
-            min_value=1,
-            max_value=DEFAULT_FORECAST_DAYS_LIMIT,
-            value=31,
-            step=1,
-        )
+        forecast_horizon = st.slider("预测天数", 1, DEFAULT_FORECAST_DAYS_LIMIT, 31, 1)
     with col_p2:
-        knn_k = st.slider(
-            "KNN 匹配数",
-            min_value=1,
-            max_value=10,
-            value=DEFAULT_KNN_K,
-            step=1,
-        )
+        knn_k = st.slider("KNN 匹配数", 1, 10, DEFAULT_KNN_K, 1)
     with col_p3:
+        st.write("")
         if st.button("🚀 运行预测", type="primary", use_container_width=True, key="run_forecast_btn"):
-            with st.spinner(f"正在预测 {pred_company} 未来 {forecast_horizon} 天负荷..."):
+            with st.spinner(f"预测 {pred_company} 未来 {forecast_horizon} 天..."):
                 df_load = query_load_all(pred_company)
                 df_hourly = prepare_load_data(df_load, pred_company)
-
                 cal_df = st.session_state.calendar_df
                 wx_df = st.session_state.weather_forecast_df
-
                 result = run_forecast(
-                    company=pred_company,
-                    df_hourly=df_hourly,
+                    company=pred_company, df_hourly=df_hourly,
                     forecast_horizon=forecast_horizon,
                     calendar_df=cal_df if cal_df is not None and not cal_df.empty else None,
                     weather_df=wx_df if wx_df is not None and not wx_df.empty else None,
                     k=knn_k,
                 )
-
                 st.session_state.prediction_result = result
                 st.session_state.prediction_company = pred_company
+                st.session_state._df_load = df_load
             st.success("✅ 预测完成")
 
     st.divider()
 
-    # ---- Step 5: 预测结果 ----
+    # ---- 预测结果 ----
     result = st.session_state.prediction_result
     if result is not None and st.session_state.prediction_company == pred_company:
         if "error" in result:
             st.error(result["error"])
         else:
-            daily_series = prepare_daily_series(prepare_load_data(query_load_all(pred_company), pred_company))
+            df_load = st.session_state.get("_df_load")
+            if df_load is None:
+                df_load = query_load_all(pred_company)
+            df_hourly = prepare_load_data(df_load, pred_company)
+            daily_series = prepare_daily_series(df_hourly)
 
-            st.markdown("### 📊 预测结果")
-
-            # 概览指标
             forecast = result["daily_forecast"]
-            col_m1, col_m2, col_m3, col_m4 = st.columns(4)
-            with col_m1:
-                st.metric("预测日均负荷", f"{forecast.mean():.1f} MWh")
-            with col_m2:
-                st.metric("预测日峰荷均值", f"{pd.DataFrame(result['hourly_results']).groupby('date')['load_mw'].max().mean():.2f} MW")
-            with col_m3:
-                st.metric("历史日均负荷", f"{daily_series.mean():.1f} MWh")
-            with col_m4:
-                info = result.get("info", {})
-                st.metric("最优回看窗口", f"{info.get('best_window', '-')} 天")
-
-            # 日总量图
-            st.plotly_chart(
-                plot_daily_forecast(
-                    daily_series,
-                    result["daily_forecast"],
-                    result["daily_lower"],
-                    result["daily_upper"],
-                    pred_company,
-                ),
-                use_container_width=True,
-            )
-
-            col_c1, col_c2 = st.columns(2)
-            with col_c1:
-                st.plotly_chart(
-                    plot_hourly_profile(result["hourly_results"], company=pred_company),
-                    use_container_width=True,
-                )
-            with col_c2:
-                cal_df = st.session_state.calendar_df
-                st.plotly_chart(
-                    plot_weekday_vs_rest(
-                        result["hourly_results"],
-                        cal_df if cal_df is not None and not cal_df.empty else None,
-                        pred_company,
-                    ),
-                    use_container_width=True,
-                )
-
-            st.plotly_chart(
-                plot_template_matches(
-                    result["hourly_results"],
-                    prepare_load_data(query_load_all(pred_company), pred_company),
-                    pred_company,
-                ),
-                use_container_width=True,
-            )
-
-            # 数据表格
-            st.subheader("📋 预测数据")
             hourly_df = pd.DataFrame(result["hourly_results"])
+            info = result.get("info", {})
+            cal_df = st.session_state.calendar_df
+
+            # 回测 MAPE
+            hist_dates = set(str(d) for d in daily_series.index)
+            overlap = hourly_df[hourly_df["date"].apply(lambda d: str(d) in hist_dates)]
+            mape_val = None
+            if len(overlap) >= 24 * 7:
+                daily_pred = overlap.groupby("date")["load_mw"].sum()
+                daily_actual = {}
+                for d in daily_pred.index:
+                    key = pd.Timestamp(d).strftime("%Y-%m-%d")
+                    if key in daily_series.index:
+                        daily_actual[d] = daily_series[key]
+                if daily_actual:
+                    a = np.array(list(daily_actual.values()))
+                    p = np.array([daily_pred[d] for d in daily_actual.keys()])
+                    mape_val = float(np.mean(np.abs((a - p) / (a + 1e-6))) * 100)
+
+            # KPI 卡片
+            metrics = [
+                ("预测日均", f"{forecast.mean():.1f} MWh"),
+                ("历史日均", f"{daily_series.mean():.1f} MWh"),
+                ("最优窗口", f"{info.get('best_window', '-')} 天"),
+            ]
+            if mape_val is not None:
+                delta = "normal" if mape_val < 10 else "off" if mape_val < 20 else "inverse"
+                metrics.append((f"回测 MAPE", f"{mape_val:.1f}%"))
+            else:
+                rs = info.get('residual_std')
+                metrics.append(("回测残差", f"{rs:.1f} MWh" if isinstance(rs, (int, float)) else "-"))
+
+            mcols = st.columns(len(metrics))
+            for i, (label, value) in enumerate(metrics):
+                with mcols[i]:
+                    st.metric(label, value)
+
+            # 图表
+            st.plotly_chart(
+                plot_daily_forecast(daily_series, forecast, result["daily_lower"], result["daily_upper"], pred_company),
+                use_container_width=True,
+            )
+
+            c_l, c_r = st.columns(2)
+            with c_l:
+                st.plotly_chart(plot_hourly_profile(result["hourly_results"], company=pred_company), use_container_width=True)
+            with c_r:
+                st.plotly_chart(
+                    plot_weekday_vs_rest(result["hourly_results"],
+                        cal_df if cal_df is not None and not cal_df.empty else None, pred_company),
+                    use_container_width=True,
+                )
+
+            st.plotly_chart(
+                plot_template_matches(result["hourly_results"], df_hourly, pred_company),
+                use_container_width=True,
+            )
+
+            # 数据表 + 导出
             daily_report = hourly_df.groupby("date").agg(
-                日均负荷_MW=("load_mw", "mean"),
-                日峰荷_MW=("load_mw", "max"),
-                日谷荷_MW=("load_mw", "min"),
-                日总用电量_MWh=("load_mw", "sum"),
+                日均负荷_MW=("load_mw", "mean"), 日峰荷_MW=("load_mw", "max"),
+                日谷荷_MW=("load_mw", "min"), 日总用电量_MWh=("load_mw", "sum"),
                 峰谷差_MW=("load_mw", lambda x: x.max() - x.min()),
             ).reset_index()
             daily_report.columns = ["日期", "日均负荷_MW", "日峰荷_MW", "日谷荷_MW", "日总用电量_MWh", "峰谷差_MW"]
             daily_report["日期"] = daily_report["日期"].astype(str)
-            st.dataframe(daily_report, use_container_width=True, height=300, hide_index=True)
 
-            # 导出
-            st.subheader("📥 导出预测结果")
-            from io import BytesIO
-            output = BytesIO()
-            with pd.ExcelWriter(output, engine="openpyxl") as writer:
-                daily_report.to_excel(writer, sheet_name="日汇总", index=False)
-                hourly_df[["datetime", "load_mw", "daily_total_mwh", "profile_std_mw"]].to_excel(
-                    writer, sheet_name="逐时数据", index=False
+            with st.expander("📋 预测数据表 + 导出", expanded=False):
+                st.dataframe(daily_report, use_container_width=True, height=250, hide_index=True)
+                from io import BytesIO
+                output = BytesIO()
+                with pd.ExcelWriter(output, engine="openpyxl") as writer:
+                    daily_report.to_excel(writer, sheet_name="日汇总", index=False)
+                    hourly_df[["datetime", "load_mw", "daily_total_mwh", "profile_std_mw"]].to_excel(
+                        writer, sheet_name="逐时数据", index=False)
+                output.seek(0)
+                st.download_button(
+                    f"⬇️ 下载 {pred_company} 预测 Excel", data=output,
+                    file_name=f"{pred_company}_负荷预测_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True,
                 )
-            output.seek(0)
-            st.download_button(
-                label=f"⬇️ 下载 {pred_company} 预测 Excel",
-                data=output,
-                file_name=f"{pred_company}_负荷预测_{datetime.now().strftime('%Y%m%d')}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True,
-            )
 
 # ============================================================
 # 自动刷新逻辑
