@@ -1335,14 +1335,19 @@ with tab5:
             daily_report.columns = ["日期", "日均负荷_MW", "日峰荷_MW", "日谷荷_MW", "日总用电量_MWh", "峰谷差_MW"]
             daily_report["日期"] = daily_report["日期"].astype(str)
 
+            # 只导出预测日（历史最后一天之后）
+            last_hist_date = pd.Timestamp(daily_series.index[-1])
+            forecast_hourly = hourly_df[
+                hourly_df["datetime"] > last_hist_date
+            ][["datetime", "load_mw", "daily_total_mwh", "profile_std_mw"]]
+
             with st.expander("📋 预测数据表 + 导出", expanded=False):
                 st.dataframe(daily_report, use_container_width=True, height=250, hide_index=True)
                 from io import BytesIO
                 output = BytesIO()
                 with pd.ExcelWriter(output, engine="openpyxl") as writer:
                     daily_report.to_excel(writer, sheet_name="日汇总", index=False)
-                    hourly_df[["datetime", "load_mw", "daily_total_mwh", "profile_std_mw"]].to_excel(
-                        writer, sheet_name="逐时数据", index=False)
+                    forecast_hourly.to_excel(writer, sheet_name="逐时数据", index=False)
                 output.seek(0)
                 st.download_button(
                     f"⬇️ 下载 {pred_company} 预测 Excel", data=output,
