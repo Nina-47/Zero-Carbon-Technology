@@ -101,7 +101,7 @@ from src.prediction.load_forecast import (
     run_forecast,
 )
 from src.prediction.calendar import generate_calendar_from_rule, parse_calendar_upload
-from src.prediction.weather_forecast import parse_weather_forecast_upload
+from src.prediction.weather_forecast import parse_weather_forecast_upload, get_weather_from_db
 from src.charts.prediction_charts import (
     plot_daily_forecast,
     plot_hourly_profile,
@@ -1197,6 +1197,26 @@ with tab5:
             st.caption(f"当前排班: {len(existing_cal)} 天")
 
     with st.expander("🌤️ 天气预报", expanded=False):
+        wx_from_db = False
+        col_db, _ = st.columns([1, 2])
+        with col_db:
+            if st.button("📥 从数据库加载", use_container_width=True, key="load_wx_from_db"):
+                if load_start:
+                    wx_db = get_weather_from_db("zhongshan", load_start, load_end if load_end else load_start)
+                    if wx_db.empty:
+                        st.warning("⚠️ 数据库中无天气数据，请先运行批量拉取脚本")
+                    else:
+                        pred_end = (datetime.strptime(load_end, "%Y-%m-%d") + timedelta(days=DEFAULT_FORECAST_DAYS_LIMIT)).strftime("%Y-%m-%d")
+                        st.session_state.weather_forecast_df = get_weather_from_db("zhongshan", load_start, pred_end)
+                        st.session_state._wx_from_db = True
+                        st.success(f"✅ 已加载 {len(st.session_state.weather_forecast_df)} 天历史天气")
+                        st.rerun()
+                else:
+                    st.warning("请先导入负荷数据")
+
+        if st.session_state.get("_wx_from_db"):
+            st.caption("当前使用数据库中的历史天气数据。若需修改，请在下方手动编辑后确认。")
+
         st.caption("在表格中直接填写天气预报数据：")
         wx_has = False
         if "weather_editor_df" not in st.session_state:
@@ -1245,11 +1265,13 @@ with tab5:
 
         if st.button("✅ 确认天气数据", use_container_width=True, key="confirm_wx"):
             st.session_state.weather_forecast_df = edited.rename(columns={"date": "date"})
+            st.session_state._wx_from_db = False
             st.success(f"✅ 已保存 {len(edited)} 天天气预报")
             st.rerun()
 
         wx_has = st.session_state.weather_forecast_df is not None and not st.session_state.weather_forecast_df.empty
-        st.caption(f"已保存: {len(st.session_state.weather_forecast_df)} 天" if wx_has else "✏️ 填完点「确认天气数据」即可生效")
+        source_label = "(数据库)" if st.session_state.get("_wx_from_db") else ""
+        st.caption(f"已保存: {len(st.session_state.weather_forecast_df)} 天 {source_label}" if wx_has else "✏️ 填完点「确认天气数据」或「从数据库加载」即可生效")
 
     # ---- 预测参数 + 运行 ----
     col_p1, col_p2, col_p3 = st.columns([1, 1, 2])

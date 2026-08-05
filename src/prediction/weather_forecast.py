@@ -1,9 +1,60 @@
 """
-天气预报数据解析
+天气预报数据解析 + 从数据库获取历史天气
 """
 import pandas as pd
 import numpy as np
 from datetime import datetime
+
+from src.db.models import query_weather_data
+
+
+def get_weather_from_db(
+    location_id: str,
+    start_date: str,
+    end_date: str,
+) -> pd.DataFrame:
+    """
+    从 weather_hourly 表查询逐时天气并聚合为逐日格式。
+
+    返回 DataFrame: [date, tmax, tmin, humidity_avg, precip_sum, rad_sum]
+    如果数据库无数据则返回空 DataFrame（含正确列名）。
+    """
+    df_hourly = query_weather_data(
+        [location_id],
+        start_date + "T00:00:00",
+        end_date + "T23:59:59",
+        ["historical"],
+    )
+
+    cols = ["date", "tmax", "tmin", "humidity_avg", "precip_sum", "rad_sum"]
+    if df_hourly.empty:
+        return pd.DataFrame(columns=cols)
+
+    df_hourly["date"] = df_hourly["datetime"].dt.date
+
+    agg_map = {}
+    if "temperature_2m" in df_hourly.columns:
+        agg_map["tmax"] = ("temperature_2m", "max")
+        agg_map["tmin"] = ("temperature_2m", "min")
+    if "relative_humidity_2m" in df_hourly.columns:
+        agg_map["humidity_avg"] = ("relative_humidity_2m", "mean")
+    if "precipitation" in df_hourly.columns:
+        agg_map["precip_sum"] = ("precipitation", "sum")
+    if "shortwave_radiation" in df_hourly.columns:
+        agg_map["rad_sum"] = ("shortwave_radiation", "sum")
+
+    if not agg_map:
+        return pd.DataFrame(columns=cols)
+
+    daily = df_hourly.groupby("date", as_index=False).agg(**agg_map)
+    daily["date"] = pd.to_datetime(daily["date"])
+    daily = daily.sort_values("date").reset_index(drop=True)
+
+    for col in cols:
+        if col not in daily.columns:
+            daily[col] = np.nan
+
+    return daily[cols]
 
 
 def parse_weather_forecast_upload(df: pd.DataFrame) -> pd.DataFrame | None:
