@@ -204,11 +204,12 @@ def _apply_weather_correction(
     historical_daily: pd.Series,
 ) -> pd.Series:
     """
-    天气修正：温度偏离 → 负荷调整。
+    连续天气修正：用历史数据拟合温度-负荷曲线，计算连续修正系数。
 
-    修正逻辑（基于历史温度-负荷回归）：
-    - 计算历史平均温度与日总量的关系
-    - 目标日温度 vs 历史同期平均温度偏差 → 修正负荷
+    - 高温段 (>28°C)：负荷随温度上升而增加（制冷负荷）
+    - 常温段 (10-28°C)：基本不修正（舒适区）
+    - 低温段 (<10°C)：负荷随温度下降而增加（取暖负荷）
+    - 降水：对数衰减，降水量越大负荷越低
     """
     weather = weather_df.copy()
     weather["date"] = pd.to_datetime(weather["date"])
@@ -219,11 +220,14 @@ def _apply_weather_correction(
             "tavg": (row.get("tmax", np.nan) + row.get("tmin", np.nan)) / 2
             if not pd.isna(row.get("tmax")) and not pd.isna(row.get("tmin"))
             else np.nan,
-            "humidity_avg": row.get("humidity_avg", np.nan),
             "precip_sum": row.get("precip_sum", np.nan),
         }
 
-    historical_mean = historical_daily.mean()
+    if historical_daily is None or len(historical_daily) < 30:
+        return forecast
+
+    overall_mean = historical_daily.mean()
+    temp_load_curve = _fit_temp_load_curve(historical_daily, weather_df)
 
     corrected = forecast.copy()
     for dt in corrected.index:
@@ -235,24 +239,116 @@ def _apply_weather_correction(
         tavg = wx["tavg"]
         base_pred = corrected.loc[dt]
 
-        p = WEATHER_CORRECTION_PARAMS
-        if tavg > p["hot_temp_threshold"]:
-            base_pred *= p["hot_temp_factor"]
-        elif tavg < p["cold_temp_threshold"]:
-            base_pred *= p["cold_temp_factor"]
+        if temp_load_curve is not None:
+            temp_factor = _interp_temp_factor(tavg, temp_load_curve)
+            base_pred *= temp_factor
 
         precip = wx.get("precip_sum", 0)
-        if not pd.isna(precip) and precip > p["heavy_rain_threshold"]:
-            base_pred *= p["heavy_rain_factor"]
+        if not pd.isna(precip) and precip > 0:
+            base_pred *= 1.0 - 0.02 * np.log2(1 + precip)
 
         corrected.loc[dt] = base_pred
 
     return corrected
 
 
-def build_template_library(df_hourly: pd.DataFrame, calendar_df: pd.DataFrame = None) -> list[dict]:
+def _fit_temp_load_curve(daily_series: pd.Series, weather_df: pd.DataFrame) -> list | None:
+    hist_weather = weather_df.copy()
+    hist_weather["date"] = pd.to_datetime(hist_weather["date"]).dt.date
+    wx_dates = set(hist_weather["date"])
+
+    bins = []
+    for d in daily_series.index:
+        d_key = d.date() if hasattr(d, "date") else d
+        if d_key in wx_dates:
+            row = hist_weather[hist_weather["date"] == d_key].iloc[0]
+            tavg = (row.get("tmax", np.nan) + row.get("tmin", np.nan)) / 2
+            if not pd.isna(tavg):
+                bins.append((tavg, daily_series[d]))
+
+    if len(bins) < 30:
+        return None
+
+    bins.sort(key=lambda x: x[0])
+    overall_mean = daily_series.mean()
+
+    curve = []
+    step = 2
+    for lo in range(-10, 46, step):
+        hi = lo + step
+        vals = [v for t, v in bins if lo <= t < hi]
+        if len(vals) >= 3:
+            ratio = np.mean(vals) / overall_mean if overall_mean > 0 else 1.0
+            ratio = max(0.85, min(ratio, 1.15))
+        else:
+            ratio = 1.0
+        curve.append(((lo + hi) / 2, ratio))
+
+    return curve
+
+
+def _interp_temp_factor(tavg: float, curve: list) -> float:
+    temps = np.array([c[0] for c in curve])
+    ratios = np.array([c[1] for c in curve])
+    return float(np.interp(tavg, temps, ratios))
+
+
+def detect_and_fix_outliers(df_hourly: pd.DataFrame) -> pd.DataFrame:
     """
-    构建逐时分配模板库。每一条模板 = {date, daily_total, hourly_profile, day_type}。
+    IQR 异常值检测与修复。
+
+    按小时分组，同一时刻的负荷值用 IQR 方法检测异常：
+    - 异常阈值：Q1 - 1.5×IQR 和 Q3 + 1.5×IQR
+    - 异常小时用该时刻前后 2 小时的中位数替换
+    - 返回修复后的 DataFrame，新增 _outlier 列标记异常点
+    """
+    df = df_hourly.copy()
+    df["_outlier"] = False
+
+    hourly_groups = df.groupby("hour")["load_mw"]
+
+    for hour, group in hourly_groups:
+        vals = group.values
+        q1, q3 = np.percentile(vals, [25, 75])
+        iqr = q3 - q1
+        if iqr < 1e-6:
+            continue
+        lo, hi = q1 - 1.5 * iqr, q3 + 1.5 * iqr
+
+        idxs = group.index
+        for idx in idxs:
+            if df.loc[idx, "load_mw"] < lo or df.loc[idx, "load_mw"] > hi:
+                df.loc[idx, "_outlier"] = True
+
+    outlier_idx = df[df["_outlier"]].index
+    for idx in outlier_idx:
+        neighbors = []
+        for offset in [-24, -12, 12, 24]:
+            ni = idx + offset
+            if 0 <= ni < len(df):
+                neighbors.append(df.loc[ni, "load_mw"])
+        if neighbors:
+            df.loc[idx, "load_mw"] = np.median(neighbors)
+
+    return df
+
+
+def _get_anomaly_dates(df_hourly: pd.DataFrame) -> set:
+    """返回异常小时超过 6 个的日期集合（从模板库排除）。"""
+    if "_outlier" not in df_hourly.columns:
+        return set()
+    anomaly_counts = df_hourly.groupby("date")["_outlier"].sum()
+    return set(anomaly_counts[anomaly_counts > 6].index)
+
+
+def build_template_library(
+    df_hourly: pd.DataFrame,
+    calendar_df: pd.DataFrame = None,
+    weather_df: pd.DataFrame = None,
+    anomaly_dates: set = None,
+) -> list[dict]:
+    """
+    构建逐时分配模板库。每一条模板 = {date, daily_total, hourly_profile, day_type, avg_temp}。
     """
     templates = []
     cal_map = {}
@@ -260,14 +356,33 @@ def build_template_library(df_hourly: pd.DataFrame, calendar_df: pd.DataFrame = 
         for _, row in calendar_df.iterrows():
             cal_map[pd.Timestamp(row["date"]).date()] = row.get("day_type", "production")
 
+    temp_map = {}
+    if weather_df is not None and not weather_df.empty:
+        wx = weather_df.copy()
+        if "date" in wx.columns:
+            wx["date"] = pd.to_datetime(wx["date"]).dt.date
+        for _, row in wx.iterrows():
+            d = row["date"]
+            tavg = None
+            if not pd.isna(row.get("tmax")) and not pd.isna(row.get("tmin")):
+                tavg = (row["tmax"] + row["tmin"]) / 2
+            elif "temperature_2m" in wx.columns:
+                tavg = row.get("temperature_2m")
+            temp_map[d] = tavg
+
+    if anomaly_dates is None:
+        anomaly_dates = set()
+
     for dt, group in df_hourly.groupby("date"):
+        dt_date = dt if isinstance(dt, pd.Timestamp) else pd.Timestamp(dt)
+        if dt_date.date() in anomaly_dates:
+            continue
         daily_total = group["load_mw"].sum()
         hourly = group.set_index("hour")["load_mw"].sort_index().values
         if len(hourly) != 24:
             continue
         profile = hourly / daily_total if daily_total > 0 else np.ones(24) / 24
 
-        dt_date = dt if isinstance(dt, pd.Timestamp) else pd.Timestamp(dt)
         day_type = cal_map.get(dt_date.date(),
             "rest" if dt_date.dayofweek >= 5 else "production")
 
@@ -276,6 +391,7 @@ def build_template_library(df_hourly: pd.DataFrame, calendar_df: pd.DataFrame = 
             "daily_total": daily_total,
             "hourly_profile": profile,
             "day_type": day_type,
+            "avg_temp": temp_map.get(dt_date.date()),
         })
     return templates
 
@@ -285,9 +401,12 @@ def match_templates(
     target_daily_total: float,
     target_day_type: str,
     k: int = DEFAULT_KNN_K,
+    target_avg_temp: float = None,
 ) -> tuple:
     """
-    在模板库中匹配 K 个日总量最接近、同 day_type 的历史天。
+    综合距离 KNN 模板匹配：
+
+    综合距离 = 日总量距离(50%) + 温度相似度(30%) + 星期类型(20%)
     """
     same_type = [t for t in templates if t["day_type"] == target_day_type]
     if len(same_type) < 3:
@@ -295,12 +414,29 @@ def match_templates(
     if len(same_type) == 0:
         same_type = templates
 
-    sorted_t = sorted(same_type, key=lambda t: abs(t["daily_total"] - target_daily_total))
+    totals = np.array([t["daily_total"] for t in same_type])
+    mean_total = totals.mean() if len(totals) > 0 else target_daily_total + 1e-6
+    if mean_total < 1e-6:
+        mean_total = target_daily_total + 1e-6
+
+    temps = np.array([t["avg_temp"] for t in same_type if t["avg_temp"] is not None])
+    temp_std = temps.std() if len(temps) > 1 else 5.0
+    if temp_std < 1e-6:
+        temp_std = 5.0
+
+    def composite_distance(t):
+        d_total = abs(t["daily_total"] - target_daily_total) / mean_total
+        if target_avg_temp is not None and t["avg_temp"] is not None:
+            d_temp = abs(t["avg_temp"] - target_avg_temp) / temp_std
+        else:
+            d_temp = 0
+        d_dow = 0 if t["day_type"] == target_day_type else 1
+        return 0.5 * d_total + 0.3 * d_temp + 0.2 * d_dow
+
+    sorted_t = sorted(same_type, key=composite_distance)
     top_k = sorted_t[:min(k, len(sorted_t))]
 
-    weights = np.array([
-        1.0 / (abs(t["daily_total"] - target_daily_total) + 1e-3) for t in top_k
-    ])
+    weights = np.array([1.0 / (composite_distance(t) + 0.01) for t in top_k])
     weights = weights / weights.sum()
 
     profiles = np.array([t["hourly_profile"] for t in top_k])
@@ -328,19 +464,27 @@ def generate_hourly_forecast(
             cal_map[d.date()] = row.get("day_type", "production")
 
     rad_map = {}
+    temp_map = {}
     if weather_df is not None and not weather_df.empty:
         for _, row in weather_df.iterrows():
             d = pd.Timestamp(row["date"])
             rad_val = row.get("rad_sum", np.nan)
             if not pd.isna(rad_val):
                 rad_map[d.date()] = float(rad_val)
+            tmax_val = row.get("tmax", np.nan)
+            tmin_val = row.get("tmin", np.nan)
+            if not pd.isna(tmax_val) and not pd.isna(tmin_val):
+                temp_map[d.date()] = (float(tmax_val) + float(tmin_val)) / 2
 
     results = []
     for pred_date, daily_total in daily_forecast.items():
         key = pred_date.date() if hasattr(pred_date, "date") else pred_date
         target_day_type = cal_map.get(key, "rest" if pred_date.dayofweek >= 5 else "production")
+        target_temp = temp_map.get(key)
 
-        profile, matched = match_templates(templates, daily_total, target_day_type, k=k)
+        profile, matched = match_templates(
+            templates, daily_total, target_day_type, k=k, target_avg_temp=target_temp
+        )
 
         rad = rad_map.get(key)
         if rad is not None and rad > 0:
@@ -435,11 +579,20 @@ def run_forecast(
     if daily_series.empty or len(daily_series) < 14:
         return {"error": f"{company} 历史数据不足（需至少14天）"}
 
+    df_clean = detect_and_fix_outliers(df_hourly)
+    anomaly_dates = _get_anomaly_dates(df_clean)
+    n_outliers = df_clean["_outlier"].sum()
+    outlier_info = {
+        "n_outlier_hours": int(n_outliers),
+        "n_anomaly_dates": len(anomaly_dates),
+    }
+
     forecast, lower, upper, info = forecast_daily_adaptive(
         daily_series, forecast_horizon, weather_df, calendar_df
     )
+    info.update(outlier_info)
 
-    templates = build_template_library(df_hourly, calendar_df)
+    templates = build_template_library(df_clean, calendar_df, weather_df, anomaly_dates)
 
     hourly = generate_hourly_forecast(
         forecast, templates, calendar_df, weather_df, k=k
