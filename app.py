@@ -9,6 +9,25 @@ from datetime import datetime, timedelta
 from io import BytesIO
 import sys as _sys
 import os as _os
+
+# ============================================================
+# 关键修复：清理上个会话残留的 config/module2_config 污染
+# Streamlit Cloud 复用进程，旧版代码可能把 sys.modules["config"]
+# 或 module2_config 指向了模块二的 config.py（缺 LOCATIONS），导致
+# 本文件顶部 from config import LOCATIONS 失败。这里强制清除脏缓存。
+# ============================================================
+for _k in list(_sys.modules):
+    if _k == "config" or _k == "module2_config" or _k.startswith(("decision_engine", "storage_optimizer", "mode_controller", "pv_forecast", "load_forecast", "validate_optimizer")):
+        _sys.modules.pop(_k, None)
+
+# 清理 sys.path 里的模块二目录（旧会话污染），确保 from config 命中本目录 config.py
+_tbd = []
+for _p in _sys.path:
+    if "模块二" in str(_p) or "智能调度" in str(_p):
+        _tbd.append(_p)
+for _p in _tbd:
+    _sys.path.remove(_p)
+
 # 诊断：打印实际运行环境，帮助定位部署 ImportError
 _st_py_dir = _os.path.dirname(_os.path.abspath(__file__))
 sys_path_copy = list(_sys.path)
