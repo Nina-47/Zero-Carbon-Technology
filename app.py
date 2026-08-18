@@ -1090,17 +1090,9 @@ with tab5:
     if os.path.exists(module2_path):
         sys.path.insert(0, module2_path)
 
-        # 关键：app.py 顶部已 `from config import ...` 加载了 weather-load-platform 的 config.py，
-        # 而模块二也有同名 config.py。若不处理，decision_engine 内部 `import config` 会命中
-        # sys.modules 里缓存的错误 config，导致 AttributeError (PV_SCALE 等字段找不到)。
-        # 这里用 importlib 从模块二绝对路径重新加载，覆盖 sys.modules['config']。
-        import importlib.util as _ilu
-        _m2_config_path = os.path.join(module2_path, "config.py")
-        if os.path.exists(_m2_config_path):
-            _spec = _ilu.spec_from_file_location("module2_config", _m2_config_path)
-            _m2_config = _ilu.module_from_spec(_spec)
-            _spec.loader.exec_module(_m2_config)
-            sys.modules["config"] = _m2_config
+        # 注意：不能在这里覆盖 sys.modules["config"]，否则会污染全局缓存，
+        # 导致下次 rerun 时顶部 `from config import LOCATIONS` 命中模块二的 config 而 ImportError。
+        # 模块二 config 的加载与覆盖放到「生成调度建议」按钮内部，用完立即恢复。
 
         try:
             # ---- 参数配置 ----
@@ -1124,6 +1116,17 @@ with tab5:
             if st.button("🚀 生成调度建议", type="primary", use_container_width=True):
                 with st.spinner("正在计算最优调度策略..."):
                     try:
+                        # 从模块二绝对路径加载其 config，覆盖 sys.modules["config"]（仅在按钮内、用完即恢复）
+                        import importlib.util as _ilu
+                        _m2_config_path = os.path.join(module2_path, "config.py")
+                        _orig_config = sys.modules.get("config")
+                        _m2_config = None
+                        if os.path.exists(_m2_config_path):
+                            _spec = _ilu.spec_from_file_location("module2_config", _m2_config_path)
+                            _m2_config = _ilu.module_from_spec(_spec)
+                            _spec.loader.exec_module(_m2_config)
+                            sys.modules["config"] = _m2_config
+
                         from decision_engine import run_daily_decision
                         import config
 
@@ -1147,6 +1150,10 @@ with tab5:
                     except Exception as e:
                         st.error(f"调度计算失败: {str(e)}")
                         st.stop()
+                    finally:
+                        # 恢复 weather-load-platform 的 config，避免污染后续 rerun 的顶部 import
+                        if _orig_config is not None:
+                            sys.modules["config"] = _orig_config
 
             # ---- 显示结果 ----
             if "dispatch_result" in st.session_state and st.session_state.dispatch_result:
