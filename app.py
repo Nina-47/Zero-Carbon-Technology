@@ -1257,6 +1257,46 @@ with tab5:
                     st.caption(f"曝气下限: {flex_min:.0f}%")
                     st.caption(f"储能充电量: {res.get('chg_kwh', 0):.0f} kWh | 放电量: {res.get('dis_kwh', 0):.0f} kWh")
 
+            # ---- 储能成本与碳排放核算（随容量/功率参数动态计算） ----
+            st.divider()
+            st.subheader("💰 储能成本与碳排放核算")
+
+            _e_kwh = battery_capacity * 1000.0     # MWh -> kWh
+            _p_kw = battery_power * 1000.0         # MW -> kW
+            _epc_unit = 1113.0                     # 元/kWh 工商业储能EPC均价(寻熵研究院2025)
+            _sys_cf = 90.0                         # kgCO2/kWh 系统级隐含碳
+            _life_years = 10.0
+            _grid_ef = 0.55                        # kgCO2/kWh 广东平均电网因子
+
+            _invest = _e_kwh * _epc_unit           # 总投资(元)
+            _embodied = _e_kwh * _sys_cf           # 隐含碳总量(kg)
+            _embodied_day = _embodied / (_life_years * 365)  # 摊销到天
+            # 运行碳：日吞吐×损耗10%×电网因子，年化
+            _dispatch = st.session_state.get('dispatch_result') or {}
+            _res_local = _dispatch.get('res', {}) if isinstance(_dispatch, dict) else {}
+            _day_chg = _res_local.get('chg_kwh', 0)
+            _run_carbon_day = _day_chg * 0.10 * _grid_ef
+            _run_carbon_year = _run_carbon_day * 365
+
+            c1, c2, c3, c4 = st.columns(4)
+            with c1:
+                st.metric("储能总投资(EPC)", f"¥{_invest/1e4:.0f} 万",
+                          help=f"按 EPC 均价 {_epc_unit:.0f} 元/kWh 估算，{battery_capacity} MWh × {_epc_unit}")
+            with c2:
+                st.metric("制造隐含碳", f"{_embodied/1000:.0f} 吨 CO₂",
+                          help=f"系统级碳足迹 {_sys_cf:.0f} kgCO₂/kWh（含电芯+PCS+柜体）")
+            with c3:
+                st.metric("隐含碳摊销", f"{_embodied_day:.0f} kg/天",
+                          help=f"按 {_life_years:.0f} 年寿命摊销到天")
+            with c4:
+                st.metric("运行碳", f"{_run_carbon_day:.0f} kg/天",
+                          help=f"当日充放损耗(约10%)×电网因子{_grid_ef}，年化约 {_run_carbon_year/1000:.0f} 吨")
+
+            st.caption(
+                f"规模 {battery_capacity} MWh / {battery_power} MW（215kWh液冷柜约 {_e_kwh/215:.0f} 台）| "
+                f"当日储能充电 {_day_chg:.0f} kWh → 年运行碳约 {_run_carbon_year/1000:.0f} 吨 CO₂"
+            )
+
         except ImportError as e:
             st.warning(f"⚠️ 模块二未正确导入: {e}")
             st.info("请确保模块二目录存在且包含所需Python文件")
