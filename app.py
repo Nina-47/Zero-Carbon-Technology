@@ -1429,7 +1429,16 @@ with tab6:
     """)
 
     # 导入模块二的核心函数
-    module2_path = os.path.join(os.path.dirname(__file__), "..", "..", "模块二", "智能调度")
+    # __file__ 位于 .../1-天气分析平台程序/weather-load-platform/，需往上 3 级到仓库根(公用/公用)，
+    # 再进入 模块二/智能调度。以下多个候选路径兼容本地与外层仓库两种部署根。
+    _here = os.path.dirname(os.path.abspath(__file__))
+    _candidates = [
+        os.path.join(_here, "..", "..", "..", "模块二", "智能调度"),
+        os.path.join(_here, "..", "..", "模块二", "智能调度"),
+        os.path.join(_here, "..", "..", "..", "..", "公用", "模块二", "智能调度"),
+        os.path.join(_here, "..", "..", "..", "..", "..", "公用", "模块二", "智能调度"),
+    ]
+    module2_path = next((p for p in _candidates if os.path.exists(p)), _candidates[0])
     if os.path.exists(module2_path):
         sys.path.insert(0, module2_path)
 
