@@ -123,7 +123,7 @@ from src.db.models import (
 init_db()
 
 # 数据库列兼容检测：shortwave_radiation
-import sqlite3, os
+import sqlite3, os, sys
 _db_path = os.path.join(os.path.dirname(__file__), "data", "weather.db")
 if os.path.exists(_db_path):
     try:
