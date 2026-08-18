@@ -7,6 +7,11 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 from io import BytesIO
+import sys as _sys
+import os as _os
+# 诊断：打印实际运行环境，帮助定位部署 ImportError
+_st_py_dir = _os.path.dirname(_os.path.abspath(__file__))
+sys_path_copy = list(_sys.path)
 
 # ============================================================
 # 页面配置
@@ -21,21 +26,28 @@ st.set_page_config(
 # ============================================================
 # 导入项目模块
 # ============================================================
-from config import (
-    LOCATIONS,
-    VIS_PARAMS,
-    EXPORT_PARAMS,
-    DEFAULT_HISTORY_DAYS,
-    DEFAULT_FORECAST_DAYS,
-    CACHE_TTL_SECONDS,
-    MAX_HISTORY_DAYS,
-    PREDICTION_COMPANIES,
-    DEFAULT_FORECAST_DAYS_LIMIT,
-    DEFAULT_KNN_K,
-    DEFAULT_PRODUCTION_DAYS,
-    DAY_TYPE_MAP,
-    convert_units,
-)
+try:
+    from config import (
+        LOCATIONS,
+        VIS_PARAMS,
+        EXPORT_PARAMS,
+        DEFAULT_HISTORY_DAYS,
+        DEFAULT_FORECAST_DAYS,
+        CACHE_TTL_SECONDS,
+        MAX_HISTORY_DAYS,
+        PREDICTION_COMPANIES,
+        DEFAULT_FORECAST_DAYS_LIMIT,
+        DEFAULT_KNN_K,
+        DEFAULT_PRODUCTION_DAYS,
+        DAY_TYPE_MAP,
+        convert_units,
+    )
+except Exception as _e:
+    import traceback as _tb
+    st.error("【诊断】config import 失败，真实错误：")
+    st.code(f"{type(_e).__name__}: {_e}\n\n文件路径: {_st_py_dir}\nconfig.py 存在: {_os.path.exists(_os.path.join(_st_py_dir, 'config.py'))}\n\n系统路径:\n" + "\n".join(sys_path_copy))
+    st.code(_tb.format_exc())
+    st.stop()
 from src.api.fallback import (
     fetch_forecast_safe,
     fetch_historical_safe,
