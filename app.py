@@ -1090,6 +1090,18 @@ with tab5:
     if os.path.exists(module2_path):
         sys.path.insert(0, module2_path)
 
+        # 关键：app.py 顶部已 `from config import ...` 加载了 weather-load-platform 的 config.py，
+        # 而模块二也有同名 config.py。若不处理，decision_engine 内部 `import config` 会命中
+        # sys.modules 里缓存的错误 config，导致 AttributeError (PV_SCALE 等字段找不到)。
+        # 这里用 importlib 从模块二绝对路径重新加载，覆盖 sys.modules['config']。
+        import importlib.util as _ilu
+        _m2_config_path = os.path.join(module2_path, "config.py")
+        if os.path.exists(_m2_config_path):
+            _spec = _ilu.spec_from_file_location("module2_config", _m2_config_path)
+            _m2_config = _ilu.module_from_spec(_spec)
+            _spec.loader.exec_module(_m2_config)
+            sys.modules["config"] = _m2_config
+
         try:
             # ---- 参数配置 ----
             with st.expander("⚙️ 调度参数", expanded=False):
@@ -1111,34 +1123,23 @@ with tab5:
             # ---- 运行按钮 ----
             if st.button("🚀 生成调度建议", type="primary", use_container_width=True):
                 with st.spinner("正在计算最优调度策略..."):
-                    # 动态导入模块二的函数
                     try:
                         from decision_engine import run_daily_decision
-                        from config import print_config
-
-                        # 临时修改配置
                         import config
-                        original_pv_scale = config.PV_SCALE
-                        original_e_bat = config.E_BAT_MAX
-                        original_p_bat = config.P_BAT_MAX
-                        original_flex_enabled = config.FLEX_ENABLED
-                        original_flex_min = config.FLEX_MIN
 
+                        # 临时用页面参数覆盖模块二 config
+                        _bak = (config.PV_SCALE, config.E_BAT_MAX, config.P_BAT_MAX,
+                                config.FLEX_ENABLED, config.FLEX_MIN)
                         config.PV_SCALE = pv_scale_input
                         config.E_BAT_MAX = battery_capacity * 1000  # MWh -> kWh
                         config.P_BAT_MAX = battery_power * 1000     # MW -> kW
                         config.FLEX_ENABLED = flex_enabled_input
                         config.FLEX_MIN = flex_min_input / 100.0
 
-                        # 运行决策引擎
                         result = run_daily_decision(target_day_idx=-1, k=5)
 
-                        # 恢复配置
-                        config.PV_SCALE = original_pv_scale
-                        config.E_BAT_MAX = original_e_bat
-                        config.P_BAT_MAX = original_p_bat
-                        config.FLEX_ENABLED = original_flex_enabled
-                        config.FLEX_MIN = original_flex_min
+                        config.PV_SCALE, config.E_BAT_MAX, config.P_BAT_MAX, \
+                            config.FLEX_ENABLED, config.FLEX_MIN = _bak
 
                         st.session_state.dispatch_result = result
                         st.success("✅ 调度计算完成!")
@@ -1151,68 +1152,83 @@ with tab5:
             if "dispatch_result" in st.session_state and st.session_state.dispatch_result:
                 result = st.session_state.dispatch_result
 
+                summary = result.get('summary', {})
+                res = result.get('res', {})
+                hourly = result.get('hourly', [])
+
                 # 关键指标卡片
                 st.divider()
                 st.subheader("📊 调度汇总")
-
-                metrics = result.get('summary', {})
                 col1, col2, col3, col4 = st.columns(4)
                 with col1:
-                    st.metric("光伏发电", f"{metrics.get('pv_total', 0):.1f} kWh", help="预测光伏日发电量")
+                    st.metric("预测日总光伏", f"{summary.get('预测日总光伏_kWh', 0):.0f} kWh",
+                              help="相似日KNN预测的当日光伏发电量")
                 with col2:
-                    st.metric("储能充放电", f"{metrics.get('battery_throughput', 0):.1f} kWh", help="储能日吞吐量")
+                    st.metric("当日储能充电量", f"{summary.get('当日储能充电总量_kWh', 0):.0f} kWh",
+                              help="储能单日充电总量")
                 with col3:
-                    st.metric("绿电占比", f"{metrics.get('green_ratio', 0)*100:.1f}%", help="光伏自用+储能放电占负荷比例")
+                    st.metric("绿电占比", f"{summary.get('绿电占比_pct', 0):.1f}%",
+                              help="光伏+储能放电替代购电的比例")
                 with col4:
-                    st.metric("节省成本", f"¥{metrics.get('cost_saving', 0):.0f}", help="相对无储能无光伏节省")
+                    st.metric("分时购电成本", f"¥{summary.get('分时购电成本_元', 0):.0f}",
+                              help="优化调度后的当日分时购电电费")
+
+                st.caption(
+                    f"目标日: {summary.get('目标日','-')} | "
+                    f"负荷来源: {summary.get('负荷来源','-')} | "
+                    f"外购电量: {summary.get('外购电量_kWh',0):.0f} kWh | "
+                    f"余电上网: {summary.get('余电上网_kWh',0):.0f} kWh"
+                )
 
                 # 逐时调度表
-                st.divider()
-                st.subheader("📋 逐时调度建议")
-
-                dispatch_df = pd.DataFrame(result.get('hourly', []))
-                if not dispatch_df.empty:
-                    # 图表展示
+                if hourly:
                     import plotly.graph_objects as go
                     from plotly.subplots import make_subplots
 
+                    df = pd.DataFrame(hourly)
+                    hours = df['小时'].values
+                    load = df['预测负荷_kW'].values
+                    pv = df['预测光伏_kW'].values
+                    grid_buy = df['购电_kW'].values
+                    soc = df['SOC'].values
+
+                    pch = np.array(res.get('pch', [0]*24))[:24]
+                    pdis = np.array(res.get('pdis', [0]*24))[:24]
+
+                    st.subheader("📋 逐时调度曲线")
                     fig = make_subplots(
                         rows=3, cols=1,
-                        subplot_titles=("功率平衡", "储能SOC", "购电成本"),
-                        vertical_spacing=0.1,
-                        row_heights=[0.4, 0.3, 0.3]
+                        subplot_titles=("功率平衡", "储能SOC", "储能充放电"),
+                        vertical_spacing=0.12,
+                        row_heights=[0.4, 0.3, 0.3],
                     )
 
-                    hours = dispatch_df['hour'].values
+                    fig.add_trace(go.Scatter(x=hours, y=load, name='负荷', line=dict(color='black', width=2)), row=1, col=1)
+                    fig.add_trace(go.Scatter(x=hours, y=pv, name='光伏', fill='tozeroy',
+                                             line=dict(color='#2ECC71')), row=1, col=1)
+                    fig.add_trace(go.Scatter(x=hours, y=grid_buy, name='购电', line=dict(color='#E74C3C', dash='dot')), row=1, col=1)
 
-                    # 功率平衡图
-                    fig.add_trace(go.Scatter(x=hours, y=dispatch_df['pv_kw'], name='光伏', stackgroup='one'), row=1, col=1)
-                    fig.add_trace(go.Scatter(x=hours, y=dispatch_df['battery_discharge_kw'].clip(lower=0), name='储能放电', stackgroup='one'), row=1, col=1)
-                    fig.add_trace(go.Scatter(x=hours, y=-dispatch_df['battery_charge_kw'].clip(upper=0), name='储能充电'), row=1, col=1)
-                    fig.add_trace(go.Scatter(x=hours, y=dispatch_df['load_kw'], name='负荷', line=dict(color='black', width=2)), row=1, col=1)
+                    fig.add_trace(go.Scatter(x=hours, y=np.array(soc)*100, name='SOC %',
+                                             line=dict(color='#8E44AD'), fill='tozeroy'), row=2, col=1)
 
-                    # SOC
-                    fig.add_trace(go.Scatter(x=hours, y=dispatch_df['soc']*100, name='SOC', line=dict(color='green')), row=2, col=1)
+                    fig.add_trace(go.Bar(x=hours, y=pch, name='充电', marker_color='#3498DB'), row=3, col=1)
+                    fig.add_trace(go.Bar(x=hours, y=-np.array(pdis), name='放电', marker_color='#E67E22'), row=3, col=1)
 
-                    # 成本
-                    fig.add_trace(go.Bar(x=hours, y=dispatch_df['cost'], name='购电成本', marker_color='orange'), row=3, col=1)
-
-                    fig.update_layout(height=700, showlegend=True, title_text="24小时调度曲线")
-                    fig.update_xaxes(title_text="时间 (h)", row=3, col=1)
+                    fig.update_layout(height=700, showlegend=True, title_text="24小时智能调度曲线",
+                                      hovermode="x unified")
                     fig.update_yaxes(title_text="功率 (kW)", row=1, col=1)
                     fig.update_yaxes(title_text="SOC (%)", row=2, col=1)
-                    fig.update_yaxes(title_text="成本 (元)", row=3, col=1)
+                    fig.update_yaxes(title_text="功率 (kW)", row=3, col=1)
 
                     st.plotly_chart(fig, use_container_width=True)
 
-                    # 数据表
                     with st.expander("📋 详细数据表", expanded=False):
-                        display_cols = ['hour', 'load_kw', 'pv_kw', 'battery_charge_kw', 'battery_discharge_kw', 'grid_kw', 'soc', 'cost']
-                        display_df = dispatch_df[display_cols].copy()
-                        display_df.columns = ['时刻', '负荷kW', '光伏kW', '充电kW', '放电kW', '购电kW', 'SOC', '成本元']
+                        display_df = df[['小时', '预测负荷_kW', '预测光伏_kW', '储能动作',
+                                         '购电_kW', '曝气下调_kW', '光伏去向', 'SOC']].copy()
+                        display_df['SOC'] = (display_df['SOC'] * 100).round(1)
+                        display_df.columns = ['时刻', '负荷kW', '光伏kW', '储能动作', '购电kW', '曝气下调kW', '光伏去向', 'SOC%']
                         st.dataframe(display_df, use_container_width=True, height=400)
 
-                        # 导出
                         from io import BytesIO
                         output = BytesIO()
                         display_df.to_csv(output, index=False, encoding='utf-8-sig')
@@ -1226,22 +1242,20 @@ with tab5:
                         )
 
                 # 双模式状态
-                if flex_enabled_input:
-                    st.divider()
-                    st.subheader("🔄 双模式状态")
-                    mode_info = result.get('mode_info', {})
-                    mode = mode_info.get('mode', 'eco')
-                    is_shock = mode_info.get('is_shock', False)
-
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        mode_label = "🟢 节能模式" if mode == 'eco' else "🔴 安全模式"
-                        if is_shock:
-                            mode_label += " (冲击负荷)"
-                        st.info(f"当前模式: **{mode_label}**")
-                    with col2:
-                        st.caption(f"曝气下限: {mode_info.get('flex_min', 0.65)*100:.0f}%")
-                        st.caption(f"曝气总量比: {mode_info.get('flex_energy_ratio', 1.0)*100:.0f}%")
+                st.divider()
+                st.subheader("🔄 运行模式")
+                run_mode = summary.get('运行模式', '节能')
+                is_shock = summary.get('冲击负荷豁免', False)
+                flex_min = summary.get('曝气下限', 65)
+                col1, col2 = st.columns(2)
+                with col1:
+                    disp_mode = "🟢 节能模式" if run_mode == '节能' else "🔴 安全模式"
+                    if is_shock:
+                        disp_mode += " (冲击负荷豁免)"
+                    st.info(f"当前模式: **{disp_mode}**")
+                with col2:
+                    st.caption(f"曝气下限: {flex_min:.0f}%")
+                    st.caption(f"储能充电量: {res.get('chg_kwh', 0):.0f} kWh | 放电量: {res.get('dis_kwh', 0):.0f} kWh")
 
         except ImportError as e:
             st.warning(f"⚠️ 模块二未正确导入: {e}")
