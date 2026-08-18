@@ -442,8 +442,8 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "🔗 负荷叠加分析",
     "📋 数据表格与导出",
     "🔮 相似日分析",
-    "🔌 负荷预测",
     "⚡ 智能调度",
+    "🔌 负荷预测",
 ])
 
 # ============================================================
@@ -1062,9 +1062,197 @@ with tab4:
                     st.caption("暂无负荷数据可导出。")
 
 # ============================================================
-# Tab 5: 负荷预测
+# Tab 5: 智能调度
 # ============================================================
 with tab5:
+    st.subheader("⚡ 光储优化调度系统")
+    st.caption("基于光伏预测 + 储能优化 + 柔性负荷的智能调度决策")
+
+    st.info("""
+    📌 **功能说明**
+    - 光伏预测: 基于相似日KNN算法
+    - 储能优化: 分时电价下的充放电策略优化
+    - 柔性负荷: 曝气系统功率可调(双模式滞回控制)
+    - 输出: 未来24小时逐时调度建议
+    """)
+
+    # 导入模块二的核心函数
+    # __file__ 位于 .../1-天气分析平台程序/weather-load-platform/，需往上 3 级到仓库根(公用/公用)，
+    # 再进入 模块二/智能调度。以下多个候选路径兼容本地与外层仓库两种部署根。
+    _here = os.path.dirname(os.path.abspath(__file__))
+    _candidates = [
+        os.path.join(_here, "..", "..", "..", "模块二", "智能调度"),
+        os.path.join(_here, "..", "..", "模块二", "智能调度"),
+        os.path.join(_here, "..", "..", "..", "..", "公用", "模块二", "智能调度"),
+        os.path.join(_here, "..", "..", "..", "..", "..", "公用", "模块二", "智能调度"),
+    ]
+    module2_path = next((p for p in _candidates if os.path.exists(p)), _candidates[0])
+    if os.path.exists(module2_path):
+        sys.path.insert(0, module2_path)
+
+        try:
+            # ---- 参数配置 ----
+            with st.expander("⚙️ 调度参数", expanded=False):
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    pv_scale_input = st.number_input("光伏放大系数", value=2.0, min_value=0.5, max_value=5.0, step=0.1, help="基准6.08MW × 系数")
+                with col2:
+                    battery_capacity = st.number_input("储能容量(MWh)", value=16.0, min_value=1.0, max_value=100.0, step=1.0)
+                    battery_power = st.number_input("储能功率(MW)", value=8.0, min_value=0.5, max_value=50.0, step=0.5)
+                with col3:
+                    flex_enabled_input = st.checkbox("启用柔性负荷", value=True)
+                    if flex_enabled_input:
+                        flex_min_input = st.slider("柔性负荷下限(%)", 50, 100, 65, 5)
+                    else:
+                        flex_min_input = 100
+
+                st.caption(f"当前配置: 光伏 {6080*pv_scale_input/1000:.1f}MW, 储能 {battery_capacity}MWh/{battery_power}MW")
+
+            # ---- 运行按钮 ----
+            if st.button("🚀 生成调度建议", type="primary", use_container_width=True):
+                with st.spinner("正在计算最优调度策略..."):
+                    # 动态导入模块二的函数
+                    try:
+                        from decision_engine import run_daily_decision
+                        from config import print_config
+
+                        # 临时修改配置
+                        import config
+                        original_pv_scale = config.PV_SCALE
+                        original_e_bat = config.E_BAT_MAX
+                        original_p_bat = config.P_BAT_MAX
+                        original_flex_enabled = config.FLEX_ENABLED
+                        original_flex_min = config.FLEX_MIN
+
+                        config.PV_SCALE = pv_scale_input
+                        config.E_BAT_MAX = battery_capacity * 1000  # MWh -> kWh
+                        config.P_BAT_MAX = battery_power * 1000     # MW -> kW
+                        config.FLEX_ENABLED = flex_enabled_input
+                        config.FLEX_MIN = flex_min_input / 100.0
+
+                        # 运行决策引擎
+                        result = run_daily_decision(target_day_idx=-1, k=5)
+
+                        # 恢复配置
+                        config.PV_SCALE = original_pv_scale
+                        config.E_BAT_MAX = original_e_bat
+                        config.P_BAT_MAX = original_p_bat
+                        config.FLEX_ENABLED = original_flex_enabled
+                        config.FLEX_MIN = original_flex_min
+
+                        st.session_state.dispatch_result = result
+                        st.success("✅ 调度计算完成!")
+
+                    except Exception as e:
+                        st.error(f"调度计算失败: {str(e)}")
+                        st.stop()
+
+            # ---- 显示结果 ----
+            if "dispatch_result" in st.session_state and st.session_state.dispatch_result:
+                result = st.session_state.dispatch_result
+
+                # 关键指标卡片
+                st.divider()
+                st.subheader("📊 调度汇总")
+
+                metrics = result.get('summary', {})
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("光伏发电", f"{metrics.get('pv_total', 0):.1f} kWh", help="预测光伏日发电量")
+                with col2:
+                    st.metric("储能充放电", f"{metrics.get('battery_throughput', 0):.1f} kWh", help="储能日吞吐量")
+                with col3:
+                    st.metric("绿电占比", f"{metrics.get('green_ratio', 0)*100:.1f}%", help="光伏自用+储能放电占负荷比例")
+                with col4:
+                    st.metric("节省成本", f"¥{metrics.get('cost_saving', 0):.0f}", help="相对无储能无光伏节省")
+
+                # 逐时调度表
+                st.divider()
+                st.subheader("📋 逐时调度建议")
+
+                dispatch_df = pd.DataFrame(result.get('hourly', []))
+                if not dispatch_df.empty:
+                    # 图表展示
+                    import plotly.graph_objects as go
+                    from plotly.subplots import make_subplots
+
+                    fig = make_subplots(
+                        rows=3, cols=1,
+                        subplot_titles=("功率平衡", "储能SOC", "购电成本"),
+                        vertical_spacing=0.1,
+                        row_heights=[0.4, 0.3, 0.3]
+                    )
+
+                    hours = dispatch_df['hour'].values
+
+                    # 功率平衡图
+                    fig.add_trace(go.Scatter(x=hours, y=dispatch_df['pv_kw'], name='光伏', stackgroup='one'), row=1, col=1)
+                    fig.add_trace(go.Scatter(x=hours, y=dispatch_df['battery_discharge_kw'].clip(lower=0), name='储能放电', stackgroup='one'), row=1, col=1)
+                    fig.add_trace(go.Scatter(x=hours, y=-dispatch_df['battery_charge_kw'].clip(upper=0), name='储能充电'), row=1, col=1)
+                    fig.add_trace(go.Scatter(x=hours, y=dispatch_df['load_kw'], name='负荷', line=dict(color='black', width=2)), row=1, col=1)
+
+                    # SOC
+                    fig.add_trace(go.Scatter(x=hours, y=dispatch_df['soc']*100, name='SOC', line=dict(color='green')), row=2, col=1)
+
+                    # 成本
+                    fig.add_trace(go.Bar(x=hours, y=dispatch_df['cost'], name='购电成本', marker_color='orange'), row=3, col=1)
+
+                    fig.update_layout(height=700, showlegend=True, title_text="24小时调度曲线")
+                    fig.update_xaxes(title_text="时间 (h)", row=3, col=1)
+                    fig.update_yaxes(title_text="功率 (kW)", row=1, col=1)
+                    fig.update_yaxes(title_text="SOC (%)", row=2, col=1)
+                    fig.update_yaxes(title_text="成本 (元)", row=3, col=1)
+
+                    st.plotly_chart(fig, use_container_width=True)
+
+                    # 数据表
+                    with st.expander("📋 详细数据表", expanded=False):
+                        display_cols = ['hour', 'load_kw', 'pv_kw', 'battery_charge_kw', 'battery_discharge_kw', 'grid_kw', 'soc', 'cost']
+                        display_df = dispatch_df[display_cols].copy()
+                        display_df.columns = ['时刻', '负荷kW', '光伏kW', '充电kW', '放电kW', '购电kW', 'SOC', '成本元']
+                        st.dataframe(display_df, use_container_width=True, height=400)
+
+                        # 导出
+                        from io import BytesIO
+                        output = BytesIO()
+                        display_df.to_csv(output, index=False, encoding='utf-8-sig')
+                        output.seek(0)
+                        st.download_button(
+                            label="⬇️ 导出调度方案CSV",
+                            data=output,
+                            file_name=f"调度方案_{datetime.now().strftime('%Y%m%d')}.csv",
+                            mime="text/csv",
+                            use_container_width=True,
+                        )
+
+                # 双模式状态
+                if flex_enabled_input:
+                    st.divider()
+                    st.subheader("🔄 双模式状态")
+                    mode_info = result.get('mode_info', {})
+                    mode = mode_info.get('mode', 'eco')
+                    is_shock = mode_info.get('is_shock', False)
+
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        mode_label = "🟢 节能模式" if mode == 'eco' else "🔴 安全模式"
+                        if is_shock:
+                            mode_label += " (冲击负荷)"
+                        st.info(f"当前模式: **{mode_label}**")
+                    with col2:
+                        st.caption(f"曝气下限: {mode_info.get('flex_min', 0.65)*100:.0f}%")
+                        st.caption(f"曝气总量比: {mode_info.get('flex_energy_ratio', 1.0)*100:.0f}%")
+
+        except ImportError as e:
+            st.warning(f"⚠️ 模块二未正确导入: {e}")
+            st.info("请确保模块二目录存在且包含所需Python文件")
+    else:
+        st.error("❌ 未找到模块二目录")
+        st.info(f"期望路径: {module2_path}")
+# ============================================================
+# Tab 6: 负荷预测
+# ============================================================
+with tab6:
     st.subheader("🔌 污水厂负荷预测")
     st.caption("基于历史负荷 + 排班日历 + 天气预报，预测未来逐时负荷")
 
@@ -1413,194 +1601,6 @@ with tab5:
                         use_container_width=True,
                     )
 
-# ============================================================
-# Tab 6: 智能调度
-# ============================================================
-with tab6:
-    st.subheader("⚡ 光储优化调度系统")
-    st.caption("基于光伏预测 + 储能优化 + 柔性负荷的智能调度决策")
-
-    st.info("""
-    📌 **功能说明**
-    - 光伏预测: 基于相似日KNN算法
-    - 储能优化: 分时电价下的充放电策略优化
-    - 柔性负荷: 曝气系统功率可调(双模式滞回控制)
-    - 输出: 未来24小时逐时调度建议
-    """)
-
-    # 导入模块二的核心函数
-    # __file__ 位于 .../1-天气分析平台程序/weather-load-platform/，需往上 3 级到仓库根(公用/公用)，
-    # 再进入 模块二/智能调度。以下多个候选路径兼容本地与外层仓库两种部署根。
-    _here = os.path.dirname(os.path.abspath(__file__))
-    _candidates = [
-        os.path.join(_here, "..", "..", "..", "模块二", "智能调度"),
-        os.path.join(_here, "..", "..", "模块二", "智能调度"),
-        os.path.join(_here, "..", "..", "..", "..", "公用", "模块二", "智能调度"),
-        os.path.join(_here, "..", "..", "..", "..", "..", "公用", "模块二", "智能调度"),
-    ]
-    module2_path = next((p for p in _candidates if os.path.exists(p)), _candidates[0])
-    if os.path.exists(module2_path):
-        sys.path.insert(0, module2_path)
-
-        try:
-            # ---- 参数配置 ----
-            with st.expander("⚙️ 调度参数", expanded=False):
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    pv_scale_input = st.number_input("光伏放大系数", value=2.0, min_value=0.5, max_value=5.0, step=0.1, help="基准6.08MW × 系数")
-                with col2:
-                    battery_capacity = st.number_input("储能容量(MWh)", value=16.0, min_value=1.0, max_value=100.0, step=1.0)
-                    battery_power = st.number_input("储能功率(MW)", value=8.0, min_value=0.5, max_value=50.0, step=0.5)
-                with col3:
-                    flex_enabled_input = st.checkbox("启用柔性负荷", value=True)
-                    if flex_enabled_input:
-                        flex_min_input = st.slider("柔性负荷下限(%)", 50, 100, 65, 5)
-                    else:
-                        flex_min_input = 100
-
-                st.caption(f"当前配置: 光伏 {6080*pv_scale_input/1000:.1f}MW, 储能 {battery_capacity}MWh/{battery_power}MW")
-
-            # ---- 运行按钮 ----
-            if st.button("🚀 生成调度建议", type="primary", use_container_width=True):
-                with st.spinner("正在计算最优调度策略..."):
-                    # 动态导入模块二的函数
-                    try:
-                        from decision_engine import run_daily_decision
-                        from config import print_config
-
-                        # 临时修改配置
-                        import config
-                        original_pv_scale = config.PV_SCALE
-                        original_e_bat = config.E_BAT_MAX
-                        original_p_bat = config.P_BAT_MAX
-                        original_flex_enabled = config.FLEX_ENABLED
-                        original_flex_min = config.FLEX_MIN
-
-                        config.PV_SCALE = pv_scale_input
-                        config.E_BAT_MAX = battery_capacity * 1000  # MWh -> kWh
-                        config.P_BAT_MAX = battery_power * 1000     # MW -> kW
-                        config.FLEX_ENABLED = flex_enabled_input
-                        config.FLEX_MIN = flex_min_input / 100.0
-
-                        # 运行决策引擎
-                        result = run_daily_decision(target_day_idx=-1, k=5)
-
-                        # 恢复配置
-                        config.PV_SCALE = original_pv_scale
-                        config.E_BAT_MAX = original_e_bat
-                        config.P_BAT_MAX = original_p_bat
-                        config.FLEX_ENABLED = original_flex_enabled
-                        config.FLEX_MIN = original_flex_min
-
-                        st.session_state.dispatch_result = result
-                        st.success("✅ 调度计算完成!")
-
-                    except Exception as e:
-                        st.error(f"调度计算失败: {str(e)}")
-                        st.stop()
-
-            # ---- 显示结果 ----
-            if "dispatch_result" in st.session_state and st.session_state.dispatch_result:
-                result = st.session_state.dispatch_result
-
-                # 关键指标卡片
-                st.divider()
-                st.subheader("📊 调度汇总")
-
-                metrics = result.get('summary', {})
-                col1, col2, col3, col4 = st.columns(4)
-                with col1:
-                    st.metric("光伏发电", f"{metrics.get('pv_total', 0):.1f} kWh", help="预测光伏日发电量")
-                with col2:
-                    st.metric("储能充放电", f"{metrics.get('battery_throughput', 0):.1f} kWh", help="储能日吞吐量")
-                with col3:
-                    st.metric("绿电占比", f"{metrics.get('green_ratio', 0)*100:.1f}%", help="光伏自用+储能放电占负荷比例")
-                with col4:
-                    st.metric("节省成本", f"¥{metrics.get('cost_saving', 0):.0f}", help="相对无储能无光伏节省")
-
-                # 逐时调度表
-                st.divider()
-                st.subheader("📋 逐时调度建议")
-
-                dispatch_df = pd.DataFrame(result.get('hourly', []))
-                if not dispatch_df.empty:
-                    # 图表展示
-                    import plotly.graph_objects as go
-                    from plotly.subplots import make_subplots
-
-                    fig = make_subplots(
-                        rows=3, cols=1,
-                        subplot_titles=("功率平衡", "储能SOC", "购电成本"),
-                        vertical_spacing=0.1,
-                        row_heights=[0.4, 0.3, 0.3]
-                    )
-
-                    hours = dispatch_df['hour'].values
-
-                    # 功率平衡图
-                    fig.add_trace(go.Scatter(x=hours, y=dispatch_df['pv_kw'], name='光伏', stackgroup='one'), row=1, col=1)
-                    fig.add_trace(go.Scatter(x=hours, y=dispatch_df['battery_discharge_kw'].clip(lower=0), name='储能放电', stackgroup='one'), row=1, col=1)
-                    fig.add_trace(go.Scatter(x=hours, y=-dispatch_df['battery_charge_kw'].clip(upper=0), name='储能充电'), row=1, col=1)
-                    fig.add_trace(go.Scatter(x=hours, y=dispatch_df['load_kw'], name='负荷', line=dict(color='black', width=2)), row=1, col=1)
-
-                    # SOC
-                    fig.add_trace(go.Scatter(x=hours, y=dispatch_df['soc']*100, name='SOC', line=dict(color='green')), row=2, col=1)
-
-                    # 成本
-                    fig.add_trace(go.Bar(x=hours, y=dispatch_df['cost'], name='购电成本', marker_color='orange'), row=3, col=1)
-
-                    fig.update_layout(height=700, showlegend=True, title_text="24小时调度曲线")
-                    fig.update_xaxes(title_text="时间 (h)", row=3, col=1)
-                    fig.update_yaxes(title_text="功率 (kW)", row=1, col=1)
-                    fig.update_yaxes(title_text="SOC (%)", row=2, col=1)
-                    fig.update_yaxes(title_text="成本 (元)", row=3, col=1)
-
-                    st.plotly_chart(fig, use_container_width=True)
-
-                    # 数据表
-                    with st.expander("📋 详细数据表", expanded=False):
-                        display_cols = ['hour', 'load_kw', 'pv_kw', 'battery_charge_kw', 'battery_discharge_kw', 'grid_kw', 'soc', 'cost']
-                        display_df = dispatch_df[display_cols].copy()
-                        display_df.columns = ['时刻', '负荷kW', '光伏kW', '充电kW', '放电kW', '购电kW', 'SOC', '成本元']
-                        st.dataframe(display_df, use_container_width=True, height=400)
-
-                        # 导出
-                        from io import BytesIO
-                        output = BytesIO()
-                        display_df.to_csv(output, index=False, encoding='utf-8-sig')
-                        output.seek(0)
-                        st.download_button(
-                            label="⬇️ 导出调度方案CSV",
-                            data=output,
-                            file_name=f"调度方案_{datetime.now().strftime('%Y%m%d')}.csv",
-                            mime="text/csv",
-                            use_container_width=True,
-                        )
-
-                # 双模式状态
-                if flex_enabled_input:
-                    st.divider()
-                    st.subheader("🔄 双模式状态")
-                    mode_info = result.get('mode_info', {})
-                    mode = mode_info.get('mode', 'eco')
-                    is_shock = mode_info.get('is_shock', False)
-
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        mode_label = "🟢 节能模式" if mode == 'eco' else "🔴 安全模式"
-                        if is_shock:
-                            mode_label += " (冲击负荷)"
-                        st.info(f"当前模式: **{mode_label}**")
-                    with col2:
-                        st.caption(f"曝气下限: {mode_info.get('flex_min', 0.65)*100:.0f}%")
-                        st.caption(f"曝气总量比: {mode_info.get('flex_energy_ratio', 1.0)*100:.0f}%")
-
-        except ImportError as e:
-            st.warning(f"⚠️ 模块二未正确导入: {e}")
-            st.info("请确保模块二目录存在且包含所需Python文件")
-    else:
-        st.error("❌ 未找到模块二目录")
-        st.info(f"期望路径: {module2_path}")
 
 # ============================================================
 # 自动刷新逻辑
