@@ -1098,14 +1098,9 @@ with tab5:
         os.path.join(_here, "..", "..", "..", "..", "公用", "模块二", "智能调度"),
         os.path.join(_here, "..", "..", "..", "..", "..", "公用", "模块二", "智能调度"),
     ]
-    module2_path = next((p for p in _candidates if os.path.exists(p)), _candidates[0])
-    if os.path.exists(module2_path):
-        sys.path.insert(0, module2_path)
-
-        # 注意：不能在这里覆盖 sys.modules["config"]，否则会污染全局缓存，
-        # 导致下次 rerun 时顶部 `from config import LOCATIONS` 命中模块二的 config 而 ImportError。
-        # 模块二 config 的加载与覆盖放到「生成调度建议」按钮内部，用完立即恢复。
-
+    module2_path = next((os.path.abspath(p) for p in _candidates if os.path.exists(p)), os.path.abspath(_candidates[0]))
+    module2_found = os.path.isdir(module2_path)
+    if module2_found:
         try:
             # ---- 参数配置 ----
             with st.expander("⚙️ 调度参数", expanded=False):
@@ -1127,12 +1122,17 @@ with tab5:
             # ---- 运行按钮 ----
             if st.button("🚀 生成调度建议", type="primary", use_container_width=True):
                 with st.spinner("正在计算最优调度策略..."):
+                    _orig_config = sys.modules.get("config")
+                    _orig_path = list(sys.path)
                     try:
-                        # 从模块二绝对路径加载其 config，覆盖 sys.modules["config"]（仅在按钮内、用完即恢复）
+                        # 绝对路径插入 sys.path（仅按钮内，finally 恢复），并清理缓存的模块二模块
+                        sys.path.insert(0, module2_path)
+                        for _k in [k for k in list(sys.modules) if k.startswith(("decision_engine", "storage_optimizer", "mode_controller", "pv_forecast", "load_forecast", "validate_optimizer", "module2_config"))]:
+                            sys.modules.pop(_k, None)
+
+                        # 用独立模块名加载模块二 config，覆盖 sys.modules["config"]，让 decision_engine 内部的 import config 命中模块二
                         import importlib.util as _ilu
                         _m2_config_path = os.path.join(module2_path, "config.py")
-                        _orig_config = sys.modules.get("config")
-                        _m2_config = None
                         if os.path.exists(_m2_config_path):
                             _spec = _ilu.spec_from_file_location("module2_config", _m2_config_path)
                             _m2_config = _ilu.module_from_spec(_spec)
@@ -1163,9 +1163,14 @@ with tab5:
                         st.error(f"调度计算失败: {str(e)}")
                         st.stop()
                     finally:
-                        # 恢复 weather-load-platform 的 config，避免污染后续 rerun 的顶部 import
+                        # 恢复 weather-load-platform 的 config + sys.path + 清理模块二缓存
                         if _orig_config is not None:
                             sys.modules["config"] = _orig_config
+                        else:
+                            sys.modules.pop("config", None)
+                        for _k in [k for k in list(sys.modules) if k.startswith(("decision_engine", "storage_optimizer", "mode_controller", "pv_forecast", "load_forecast", "validate_optimizer", "module2_config"))]:
+                            sys.modules.pop(_k, None)
+                        sys.path[:] = _orig_path
 
             # ---- 显示结果 ----
             if "dispatch_result" in st.session_state and st.session_state.dispatch_result:
