@@ -356,6 +356,7 @@ with st.sidebar:
 
     # 地点选择
     st.subheader("📍 地点")
+    st.caption("关联 Tab → 📊 天气总览")
     selected_locations = st.multiselect(
         "选择地点（可多选）",
         options=list(LOCATIONS.keys()),
@@ -368,6 +369,7 @@ with st.sidebar:
 
     # 时间范围
     st.subheader("📅 时间范围")
+    st.caption("关联 Tab → 📊 天气总览")
     history_days = st.slider(
         "历史回溯",
         min_value=1,
@@ -387,6 +389,7 @@ with st.sidebar:
 
     # 可视化参数
     st.subheader("🌡️ 展示参数")
+    st.caption("关联 Tab → 📊 天气总览")
     vis_selection = {}
     for param, info in VIS_PARAMS.items():
         default_checked = param in [
@@ -401,8 +404,39 @@ with st.sidebar:
 
     st.divider()
 
+    # 负荷预测参数（Tab 2）
+    st.subheader("🔌 负荷预测参数")
+    st.caption("关联 Tab → 🔌 负荷预测")
+    pred_company_sidebar = st.selectbox(
+        "预测公司",
+        options=PREDICTION_COMPANIES,
+        key="sidebar_pred_company",
+    )
+    forecast_horizon_sidebar = st.slider(
+        "预测天数",
+        min_value=1,
+        max_value=DEFAULT_FORECAST_DAYS_LIMIT,
+        value=DEFAULT_FORECAST_DAYS_LIMIT,
+        step=1,
+        key="sidebar_forecast_horizon",
+    )
+    knn_k_sidebar = st.slider(
+        "KNN 匹配数",
+        min_value=1,
+        max_value=10,
+        value=DEFAULT_KNN_K,
+        step=1,
+        key="sidebar_knn_k",
+    )
+    st.session_state.sidebar_pred_company = pred_company_sidebar
+    st.session_state.sidebar_forecast_horizon = forecast_horizon_sidebar
+    st.session_state.sidebar_knn_k = knn_k_sidebar
+
+    st.divider()
+
     # 光储柔调度参数（模块二）
     st.subheader("⚡ 光储柔调度参数")
+    st.caption("关联 Tab → ⚡ 智能调度")
     pv_scale_sidebar = st.number_input(
         "光伏放大系数", value=2.0, min_value=0.5, max_value=5.0, step=0.1,
         help="三站真实合计6.4MW × 系数 ≈ 规划装机",
@@ -430,6 +464,7 @@ with st.sidebar:
 
     # 碳核算参数（模块三）
     st.subheader("🌱 碳核算参数")
+    st.caption("关联 Tab → 🌱 碳效益核算")
     ef_report_sidebar = st.number_input(
         "电网排放因子(kgCO₂/kWh)", value=0.4419, min_value=0.3, max_value=0.8, step=0.001,
         help="广东省2023电力CO₂因子",
@@ -1398,7 +1433,10 @@ with tab2:
     # ---- 顶部操作栏 ----
     c1, c2, c3, c4 = st.columns([2, 2, 1, 1])
     with c1:
-        pred_company = st.selectbox("选择公司", options=PREDICTION_COMPANIES, key="pred_company_select")
+        _default_company = st.session_state.get("sidebar_pred_company", PREDICTION_COMPANIES[0])
+        pred_company = st.selectbox("选择公司", options=PREDICTION_COMPANIES,
+                                    index=PREDICTION_COMPANIES.index(_default_company) if _default_company in PREDICTION_COMPANIES else 0,
+                                    key="pred_company_select")
     with c2:
         load_has = has_load_data(pred_company)
         load_start, load_end = query_load_date_range(pred_company)
@@ -1604,9 +1642,11 @@ with tab2:
     # ---- 预测参数 + 运行 ----
     col_p1, col_p2, col_p3 = st.columns([1, 1, 2])
     with col_p1:
-        forecast_horizon = st.slider("预测天数", 1, DEFAULT_FORECAST_DAYS_LIMIT, 31, 1)
+        _default_horizon = int(st.session_state.get("sidebar_forecast_horizon", DEFAULT_FORECAST_DAYS_LIMIT))
+        forecast_horizon = st.slider("预测天数", 1, DEFAULT_FORECAST_DAYS_LIMIT, _default_horizon, 1)
     with col_p2:
-        knn_k = st.slider("KNN 匹配数", 1, 10, DEFAULT_KNN_K, 1)
+        _default_k = int(st.session_state.get("sidebar_knn_k", DEFAULT_KNN_K))
+        knn_k = st.slider("KNN 匹配数", 1, 10, _default_k, 1)
     with col_p3:
         st.write("")
         if st.button("🚀 运行预测", type="primary", use_container_width=True, key="run_forecast_btn"):
