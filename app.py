@@ -1279,12 +1279,13 @@ with tab3:
 
         # 逐日趋势图
         import plotly.graph_objects as _go
-        _dates = [d["date"][5:] for d in _month_days]
+        _dates = [d["date"][5:] for d in _month_days]   # MM-DD，如 07-01
         _fig = _go.Figure()
         _fig.add_trace(_go.Scatter(x=_dates, y=[d["summary"]["load_kWh"] for d in _month_days], name="负荷"))
         _fig.add_trace(_go.Scatter(x=_dates, y=[d["summary"]["pv_kWh"] for d in _month_days], name="光伏"))
         _fig.add_trace(_go.Scatter(x=_dates, y=[d["summary"]["buy_kWh"] for d in _month_days], name="购电"))
         _fig.update_layout(height=400, title=f"{_pick_month} 逐日负荷/光伏/购电趋势", hovermode="x unified")
+        _fig.update_xaxes(type="category", tickangle=45)
         st.plotly_chart(_fig, use_container_width=True)
 
     def _show_dispatch_year(_all_days):
@@ -1323,6 +1324,7 @@ with tab3:
         _fig.add_trace(_go.Bar(x=_ydf["月份"], y=_ydf["光伏万kWh"], name="光伏"))
         _fig.add_trace(_go.Bar(x=_ydf["月份"], y=_ydf["购电万kWh"], name="购电"))
         _fig.update_layout(height=420, barmode="group", title="全年逐月电量对比", hovermode="x unified")
+        _fig.update_xaxes(type="category")
         st.plotly_chart(_fig, use_container_width=True)
 
     st.subheader("⚡ 光储优化调度系统")
@@ -1430,6 +1432,20 @@ with tab3:
 
                 st.caption(f"当前配置: 光伏 {6080*pv_scale_input/1000:.1f}MW, 储能 {battery_capacity}MWh/{battery_power}MW")
 
+            # ---- 目标日期选择 ----
+            _ts_min = datetime(2025, 7, 5).date()
+            _ts_max = datetime(2026, 6, 30).date()
+            _pick_date = st.date_input(
+                "选择目标日",
+                value=_ts_max,
+                min_value=_ts_min,
+                max_value=_ts_max,
+                key="dispatch_target_date",
+                help="选择要生成调度建议的日期（数据范围 2025-07-05 ~ 2026-06-30，光伏预测数据起点）",
+            )
+            # 下标基准 = 负荷数据起点 2025-07-01（决策引擎 load_arr 从该日计起）
+            _target_idx = (_pick_date - datetime(2025, 7, 1).date()).days
+
             # ---- 运行按钮 ----
             if st.button("🚀 生成调度建议", type="primary", use_container_width=True):
                 with st.spinner("正在计算最优调度策略..."):
@@ -1462,7 +1478,7 @@ with tab3:
                         config.FLEX_ENABLED = flex_enabled_input
                         config.FLEX_MIN = flex_min_input / 100.0
 
-                        result = run_daily_decision(target_day_idx=-1, k=5)
+                        result = run_daily_decision(target_day_idx=_target_idx, k=5)
 
                         config.PV_SCALE, config.E_BAT_MAX, config.P_BAT_MAX, \
                             config.FLEX_ENABLED, config.FLEX_MIN = _bak
