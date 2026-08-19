@@ -1204,6 +1204,70 @@ with tab3:
         with c3:
             st.metric("购电成本", f"¥{s['cost_yuan']:,.0f}")
 
+        # ============================================================
+        # 储能充放电时间线（把"何时充、何时放、充多少、放多少"讲清楚）
+        # ============================================================
+        st.subheader("🔋 储能充放电时间线")
+
+        # 提取充放电事件段（连续同动作合并）
+        _chg_events = []
+        _dis_events = []
+        _cur = None  # (动作类型, 起小时, 止小时, 累计功率, 累计电量kWh)
+        for x in h:
+            _hh = x["h"]
+            _pc = x["pch_kW"]
+            _pd = x["pdis_kW"]
+            _act = "chg" if _pc > 1 else ("dis" if _pd > 1 else None)
+            if _act is None:
+                # 动作结束，先结算上一个事件段
+                if _cur is not None:
+                    (_chg_events if _cur[0] == "chg" else _dis_events).append(_cur)
+                    _cur = None
+                continue
+            _pwr = _pc if _act == "chg" else _pd
+            if _cur is not None and _cur[0] == _act:
+                # 连续同动作，累加
+                _cur = (_act, _cur[1], _hh + 1, _cur[3] + _pwr, _cur[4] + _pwr)
+            else:
+                if _cur is not None:
+                    (_chg_events if _cur[0] == "chg" else _dis_events).append(_cur)
+                _cur = (_act, _hh, _hh + 1, _pwr, _pwr)
+        if _cur is not None:
+            (_chg_events if _cur[0] == "chg" else _dis_events).append(_cur)
+
+        # 总述文字
+        _src_pv = s.get("chg_pv_kWh", 0)
+        _src_grid = s["chg_kWh"] - _src_pv
+        _dis_rep = s.get("dis_replace_kWh", s["dis_kWh"])
+        st.markdown(
+            f"今日储能共 **充电 {s['chg_kWh']:,.0f} kWh**（其中光伏充入 {_src_pv:,.0f} kWh、"
+            f"电网充入 {max(_src_grid,0):,.0f} kWh），**放电 {s['dis_kWh']:,.0f} kWh**，"
+            f"其中 {_dis_rep:,.0f} kWh 用于替代购电供厂内负荷。"
+        )
+
+        # 充放电事件表
+        _event_rows = []
+        for _act, _t0, _t1, _pwsum, _ekwh in sorted(_chg_events + _dis_events, key=lambda e: e[1]):
+            _label = "充电" if _act == "chg" else "放电"
+            _icon = "🔵" if _act == "chg" else "🟠"
+            _avg_pwr = _pwsum / (_t1 - _t0) if _t1 > _t0 else 0
+            _event_rows.append({
+                "动作": f"{_icon} {_label}",
+                "时段": f"{_t0:02d}:00 ~ {_t1:02d}:00",
+                "时长": f"{_t1 - _t0} 小时",
+                "平均功率": f"{_avg_pwr:,.0f} kW",
+                "电量": f"{_ekwh:,.0f} kWh",
+            })
+        if _event_rows:
+            _edf = pd.DataFrame(_event_rows)
+            st.dataframe(_edf, use_container_width=True, height=min(260, 40 + len(_event_rows) * 35))
+            if not _chg_events:
+                st.caption("今日无充电动作。")
+            if not _dis_events:
+                st.caption("今日无放电动作。")
+        else:
+            st.caption("今日储能无充放电动作（静置）。")
+
         # 逐时曲线
         import plotly.graph_objects as _go
         from plotly.subplots import make_subplots as _make_subplots
