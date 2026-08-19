@@ -1170,6 +1170,17 @@ with tab2:
 # Tab 3: 智能调度
 # ============================================================
 with tab3:
+    # 定位模块二目录（供未来日期实时计算用）
+    _m2_here = os.path.dirname(os.path.abspath(__file__))
+    _m2_candidates = [
+        os.path.join(_m2_here, "..", "..", "..", "模块二", "智能调度"),
+        os.path.join(_m2_here, "..", "..", "模块二", "智能调度"),
+        os.path.join(_m2_here, "..", "..", "..", "..", "公用", "模块二", "智能调度"),
+        os.path.join(_m2_here, "..", "..", "..", "..", "..", "公用", "模块二", "智能调度"),
+    ]
+    module2_path = next((os.path.abspath(p) for p in _m2_candidates if os.path.exists(p)), os.path.abspath(_m2_candidates[0]))
+    module2_found = os.path.isdir(module2_path)
+
     # ---- 三个展示辅助函数（日/月/年）----
     def _show_dispatch_day(_day):
         """展示单日的24小时详细调度建议。"""
@@ -1380,8 +1391,8 @@ with tab3:
             _pick = st.date_input(
                 "选择日期",
                 value=_max_date,
-                min_value=datetime(2020, 1, 1).date(),
-                max_value=datetime(2030, 12, 31).date(),
+                min_value=_min_date,
+                max_value=_max_date,
                 key="dispatch_pick_day",
             )
             _pick_str = _pick.strftime("%Y-%m-%d")
@@ -1389,8 +1400,7 @@ with tab3:
             if _day:
                 _show_dispatch_day(_day)
             else:
-                st.warning(f"⚠️ {_pick_str} 不在已生成的调度数据范围内（{_min_date} ~ {_max_date}）。"
-                           f"未来日期请用下方「生成调度建议」实时计算。")
+                st.warning(f"⚠️ {_pick_str} 不在已生成的调度数据范围内（{_min_date} ~ {_max_date}）。")
 
         elif _grain == "月":
             _months = sorted(set(d["date"][:7] for d in _all_days))
@@ -1401,259 +1411,36 @@ with tab3:
         else:  # 年
             _show_dispatch_year(_all_days)
 
-    # 导入模块二的核心函数
-    # __file__ 位于 .../1-天气分析平台程序/weather-load-platform/，需往上 3 级到仓库根(公用/公用)，
-    # 再进入 模块二/智能调度。以下多个候选路径兼容本地与外层仓库两种部署根。
-    _here = os.path.dirname(os.path.abspath(__file__))
-    _candidates = [
-        os.path.join(_here, "..", "..", "..", "模块二", "智能调度"),
-        os.path.join(_here, "..", "..", "模块二", "智能调度"),
-        os.path.join(_here, "..", "..", "..", "..", "公用", "模块二", "智能调度"),
-        os.path.join(_here, "..", "..", "..", "..", "..", "公用", "模块二", "智能调度"),
-    ]
-    module2_path = next((os.path.abspath(p) for p in _candidates if os.path.exists(p)), os.path.abspath(_candidates[0]))
-    module2_found = os.path.isdir(module2_path)
-    if module2_found:
-        try:
-            # ---- 参数配置 ----
-            with st.expander("⚙️ 调度参数", expanded=False):
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    pv_scale_input = st.number_input("光伏放大系数", value=2.0, min_value=0.5, max_value=5.0, step=0.1, help="基准6.08MW × 系数")
-                with col2:
-                    battery_capacity = st.number_input("储能容量(MWh)", value=16.0, min_value=1.0, max_value=100.0, step=1.0)
-                    battery_power = st.number_input("储能功率(MW)", value=8.0, min_value=0.5, max_value=50.0, step=0.5)
-                with col3:
-                    flex_enabled_input = st.checkbox("启用柔性负荷", value=True)
-                    if flex_enabled_input:
-                        flex_min_input = st.slider("柔性负荷下限(%)", 50, 100, 65, 5)
-                    else:
-                        flex_min_input = 100
 
-                st.caption(f"当前配置: 光伏 {6080*pv_scale_input/1000:.1f}MW, 储能 {battery_capacity}MWh/{battery_power}MW")
+    # ---- 储能成本与碳排放核算 ----
+    st.divider()
+    st.subheader("💰 储能成本与碳排放核算")
 
-            # ---- 目标日期选择 ----
-            _ts_min = datetime(2025, 7, 5).date()
-            _ts_max = datetime(2026, 6, 30).date()
-            _pick_date = st.date_input(
-                "选择目标日",
-                value=_ts_max,
-                min_value=_ts_min,
-                max_value=_ts_max,
-                key="dispatch_target_date",
-                help="选择要生成调度建议的日期（数据范围 2025-07-05 ~ 2026-06-30，光伏预测数据起点）",
-            )
-            # 下标基准 = 负荷数据起点 2025-07-01（决策引擎 load_arr 从该日计起）
-            _target_idx = (_pick_date - datetime(2025, 7, 1).date()).days
+    _bc = float(st.session_state.get("sidebar_battery_cap", 4.0))
+    _bp = float(st.session_state.get("sidebar_battery_pow", 2.0))
+    _e_kwh = _bc * 1000.0     # MWh -> kWh
+    _p_kw = _bp * 1000.0      # MW -> kW
+    _epc_unit = 1113.0        # 元/kWh 工商业储能EPC均价
+    _sys_cf = 90.0            # kgCO2/kWh 系统级隐含碳
+    _life_years = 10.0
+    _grid_ef = 0.55           # kgCO2/kWh 广东平均电网因子
 
-            # ---- 运行按钮 ----
-            if st.button("🚀 生成调度建议", type="primary", use_container_width=True):
-                with st.spinner("正在计算最优调度策略..."):
-                    _orig_config = sys.modules.get("config")
-                    _orig_path = list(sys.path)
-                    try:
-                        # 绝对路径插入 sys.path（仅按钮内，finally 恢复），并清理缓存的模块二模块
-                        sys.path.insert(0, module2_path)
-                        for _k in [k for k in list(sys.modules) if k.startswith(("decision_engine", "storage_optimizer", "mode_controller", "pv_forecast", "load_forecast", "validate_optimizer", "module2_config"))]:
-                            sys.modules.pop(_k, None)
+    _invest = _e_kwh * _epc_unit
+    _embodied = _e_kwh * _sys_cf
+    _embodied_day = _embodied / (_life_years * 365)
 
-                        # 用独立模块名加载模块二 config，覆盖 sys.modules["config"]，让 decision_engine 内部的 import config 命中模块二
-                        import importlib.util as _ilu
-                        _m2_config_path = os.path.join(module2_path, "config.py")
-                        if os.path.exists(_m2_config_path):
-                            _spec = _ilu.spec_from_file_location("module2_config", _m2_config_path)
-                            _m2_config = _ilu.module_from_spec(_spec)
-                            _spec.loader.exec_module(_m2_config)
-                            sys.modules["config"] = _m2_config
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.metric("储能总投资(EPC)", f"¥{_invest/1e4:.0f} 万",
+                  help=f"按 EPC 均价 {_epc_unit:.0f} 元/kWh，{_bc} MWh × {_epc_unit}")
+    with c2:
+        st.metric("制造隐含碳", f"{_embodied/1000:.0f} 吨 CO₂",
+                  help=f"系统级碳足迹 {_sys_cf:.0f} kgCO₂/kWh（含电芯+PCS+柜体）")
+    with c3:
+        st.metric("隐含碳摊销", f"{_embodied_day:.0f} kg/天",
+                  help=f"按 {_life_years:.0f} 年寿命摊销到天")
+    st.caption(f"规模 {_bc} MWh / {_bp} MW（随侧边栏光储柔调度参数联动）")
 
-                        from decision_engine import run_daily_decision
-                        import config
-
-                        # 临时用页面参数覆盖模块二 config
-                        _bak = (config.PV_SCALE, config.E_BAT_MAX, config.P_BAT_MAX,
-                                config.FLEX_ENABLED, config.FLEX_MIN)
-                        config.PV_SCALE = pv_scale_input
-                        config.E_BAT_MAX = battery_capacity * 1000  # MWh -> kWh
-                        config.P_BAT_MAX = battery_power * 1000     # MW -> kW
-                        config.FLEX_ENABLED = flex_enabled_input
-                        config.FLEX_MIN = flex_min_input / 100.0
-
-                        result = run_daily_decision(target_day_idx=_target_idx, k=5)
-
-                        config.PV_SCALE, config.E_BAT_MAX, config.P_BAT_MAX, \
-                            config.FLEX_ENABLED, config.FLEX_MIN = _bak
-
-                        st.session_state.dispatch_result = result
-                        st.success("✅ 调度计算完成!")
-
-                    except Exception as e:
-                        st.error(f"调度计算失败: {str(e)}")
-                        st.stop()
-                    finally:
-                        # 恢复 weather-load-platform 的 config + sys.path + 清理模块二缓存
-                        if _orig_config is not None:
-                            sys.modules["config"] = _orig_config
-                        else:
-                            sys.modules.pop("config", None)
-                        for _k in [k for k in list(sys.modules) if k.startswith(("decision_engine", "storage_optimizer", "mode_controller", "pv_forecast", "load_forecast", "validate_optimizer", "module2_config"))]:
-                            sys.modules.pop(_k, None)
-                        sys.path[:] = _orig_path
-
-            # ---- 显示结果 ----
-            if "dispatch_result" in st.session_state and st.session_state.dispatch_result:
-                result = st.session_state.dispatch_result
-
-                summary = result.get('summary', {})
-                res = result.get('res', {})
-                hourly = result.get('hourly', [])
-
-                # 关键指标卡片
-                st.divider()
-                st.subheader("📊 调度汇总")
-                col1, col2, col3, col4 = st.columns(4)
-                with col1:
-                    st.metric("预测日总光伏", f"{summary.get('预测日总光伏_kWh', 0):.0f} kWh",
-                              help="相似日KNN预测的当日光伏发电量")
-                with col2:
-                    st.metric("当日储能充电量", f"{summary.get('当日储能充电总量_kWh', 0):.0f} kWh",
-                              help="储能单日充电总量")
-                with col3:
-                    st.metric("绿电占比", f"{summary.get('绿电占比_pct', 0):.1f}%",
-                              help="光伏+储能放电替代购电的比例")
-                with col4:
-                    st.metric("分时购电成本", f"¥{summary.get('分时购电成本_元', 0):.0f}",
-                              help="优化调度后的当日分时购电电费")
-
-                st.caption(
-                    f"目标日: {summary.get('目标日','-')} | "
-                    f"负荷来源: {summary.get('负荷来源','-')} | "
-                    f"外购电量: {summary.get('外购电量_kWh',0):.0f} kWh | "
-                    f"余电上网: {summary.get('余电上网_kWh',0):.0f} kWh"
-                )
-
-                # 逐时调度表
-                if hourly:
-                    import plotly.graph_objects as go
-                    from plotly.subplots import make_subplots
-
-                    df = pd.DataFrame(hourly)
-                    hours = df['小时'].values
-                    load = df['预测负荷_kW'].values
-                    pv = df['预测光伏_kW'].values
-                    grid_buy = df['购电_kW'].values
-                    soc = df['SOC'].values
-
-                    pch = np.array(res.get('pch', [0]*24))[:24]
-                    pdis = np.array(res.get('pdis', [0]*24))[:24]
-
-                    st.subheader("📋 逐时调度曲线")
-                    fig = make_subplots(
-                        rows=3, cols=1,
-                        subplot_titles=("功率平衡", "储能SOC", "储能充放电"),
-                        vertical_spacing=0.12,
-                        row_heights=[0.4, 0.3, 0.3],
-                    )
-
-                    fig.add_trace(go.Scatter(x=hours, y=load, name='负荷', line=dict(color='black', width=2)), row=1, col=1)
-                    fig.add_trace(go.Scatter(x=hours, y=pv, name='光伏', fill='tozeroy',
-                                             line=dict(color='#2ECC71')), row=1, col=1)
-                    fig.add_trace(go.Scatter(x=hours, y=grid_buy, name='购电', line=dict(color='#E74C3C', dash='dot')), row=1, col=1)
-
-                    fig.add_trace(go.Scatter(x=hours, y=np.array(soc)*100, name='SOC %',
-                                             line=dict(color='#8E44AD'), fill='tozeroy'), row=2, col=1)
-
-                    fig.add_trace(go.Bar(x=hours, y=pch, name='充电', marker_color='#3498DB'), row=3, col=1)
-                    fig.add_trace(go.Bar(x=hours, y=-np.array(pdis), name='放电', marker_color='#E67E22'), row=3, col=1)
-
-                    fig.update_layout(height=700, showlegend=True, title_text="24小时智能调度曲线",
-                                      hovermode="x unified")
-                    fig.update_yaxes(title_text="功率 (kW)", row=1, col=1)
-                    fig.update_yaxes(title_text="SOC (%)", row=2, col=1)
-                    fig.update_yaxes(title_text="功率 (kW)", row=3, col=1)
-
-                    st.plotly_chart(fig, use_container_width=True)
-
-                    with st.expander("📋 详细数据表", expanded=False):
-                        display_df = df[['小时', '预测负荷_kW', '预测光伏_kW', '储能动作',
-                                         '购电_kW', '曝气下调_kW', '光伏去向', 'SOC']].copy()
-                        display_df['SOC'] = (display_df['SOC'] * 100).round(1)
-                        display_df.columns = ['时刻', '负荷kW', '光伏kW', '储能动作', '购电kW', '曝气下调kW', '光伏去向', 'SOC%']
-                        st.dataframe(display_df, use_container_width=True, height=400)
-
-                        from io import BytesIO
-                        output = BytesIO()
-                        display_df.to_csv(output, index=False, encoding='utf-8-sig')
-                        output.seek(0)
-                        st.download_button(
-                            label="⬇️ 导出调度方案CSV",
-                            data=output,
-                            file_name=f"调度方案_{datetime.now().strftime('%Y%m%d')}.csv",
-                            mime="text/csv",
-                            use_container_width=True,
-                        )
-
-                # 双模式状态
-                st.divider()
-                st.subheader("🔄 运行模式")
-                run_mode = summary.get('运行模式', '节能')
-                is_shock = summary.get('冲击负荷豁免', False)
-                flex_min = summary.get('曝气下限', 65)
-                col1, col2 = st.columns(2)
-                with col1:
-                    disp_mode = "🟢 节能模式" if run_mode == '节能' else "🔴 安全模式"
-                    if is_shock:
-                        disp_mode += " (冲击负荷豁免)"
-                    st.info(f"当前模式: **{disp_mode}**")
-                with col2:
-                    st.caption(f"曝气下限: {flex_min:.0f}%")
-                    st.caption(f"储能充电量: {res.get('chg_kwh', 0):.0f} kWh | 放电量: {res.get('dis_kwh', 0):.0f} kWh")
-
-            # ---- 储能成本与碳排放核算（随容量/功率参数动态计算） ----
-            st.divider()
-            st.subheader("💰 储能成本与碳排放核算")
-
-            _e_kwh = battery_capacity * 1000.0     # MWh -> kWh
-            _p_kw = battery_power * 1000.0         # MW -> kW
-            _epc_unit = 1113.0                     # 元/kWh 工商业储能EPC均价(寻熵研究院2025)
-            _sys_cf = 90.0                         # kgCO2/kWh 系统级隐含碳
-            _life_years = 10.0
-            _grid_ef = 0.55                        # kgCO2/kWh 广东平均电网因子
-
-            _invest = _e_kwh * _epc_unit           # 总投资(元)
-            _embodied = _e_kwh * _sys_cf           # 隐含碳总量(kg)
-            _embodied_day = _embodied / (_life_years * 365)  # 摊销到天
-            # 运行碳：日吞吐×损耗10%×电网因子，年化
-            _dispatch = st.session_state.get('dispatch_result') or {}
-            _res_local = _dispatch.get('res', {}) if isinstance(_dispatch, dict) else {}
-            _day_chg = _res_local.get('chg_kwh', 0)
-            _run_carbon_day = _day_chg * 0.10 * _grid_ef
-            _run_carbon_year = _run_carbon_day * 365
-
-            c1, c2, c3, c4 = st.columns(4)
-            with c1:
-                st.metric("储能总投资(EPC)", f"¥{_invest/1e4:.0f} 万",
-                          help=f"按 EPC 均价 {_epc_unit:.0f} 元/kWh 估算，{battery_capacity} MWh × {_epc_unit}")
-            with c2:
-                st.metric("制造隐含碳", f"{_embodied/1000:.0f} 吨 CO₂",
-                          help=f"系统级碳足迹 {_sys_cf:.0f} kgCO₂/kWh（含电芯+PCS+柜体）")
-            with c3:
-                st.metric("隐含碳摊销", f"{_embodied_day:.0f} kg/天",
-                          help=f"按 {_life_years:.0f} 年寿命摊销到天")
-            with c4:
-                st.metric("运行碳", f"{_run_carbon_day:.0f} kg/天",
-                          help=f"当日充放损耗(约10%)×电网因子{_grid_ef}，年化约 {_run_carbon_year/1000:.0f} 吨")
-
-            st.caption(
-                f"规模 {battery_capacity} MWh / {battery_power} MW（215kWh液冷柜约 {_e_kwh/215:.0f} 台）| "
-                f"当日储能充电 {_day_chg:.0f} kWh → 年运行碳约 {_run_carbon_year/1000:.0f} 吨 CO₂"
-            )
-
-        except ImportError as e:
-            st.warning(f"⚠️ 模块二未正确导入: {e}")
-            st.info("请确保模块二目录存在且包含所需Python文件")
-    else:
-        st.error("❌ 未找到模块二目录")
-        st.info(f"期望路径: {module2_path}")
 # ============================================================
 # Tab 2（中部）: 负荷预测
 # ============================================================
