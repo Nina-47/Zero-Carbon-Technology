@@ -2003,6 +2003,12 @@ with tab4:
                         _acct = _ca.CarbonAccounting(_df, ef_opt=_ef_opt)
                         _res = _acct.run_all()
                         st.session_state.carbon_results = _res
+
+                        # 保存逐时碳排数据，供日/月/年细化曲线
+                        _hourly_df = _acct.df.copy()
+                        _hourly_df["co2_grid"] = _hourly_df["p_grid"] * _hourly_df["ef_opt"]
+                        _hourly_df["co2_base"] = (_hourly_df["load"] - _hourly_df["pv_self"]).clip(lower=0) * _hourly_df["ef_opt"]
+                        st.session_state.carbon_hourly_df = _hourly_df
                         st.success("✅ 碳核算完成")
                     except Exception as _e:
                         st.error(f"碳核算失败: {_e}")
@@ -2077,6 +2083,87 @@ with tab4:
                     f"领域口径：运行减排 ER {pr['ER_kg']/1000:,.1f} t/年 − 隐含碳年分摊 "
                     f"{lc['embodied_annual_kg']/1000:,.1f} t = 净生命周期减排 {net/1000:,.1f} t/年"
                 )
+
+                # ============================================================
+                # 日/月/年细化碳排曲线
+                # ============================================================
+                _hdf = st.session_state.get("carbon_hourly_df")
+                if _hdf is not None and not _hdf.empty:
+                    st.divider()
+                    st.subheader("📈 碳排细化曲线（日/月/年）")
+
+                    import plotly.graph_objects as _go
+
+                    _cgrain = st.radio(
+                        "时间粒度",
+                        options=["日", "月", "年"],
+                        horizontal=True,
+                        key="carbon_grain",
+                    )
+
+                    _hdf = _hdf.copy()
+                    _hdf["date"] = _hdf["timestamp"].dt.date.astype(str)
+                    _hdf["month"] = _hdf["timestamp"].dt.to_period("M").astype(str)
+
+                    if _cgrain == "日":
+                        _dates = sorted(_hdf["date"].unique())
+                        _pick_d = st.selectbox("选择日期", options=_dates, key="carbon_pick_day")
+                        _d = _hdf[_hdf["date"] == _pick_d]
+                        _fig = _go.Figure()
+                        _fig.add_trace(_go.Scatter(x=_d["timestamp"].dt.hour, y=_d["co2_grid"]/1000, name="项目购电碳排(t)", line=dict(color="#E74C3C")))
+                        _fig.add_trace(_go.Scatter(x=_d["timestamp"].dt.hour, y=_d["co2_base"]/1000, name="基准碳排(t)", line=dict(color="#95A5A6", dash="dot")))
+                        _fig.add_trace(_go.Bar(x=_d["timestamp"].dt.hour, y=(_d["co2_base"]-_d["co2_grid"])/1000, name="减排(t)", marker_color="#2ECC71"))
+                        _fig.update_layout(height=420, title=f"{_pick_d} 逐时碳排与减排", hovermode="x unified")
+                        _fig.update_xaxes(type="category", tickangle=0, title="小时")
+                        _fig.update_yaxes(title="吨 CO₂")
+                        st.plotly_chart(_fig, use_container_width=True)
+
+                        # 当日汇总
+                        _di = _d.iloc[0]
+                        c1, c2, c3 = st.columns(3)
+                        with c1:
+                            st.metric("当日购电碳排", f"{_d['co2_grid'].sum()/1000:,.1f} t")
+                        with c2:
+                            st.metric("当日基准碳排", f"{_d['co2_base'].sum()/1000:,.1f} t")
+                        with c3:
+                            st.metric("当日减排", f"{(_d['co2_base'].sum()-_d['co2_grid'].sum())/1000:,.1f} t")
+
+                    elif _cgrain == "月":
+                        _months = sorted(_hdf["month"].unique())
+                        _pick_m = st.selectbox("选择月份", options=_months, key="carbon_pick_month")
+                        _m = _hdf[_hdf["month"] == _pick_m]
+                        _daily = _m.groupby("date").agg({"co2_grid":"sum","co2_base":"sum","load":"sum","pv":"sum"}).reset_index()
+                        _daily["reduction"] = _daily["co2_base"] - _daily["co2_grid"]
+                        _fig = _go.Figure()
+                        _fig.add_trace(_go.Scatter(x=_daily["date"].str[5:], y=_daily["co2_grid"]/1000, name="项目购电碳排(t)", line=dict(color="#E74C3C")))
+                        _fig.add_trace(_go.Scatter(x=_daily["date"].str[5:], y=_daily["co2_base"]/1000, name="基准碳排(t)", line=dict(color="#95A5A6", dash="dot")))
+                        _fig.add_trace(_go.Bar(x=_daily["date"].str[5:], y=_daily["reduction"]/1000, name="减排(t)", marker_color="#2ECC71"))
+                        _fig.update_layout(height=420, title=f"{_pick_m} 逐日碳排与减排", hovermode="x unified")
+                        _fig.update_xaxes(type="category", tickangle=45)
+                        _fig.update_yaxes(title="吨 CO₂")
+                        st.plotly_chart(_fig, use_container_width=True)
+
+                    else:  # 年
+                        _monthly = _hdf.groupby("month").agg({"co2_grid":"sum","co2_base":"sum","load":"sum","pv":"sum"}).reset_index()
+                        _monthly["reduction"] = _monthly["co2_base"] - _monthly["co2_grid"]
+                        _fig = _go.Figure()
+                        _fig.add_trace(_go.Bar(x=_monthly["month"], y=_monthly["co2_grid"]/1000, name="项目购电碳排(t)", marker_color="#E74C3C"))
+                        _fig.add_trace(_go.Bar(x=_monthly["month"], y=_monthly["co2_base"]/1000, name="基准碳排(t)", marker_color="#95A5A6"))
+                        _fig.add_trace(_go.Bar(x=_monthly["month"], y=_monthly["reduction"]/1000, name="减排(t)", marker_color="#2ECC71"))
+                        _fig.update_layout(height=420, barmode="group", title="全年逐月碳排与减排", hovermode="x unified")
+                        _fig.update_xaxes(type="category")
+                        _fig.update_yaxes(title="吨 CO₂")
+                        st.plotly_chart(_fig, use_container_width=True)
+
+                        # 全年汇总
+                        c1, c2, c3 = st.columns(3)
+                        with c1:
+                            st.metric("全年购电碳排", f"{_hdf['co2_grid'].sum()/1000:,.0f} t")
+                        with c2:
+                            st.metric("全年基准碳排", f"{_hdf['co2_base'].sum()/1000:,.0f} t")
+                        with c3:
+                            st.metric("全年减排", f"{(_hdf['co2_base'].sum()-_hdf['co2_grid'].sum())/1000:,.0f} t")
+
             else:
                 st.info("👆 点击「运行碳核算」按钮，计算全年三账碳排放结果。")
 
