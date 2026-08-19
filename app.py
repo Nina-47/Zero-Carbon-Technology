@@ -1973,8 +1973,19 @@ with tab4:
                     _m3_orig_path = list(sys.path)
                     try:
                         sys.path.insert(0, m3_path)
-                        for _k in [k for k in list(sys.modules) if k.startswith(("carbon_accounting", "module3_config"))]:
+                        for _k in [k for k in list(sys.modules) if k.startswith(("carbon_accounting", "data_loader", "emission_factors", "module3_config"))]:
                             sys.modules.pop(_k, None)
+
+                        # 加载模块三 config.py 为 module3_config，覆盖 sys.modules["config"]，
+                        # 让模块三内部 from config import ... 命中模块三自己的 config（与模块二相同处理）
+                        import importlib.util as _ilu
+                        _m3_config_path = os.path.join(m3_path, "config.py")
+                        _m3_orig_config = sys.modules.get("config")
+                        if os.path.exists(_m3_config_path):
+                            _spec = _ilu.spec_from_file_location("module3_config", _m3_config_path)
+                            _m3cfg = _ilu.module_from_spec(_spec)
+                            _spec.loader.exec_module(_m3cfg)
+                            sys.modules["config"] = _m3cfg
 
                         import carbon_accounting as _ca
                         import data_loader as _dl
@@ -2000,7 +2011,11 @@ with tab4:
                     finally:
                         for _k in [k for k in list(sys.modules) if k.startswith(("carbon_accounting", "data_loader", "emission_factors", "module3_config"))]:
                             sys.modules.pop(_k, None)
-                        # 恢复 weather-load-platform 本目录的 data_loader 无关项（若误伤则恢复）
+                        # 恢复 config（被 module3_config 覆盖前的原 config）
+                        if _m3_orig_config is not None:
+                            sys.modules["config"] = _m3_orig_config
+                        else:
+                            sys.modules.pop("config", None)
                         sys.path[:] = _m3_orig_path
 
             # 显示结果：优先 session 缓存，否则读 JSON，否则提示
