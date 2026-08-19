@@ -428,9 +428,6 @@ with st.sidebar:
         step=1,
         key="sidebar_knn_k",
     )
-    st.session_state.sidebar_pred_company = pred_company_sidebar
-    st.session_state.sidebar_forecast_horizon = forecast_horizon_sidebar
-    st.session_state.sidebar_knn_k = knn_k_sidebar
 
     st.divider()
 
