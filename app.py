@@ -1170,6 +1170,161 @@ with tab2:
 # Tab 3: 智能调度
 # ============================================================
 with tab3:
+    # ---- 三个展示辅助函数（日/月/年）----
+    def _show_dispatch_day(_day):
+        """展示单日的24小时详细调度建议。"""
+        s = _day["summary"]
+        h = _day["hourly"]
+        st.markdown(f"#### 📆 {_day['date']}（{_day['mode']}模式{'，冲击豁免' if _day['is_shock'] else ''}）")
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            st.metric("负荷", f"{s['load_kWh']:,.0f} kWh")
+        with c2:
+            st.metric("光伏", f"{s['pv_kWh']:,.0f} kWh")
+        with c3:
+            st.metric("购电", f"{s['buy_kWh']:,.0f} kWh")
+        with c4:
+            st.metric("绿电占比", f"{s['green_ratio_pct']:.1f}%")
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            st.metric("储能充电", f"{s['chg_kWh']:,.0f} kWh")
+        with c2:
+            st.metric("储能放电", f"{s['dis_kWh']:,.0f} kWh")
+        with c3:
+            st.metric("购电成本", f"¥{s['cost_yuan']:,.0f}")
+
+        # 逐时曲线
+        import plotly.graph_objects as _go
+        from plotly.subplots import make_subplots as _make_subplots
+        _hh = [x["h"] for x in h]
+        _load = [x["load_kW"] for x in h]
+        _pv = [x["pv_kW"] for x in h]
+        _grid = [x["pgrid_kW"] for x in h]
+        _pch = [x["pch_kW"] for x in h]
+        _pdis = [x["pdis_kW"] for x in h]
+        _soc = [x["soc"] for x in h]
+
+        _fig = _make_subplots(rows=3, cols=1, subplot_titles=("功率平衡", "储能充放电", "SOC"),
+                              vertical_spacing=0.12, row_heights=[0.4, 0.3, 0.3])
+        _fig.add_trace(_go.Scatter(x=_hh, y=_load, name="负荷", line=dict(color="black", width=2)), row=1, col=1)
+        _fig.add_trace(_go.Scatter(x=_hh, y=_pv, name="光伏", fill="tozeroy", line=dict(color="#2ECC71")), row=1, col=1)
+        _fig.add_trace(_go.Scatter(x=_hh, y=_grid, name="购电", line=dict(color="#E74C3C", dash="dot")), row=1, col=1)
+        _fig.add_trace(_go.Bar(x=_hh, y=_pch, name="充电", marker_color="#3498DB"), row=2, col=1)
+        _fig.add_trace(_go.Bar(x=_hh, y=[-x for x in _pdis], name="放电", marker_color="#E67E22"), row=2, col=1)
+        _fig.add_trace(_go.Scatter(x=_hh, y=[x*100 for x in _soc], name="SOC%", line=dict(color="#8E44AD"), fill="tozeroy"), row=3, col=1)
+        _fig.update_layout(height=650, hovermode="x unified", title_text=f"{_day['date']} 24小时调度曲线")
+        _fig.update_yaxes(title_text="功率(kW)", row=1, col=1)
+        _fig.update_yaxes(title_text="功率(kW)", row=2, col=1)
+        _fig.update_yaxes(title_text="SOC(%)", row=3, col=1)
+        st.plotly_chart(_fig, use_container_width=True)
+
+        # 逐时明细表
+        _rows = []
+        for x in h:
+            _rows.append({
+                "时刻": f"{x['h']:02d}:00",
+                "负荷kW": round(x["load_kW"], 1),
+                "光伏kW": round(x["pv_kW"], 1),
+                "充电kW": round(x["pch_kW"], 1),
+                "放电kW": round(x["pdis_kW"], 1),
+                "购电kW": round(x["pgrid_kW"], 1),
+                "SOC%": round(x["soc"]*100, 1),
+            })
+        _ddf = pd.DataFrame(_rows)
+        with st.expander("📋 逐时明细表", expanded=False):
+            st.dataframe(_ddf, use_container_width=True, height=400)
+            from io import BytesIO
+            _buf = BytesIO()
+            _ddf.to_csv(_buf, index=False, encoding="utf-8-sig")
+            _buf.seek(0)
+            st.download_button(
+                f"⬇️ 下载 {_day['date']} 调度明细CSV", data=_buf,
+                file_name=f"调度明细_{_day['date']}.csv", mime="text/csv",
+                use_container_width=True,
+            )
+
+    def _show_dispatch_month(_month_days, _pick_month):
+        """展示单月逐日汇总。"""
+        st.markdown(f"#### 📅 {_pick_month} 逐日调度汇总（{len(_month_days)} 天）")
+        _rows = []
+        _tot = {"load": 0, "pv": 0, "buy": 0, "cost": 0, "chg": 0, "dis": 0}
+        for d in _month_days:
+            s = d["summary"]
+            _rows.append({
+                "日期": d["date"],
+                "模式": d["mode"],
+                "负荷kWh": round(s["load_kWh"]),
+                "光伏kWh": round(s["pv_kWh"]),
+                "购电kWh": round(s["buy_kWh"]),
+                "绿电%": s["green_ratio_pct"],
+                "成本元": round(s["cost_yuan"]),
+                "充电kWh": round(s["chg_kWh"]),
+                "放电kWh": round(s["dis_kWh"]),
+            })
+            _tot["load"] += s["load_kWh"]; _tot["pv"] += s["pv_kWh"]
+            _tot["buy"] += s["buy_kWh"]; _tot["cost"] += s["cost_yuan"]
+            _tot["chg"] += s["chg_kWh"]; _tot["dis"] += s["dis_kWh"]
+        _mdf = pd.DataFrame(_rows)
+        st.dataframe(_mdf, use_container_width=True, height=400)
+
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            st.metric("月总负荷", f"{_tot['load']/1e4:.0f} 万kWh")
+        with c2:
+            st.metric("月总光伏", f"{_tot['pv']/1e4:.0f} 万kWh")
+        with c3:
+            st.metric("月总购电", f"{_tot['buy']/1e4:.0f} 万kWh")
+        with c4:
+            st.metric("月购电成本", f"¥{_tot['cost']/1e4:.0f} 万")
+
+        # 逐日趋势图
+        import plotly.graph_objects as _go
+        _dates = [d["date"][5:] for d in _month_days]
+        _fig = _go.Figure()
+        _fig.add_trace(_go.Scatter(x=_dates, y=[d["summary"]["load_kWh"] for d in _month_days], name="负荷"))
+        _fig.add_trace(_go.Scatter(x=_dates, y=[d["summary"]["pv_kWh"] for d in _month_days], name="光伏"))
+        _fig.add_trace(_go.Scatter(x=_dates, y=[d["summary"]["buy_kWh"] for d in _month_days], name="购电"))
+        _fig.update_layout(height=400, title=f"{_pick_month} 逐日负荷/光伏/购电趋势", hovermode="x unified")
+        st.plotly_chart(_fig, use_container_width=True)
+
+    def _show_dispatch_year(_all_days):
+        """展示全年逐月汇总。"""
+        st.markdown(f"#### 📅 全年调度汇总（{len(_all_days)} 天）")
+        from collections import defaultdict
+        _magg = defaultdict(lambda: {"load": 0, "pv": 0, "buy": 0, "cost": 0, "chg": 0, "dis": 0, "green": 0, "n": 0})
+        for d in _all_days:
+            m = d["date"][:7]
+            s = d["summary"]
+            _magg[m]["load"] += s["load_kWh"]; _magg[m]["pv"] += s["pv_kWh"]
+            _magg[m]["buy"] += s["buy_kWh"]; _magg[m]["cost"] += s["cost_yuan"]
+            _magg[m]["chg"] += s["chg_kWh"]; _magg[m]["dis"] += s["dis_kWh"]
+            _magg[m]["green"] += s["green_ratio_pct"]; _magg[m]["n"] += 1
+        _rows = []
+        for m in sorted(_magg.keys()):
+            g = _magg[m]
+            _rows.append({
+                "月份": m,
+                "天数": g["n"],
+                "负荷万kWh": round(g["load"]/1e4, 1),
+                "光伏万kWh": round(g["pv"]/1e4, 1),
+                "购电万kWh": round(g["buy"]/1e4, 1),
+                "绿电均值%": round(g["green"]/g["n"], 1),
+                "成本万元": round(g["cost"]/1e4, 1),
+                "储能充万kWh": round(g["chg"]/1e4, 1),
+                "储能放万kWh": round(g["dis"]/1e4, 1),
+            })
+        _ydf = pd.DataFrame(_rows)
+        st.dataframe(_ydf, use_container_width=True, height=420)
+
+        # 月份趋势
+        import plotly.graph_objects as _go
+        _fig = _go.Figure()
+        _fig.add_trace(_go.Bar(x=_ydf["月份"], y=_ydf["负荷万kWh"], name="负荷"))
+        _fig.add_trace(_go.Bar(x=_ydf["月份"], y=_ydf["光伏万kWh"], name="光伏"))
+        _fig.add_trace(_go.Bar(x=_ydf["月份"], y=_ydf["购电万kWh"], name="购电"))
+        _fig.update_layout(height=420, barmode="group", title="全年逐月电量对比", hovermode="x unified")
+        st.plotly_chart(_fig, use_container_width=True)
+
     st.subheader("⚡ 光储优化调度系统")
     st.caption("基于光伏预测 + 储能优化 + 柔性负荷的智能调度决策")
 
@@ -1180,6 +1335,69 @@ with tab3:
     - 柔性负荷: 曝气系统功率可调(双模式滞回控制)
     - 输出: 未来24小时逐时调度建议
     """)
+
+    # ============================================================
+    # 按日/月/年查询已生成的调度建议
+    # ============================================================
+    st.divider()
+    st.subheader("📅 按日/月/年查询调度建议")
+
+    import json as _json
+
+    # 独立定位 yearly_dispatch.json（不依赖后面才定义的 module2_path）
+    _jd_here = os.path.dirname(os.path.abspath(__file__))
+    _jd_candidates = [
+        os.path.join(_jd_here, "..", "..", "..", "模块二", "智能调度", "output", "yearly_dispatch.json"),
+        os.path.join(_jd_here, "..", "..", "模块二", "智能调度", "output", "yearly_dispatch.json"),
+        os.path.join(_jd_here, "..", "..", "..", "..", "公用", "模块二", "智能调度", "output", "yearly_dispatch.json"),
+    ]
+    _dispatch_json_path = next((os.path.abspath(p) for p in _jd_candidates if os.path.exists(p)), os.path.abspath(_jd_candidates[0]))
+
+    @st.cache_data(ttl=3600, show_spinner=False)
+    def _load_yearly_dispatch(_json_path: str):
+        if not os.path.exists(_json_path):
+            return None
+        with open(_json_path, "r", encoding="utf-8") as _f:
+            return _json.load(_f)
+
+    _yearly = _load_yearly_dispatch(_dispatch_json_path)
+    if _yearly and _yearly.get("days"):
+        _all_days = _yearly["days"]
+        _date_list = [d["date"] for d in _all_days]
+        _min_date = datetime.strptime(_date_list[0], "%Y-%m-%d").date()
+        _max_date = datetime.strptime(_date_list[-1], "%Y-%m-%d").date()
+
+        _grain = st.radio(
+            "时间粒度",
+            options=["日", "月", "年"],
+            horizontal=True,
+            key="dispatch_grain",
+        )
+
+        if _grain == "日":
+            _pick = st.date_input(
+                "选择日期",
+                value=_max_date,
+                min_value=datetime(2020, 1, 1).date(),
+                max_value=datetime(2030, 12, 31).date(),
+                key="dispatch_pick_day",
+            )
+            _pick_str = _pick.strftime("%Y-%m-%d")
+            _day = next((d for d in _all_days if d["date"] == _pick_str), None)
+            if _day:
+                _show_dispatch_day(_day)
+            else:
+                st.warning(f"⚠️ {_pick_str} 不在已生成的调度数据范围内（{_min_date} ~ {_max_date}）。"
+                           f"未来日期请用下方「生成调度建议」实时计算。")
+
+        elif _grain == "月":
+            _months = sorted(set(d["date"][:7] for d in _all_days))
+            _pick_month = st.selectbox("选择月份", options=_months, key="dispatch_pick_month")
+            _month_days = [d for d in _all_days if d["date"].startswith(_pick_month)]
+            _show_dispatch_month(_month_days, _pick_month)
+
+        else:  # 年
+            _show_dispatch_year(_all_days)
 
     # 导入模块二的核心函数
     # __file__ 位于 .../1-天气分析平台程序/weather-load-platform/，需往上 3 级到仓库根(公用/公用)，
