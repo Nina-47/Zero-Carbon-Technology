@@ -1350,7 +1350,75 @@ with tab3:
     """)
 
     # ============================================================
-    # 按日/月/年查询已生成的调度建议
+    # 生成调度建议（用侧边栏参数重新运行优化，联动到下方日/月/年查询）
+    # ============================================================
+    st.divider()
+    c_gen1, c_gen2 = st.columns([2, 1])
+    with c_gen1:
+        st.subheader("🚀 生成调度建议")
+        st.caption("用侧边栏「光储柔调度参数」重新运行全年优化，生成结果供下方日/月/年查询")
+    with c_gen2:
+        st.write("")
+        _do_generate = st.button("🔄 重新生成", type="primary", use_container_width=True,
+                                  key="regenerate_dispatch")
+
+    if _do_generate:
+        if module2_found:
+            with st.spinner("正在用当前参数重新运行全年优化调度（约5秒）..."):
+                _orig_cfg = sys.modules.get("config")
+                _orig_p = list(sys.path)
+                try:
+                    sys.path.insert(0, module2_path)
+                    for _k in [k for k in list(sys.modules) if k.startswith(("export_yearly_dispatch", "storage_optimizer", "mode_controller", "validate_optimizer", "module2_config"))]:
+                        sys.modules.pop(_k, None)
+
+                    import importlib.util as _ilu
+                    _cfg_path = os.path.join(module2_path, "config.py")
+                    if os.path.exists(_cfg_path):
+                        _spec = _ilu.spec_from_file_location("module2_config", _cfg_path)
+                        _m2cfg = _ilu.module_from_spec(_spec)
+                        _spec.loader.exec_module(_m2cfg)
+                        sys.modules["config"] = _m2cfg
+
+                    from export_yearly_dispatch import build_yearly_dispatch
+                    import config as _m2_cfg
+
+                    # 用侧边栏参数覆盖
+                    _bcs = float(st.session_state.get("sidebar_pv_scale", 2.0))
+                    _bc = float(st.session_state.get("sidebar_battery_cap", 4.0))
+                    _bp = float(st.session_state.get("sidebar_battery_pow", 2.0))
+                    _fe = bool(st.session_state.get("sidebar_flex_enabled", True))
+                    _fm = float(st.session_state.get("sidebar_flex_min", 65)) / 100.0
+                    _bak = (_m2_cfg.PV_SCALE, _m2_cfg.E_BAT_MAX, _m2_cfg.P_BAT_MAX,
+                            _m2_cfg.FLEX_ENABLED, _m2_cfg.FLEX_MIN)
+                    _m2_cfg.PV_SCALE = _bcs
+                    _m2_cfg.E_BAT_MAX = _bc * 1000
+                    _m2_cfg.P_BAT_MAX = _bp * 1000
+                    _m2_cfg.FLEX_ENABLED = _fe
+                    _m2_cfg.FLEX_MIN = _fm
+
+                    _new_result = build_yearly_dispatch()
+
+                    _m2_cfg.PV_SCALE, _m2_cfg.E_BAT_MAX, _m2_cfg.P_BAT_MAX, \
+                        _m2_cfg.FLEX_ENABLED, _m2_cfg.FLEX_MIN = _bak
+
+                    st.session_state.yearly_dispatch_data = _new_result
+                    st.success("✅ 已用当前参数重新生成调度建议")
+                except Exception as _e:
+                    st.error(f"重新生成失败: {_e}")
+                finally:
+                    if _orig_cfg is not None:
+                        sys.modules["config"] = _orig_cfg
+                    else:
+                        sys.modules.pop("config", None)
+                    for _k in [k for k in list(sys.modules) if k.startswith(("export_yearly_dispatch", "storage_optimizer", "mode_controller", "validate_optimizer", "module2_config"))]:
+                        sys.modules.pop(_k, None)
+                    sys.path[:] = _orig_p
+        else:
+            st.error("❌ 未找到模块二目录，无法重新生成")
+
+    # ============================================================
+    # 按日/月/年查询调度建议
     # ============================================================
     st.divider()
     st.subheader("📅 按日/月/年查询调度建议")
@@ -1373,7 +1441,7 @@ with tab3:
         with open(_json_path, "r", encoding="utf-8") as _f:
             return _json.load(_f)
 
-    _yearly = _load_yearly_dispatch(_dispatch_json_path)
+    _yearly = st.session_state.get("yearly_dispatch_data") or _load_yearly_dispatch(_dispatch_json_path)
     if _yearly and _yearly.get("days"):
         _all_days = _yearly["days"]
         _date_list = [d["date"] for d in _all_days]
