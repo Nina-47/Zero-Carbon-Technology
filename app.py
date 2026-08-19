@@ -9,6 +9,8 @@ from datetime import datetime, timedelta
 from io import BytesIO
 import sys as _sys
 import os as _os
+import os
+import sys
 
 # ============================================================
 # 关键修复：清理上个会话残留的 config/module2_config 污染
@@ -399,6 +401,54 @@ with st.sidebar:
 
     st.divider()
 
+    # 光储柔调度参数（模块二）
+    st.subheader("⚡ 光储柔调度参数")
+    pv_scale_sidebar = st.number_input(
+        "光伏放大系数", value=2.0, min_value=0.5, max_value=5.0, step=0.1,
+        help="三站真实合计6.4MW × 系数 ≈ 规划装机",
+        key="sidebar_pv_scale",
+    )
+    battery_cap_sidebar = st.number_input(
+        "储能容量(MWh)", value=4.0, min_value=1.0, max_value=100.0, step=1.0,
+        key="sidebar_battery_cap",
+    )
+    battery_pow_sidebar = st.number_input(
+        "储能功率(MW)", value=2.0, min_value=0.5, max_value=50.0, step=0.5,
+        key="sidebar_battery_pow",
+    )
+    flex_enabled_sidebar = st.checkbox("启用柔性负荷", value=True, key="sidebar_flex_enabled")
+    flex_min_sidebar = st.slider(
+        "柔性负荷下限(%)", 50, 100, 65, 5, key="sidebar_flex_min",
+        disabled=not flex_enabled_sidebar,
+    )
+    st.caption(
+        f"当前: 光伏 {6080*pv_scale_sidebar/1000:.1f}MW · 储能 {battery_cap_sidebar}MWh/{battery_pow_sidebar}MW · "
+        f"柔性{'开' if flex_enabled_sidebar else '关'}"
+    )
+
+    st.divider()
+
+    # 碳核算参数（模块三）
+    st.subheader("🌱 碳核算参数")
+    ef_report_sidebar = st.number_input(
+        "电网排放因子(kgCO₂/kWh)", value=0.4419, min_value=0.3, max_value=0.8, step=0.001,
+        help="广东省2023电力CO₂因子",
+        key="sidebar_ef_report",
+    )
+    n2o_factor_sidebar = st.number_input(
+        "N₂O 排放因子", value=0.016, min_value=0.003, max_value=0.025, step=0.001,
+        help="kg N₂O-N/kg N，国内AAO工艺中值",
+        key="sidebar_n2o_factor",
+    )
+    lca_cf_sidebar = st.number_input(
+        "储能隐含碳(kgCO₂e/kWh)", value=70.0, min_value=40.0, max_value=120.0, step=1.0,
+        help="LFP系统级碳足迹",
+        key="sidebar_lca_cf",
+    )
+    st.caption("碳核算以模块三代码为准，此处为默认展示参数")
+
+    st.divider()
+
     # 导出
     st.subheader("📥 导出")
     export_format = st.radio(
@@ -469,13 +519,11 @@ primary_label = LOCATIONS[primary_loc]["display_name"]
 # ============================================================
 # Tab 页签
 # ============================================================
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+tab1, tab2, tab3, tab4 = st.tabs([
     "📊 天气总览",
-    "🔗 负荷叠加分析",
-    "📋 数据表格与导出",
-    "🔮 相似日分析",
-    "⚡ 智能调度",
     "🔌 负荷预测",
+    "⚡ 智能调度",
+    "🌱 碳效益核算",
 ])
 
 # ============================================================
@@ -529,29 +577,20 @@ with tab2:
 
     with upload_col:
         uploaded_file = st.file_uploader(
-            "上传负荷 CSV 文件",
-            type=["csv"],
-            help="支持格式：时间戳 + 负荷值(MW)。编码：UTF-8 或 GBK。",
+            "上传负荷文件",
+            type=["xlsx", "xls", "csv"],
+            help="支持格式：宽表(日期列 + 0时~23时逐时负荷，如「负荷数据污水厂.xlsx」) 或 长表(datetime + load_mw)。",
             key="load_uploader",
         )
 
     # 处理上传
     if uploaded_file is not None:
         file_bytes = uploaded_file.getvalue()
-        load_df, error_msg = parse_load_csv(file_bytes, uploaded_file.name)
+        load_df, error_msg = parse_load_history_upload(file_bytes, uploaded_file.name)
 
         if error_msg and "未检测到负荷列" not in error_msg:
             st.error(error_msg)
         elif load_df is not None and not load_df.empty:
-            # 检查是否需要手动选择负荷列
-            if "load_mw" not in load_df.columns or load_df["load_mw"].isna().all():
-                st.warning("未自动检测到负荷列，请手动选择：")
-                candidate_cols = list_load_columns(load_df)
-                if candidate_cols:
-                    selected_col = st.selectbox("选择负荷列", options=candidate_cols)
-                    if selected_col:
-                        load_df["load_mw"] = pd.to_numeric(load_df[selected_col], errors="coerce")
-
             st.session_state.load_df = load_df
             st.session_state.load_filename = uploaded_file.name
             st.session_state.load_error = ""
@@ -569,7 +608,7 @@ with tab2:
                 st.session_state.load_filename = ""
                 st.rerun()
         else:
-            st.info("尚未上传负荷数据。\n\n支持两列格式：\n`datetime, load_mw`")
+            st.info("尚未上传负荷数据。\n\n支持格式：\n- 宽表: 日期列 + 0时~23时逐时负荷（如「负荷数据污水厂.xlsx」）\n- 长表: `datetime, load_mw`")
 
     st.divider()
 
@@ -629,9 +668,9 @@ with tab2:
         st.info("👆 请先上传负荷 CSV 文件以进行叠加分析")
 
 # ============================================================
-# Tab 3: 数据表格与导出
+# Tab 1（下部）: 数据表格与导出
 # ============================================================
-with tab3:
+with tab1:
     if primary_data.empty:
         st.info("数据加载中...")
     else:
@@ -728,7 +767,9 @@ with tab3:
                 )
 
 # ============================================================
-with tab4:
+# Tab 2（下部）: 相似日分析
+# ============================================================
+with tab2:
     st.subheader("🔮 相似日分析")
 
     # 负荷数据模板下载
@@ -1094,9 +1135,9 @@ with tab4:
                     st.caption("暂无负荷数据可导出。")
 
 # ============================================================
-# Tab 5: 智能调度
+# Tab 3: 智能调度
 # ============================================================
-with tab5:
+with tab3:
     st.subheader("⚡ 光储优化调度系统")
     st.caption("基于光伏预测 + 储能优化 + 柔性负荷的智能调度决策")
 
@@ -1348,9 +1389,9 @@ with tab5:
         st.error("❌ 未找到模块二目录")
         st.info(f"期望路径: {module2_path}")
 # ============================================================
-# Tab 6: 负荷预测
+# Tab 2（中部）: 负荷预测
 # ============================================================
-with tab6:
+with tab2:
     st.subheader("🔌 污水厂负荷预测")
     st.caption("基于历史负荷 + 排班日历 + 天气预报，预测未来逐时负荷")
 
@@ -1698,6 +1739,145 @@ with tab6:
                         mime="text/csv",
                         use_container_width=True,
                     )
+
+
+# ============================================================
+# Tab 4: 碳效益核算
+# ============================================================
+with tab4:
+    st.subheader("🌱 碳效益核算")
+    st.caption("三账分离：企业清单账 / 项目减排账 / LCA 全生命周期，量化光储柔协同的减碳效益")
+
+    st.info("""
+    📌 **核算口径**
+    - **企业清单账**: 范围一(CH4/N2O 工艺) + 范围二(外购电力×广东因子0.4419)
+    - **项目减排账**: 基准排放 BE − 项目排放 PE − 泄漏 LE = 运行减排 ER
+    - **LCA 账**: 储能设备全生命周期隐含碳 → 净生命周期减排
+    """)
+
+    # 定位模块三目录（多候选路径兼容本地与外层部署）
+    _m3_here = os.path.dirname(os.path.abspath(__file__))
+    _m3_candidates = [
+        os.path.join(_m3_here, "..", "..", "..", "模块三", "code"),
+        os.path.join(_m3_here, "..", "..", "模块三", "code"),
+        os.path.join(_m3_here, "..", "..", "..", "..", "公用", "模块三", "code"),
+        os.path.join(_m3_here, "..", "..", "..", "..", "..", "公用", "模块三", "code"),
+    ]
+    m3_path = next((os.path.abspath(p) for p in _m3_candidates if os.path.isdir(p)), None)
+
+    if m3_path is None:
+        st.error("❌ 未找到模块三碳核算目录")
+        st.info("期望路径: 公用/公用/模块三/code")
+    else:
+        try:
+            # 预读已有计算结果（可选展示）
+            _result_json = os.path.join(m3_path, "carbon_results.json")
+            _has_cached = os.path.exists(_result_json)
+
+            if st.button("🚀 运行碳核算", type="primary", use_container_width=True):
+                with st.spinner("正在计算碳排放..."):
+                    _m3_orig = dict(zip(
+                        [k for k in list(sys.modules) if k.startswith(("carbon_accounting", "data_loader", "emission_factors", "module3_config"))],
+                        [sys.modules[k] for k in list(sys.modules) if k.startswith(("carbon_accounting", "data_loader", "emission_factors", "module3_config"))],
+                    ))
+                    _m3_orig_path = list(sys.path)
+                    try:
+                        sys.path.insert(0, m3_path)
+                        for _k in [k for k in list(sys.modules) if k.startswith(("carbon_accounting", "module3_config"))]:
+                            sys.modules.pop(_k, None)
+
+                        import carbon_accounting as _ca
+                        import data_loader as _dl
+                        from emission_factors import price_to_carbon_intensity
+
+                        # 用模块二调度结果构造逐时明细 + 真实现货价构造 EF_opt
+                        _df = _dl.build_schedule_from_module2()
+                        _price_df = _dl.load_node_price()
+                        _price_map = _price_df.set_index("timestamp")["price"]
+                        _aligned = _price_map.reindex(_df["timestamp"]).ffill().bfill()
+                        if _aligned.isna().any():
+                            _aligned = _aligned.fillna(_aligned.mean())
+                        _ef_opt = price_to_carbon_intensity(_aligned)
+
+                        _acct = _ca.CarbonAccounting(_df, ef_opt=_ef_opt)
+                        _res = _acct.run_all()
+                        st.session_state.carbon_results = _res
+                        st.success("✅ 碳核算完成")
+                    except Exception as _e:
+                        st.error(f"碳核算失败: {_e}")
+                        import traceback as _tb
+                        st.code(_tb.format_exc())
+                    finally:
+                        for _k in [k for k in list(sys.modules) if k.startswith(("carbon_accounting", "data_loader", "emission_factors", "module3_config"))]:
+                            sys.modules.pop(_k, None)
+                        # 恢复 weather-load-platform 本目录的 data_loader 无关项（若误伤则恢复）
+                        sys.path[:] = _m3_orig_path
+
+            # 显示结果：优先 session 缓存，否则读 JSON，否则提示
+            _res = st.session_state.get("carbon_results")
+            if _res is None and _has_cached:
+                try:
+                    import json as _json
+                    with open(_result_json, "r", encoding="utf-8") as _f:
+                        _res = _json.load(_f).get("results")
+                except Exception:
+                    _res = None
+
+            if _res:
+                s1 = _res["scope1"]
+                s2 = _res["scope2"]
+                pr = _res["project"]
+                lc = _res["lca"]
+                total = _res.get("total_plant_kg", s1["scope1_kg"] + s2["scope2_kg"])
+
+                st.divider()
+                st.subheader("📊 企业清单账")
+                c1, c2, c3 = st.columns(3)
+                with c1:
+                    st.metric("范围一 工艺排放", f"{s1['scope1_kg']/1000:,.1f} t", help="CH4+N2O 污水生物处理过程")
+                    st.metric("  其中 CH4", f"{s1['ch4_co2e_kg']/1000:,.1f} t")
+                    st.metric("  其中 N2O", f"{s1['n2o_co2e_kg']/1000:,.1f} t")
+                with c2:
+                    st.metric("范围二 外购电力", f"{s2['scope2_kg']/1000:,.1f} t",
+                              help=f"净购电 {s2['e_grid_kwh']/1e4:,.1f} 万kWh × {s2['ef_report']}")
+                with c3:
+                    st.metric("厂区年度总排放", f"{total/1000:,.1f} t CO₂e", help="范围一+范围二")
+
+                st.divider()
+                st.subheader("📉 项目减排账")
+                c1, c2, c3, c4 = st.columns(4)
+                with c1:
+                    st.metric("基准排放 BE", f"{pr['BE_kg']/1000:,.1f} t", help="无储能全电网供电")
+                with c2:
+                    st.metric("项目排放 PE", f"{pr['PE_kg']/1000:,.1f} t", help="光储柔优化后")
+                with c3:
+                    st.metric("泄漏 LE", f"{pr['LE_kg']/1000:,.1f} t", help="储能辅助电耗")
+                with c4:
+                    st.metric("运行减排 ER", f"{pr['ER_kg']/1000:,.1f} t", delta=f"{pr['ER_kg']/1000:,.0f} t", help="BE-PE-LE")
+
+                st.divider()
+                st.subheader("♻️ LCA 全生命周期")
+                c1, c2, c3 = st.columns(3)
+                with c1:
+                    st.metric("储能隐含碳总量", f"{lc['embodied_net_kg']/1000:,.1f} t",
+                              help=f"4MWh × 70kg/kWh × (1-10%回收)")
+                with c2:
+                    st.metric("年均隐含碳分摊", f"{lc['embodied_annual_kg']/1000:,.1f} t", help=f"{lc['life_years']:.0f}年寿命")
+                with c3:
+                    net = lc["er_net_yearly_kg"]
+                    st.metric("净生命周期年减排", f"{net/1000:,.1f} t",
+                              delta=f"{net/1000:,.0f} t", help="运行减排 − 隐含碳分摊")
+
+                st.caption(
+                    f"领域口径：运行减排 ER {pr['ER_kg']/1000:,.1f} t/年 − 隐含碳年分摊 "
+                    f"{lc['embodied_annual_kg']/1000:,.1f} t = 净生命周期减排 {net/1000:,.1f} t/年"
+                )
+            else:
+                st.info("👆 点击「运行碳核算」按钮，计算全年三账碳排放结果。")
+
+        except ImportError as e:
+            st.warning(f"⚠️ 模块三未正确导入: {e}")
+            st.info("请确保模块三目录存在且包含碳核算代码")
 
 
 # ============================================================
