@@ -7,7 +7,40 @@ import os
 import pandas as pd
 from config import EXPORT_PARAMS
 
-DB_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "data")
+# 数据库路径：优先源码 data/ 目录（本地）；若不可写（Streamlit Cloud 只读挂载），
+# 回退到可写的临时目录，避免 PRAGMA journal_mode=WAL 因无法创建 wal 文件而 OperationalError。
+_SRC_DB_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "data")
+_SRC_DB_PATH = os.path.join(_SRC_DB_DIR, "weather.db")
+
+
+def _pick_writable_db_dir():
+    """返回一个可写的数据库目录。"""
+    # 优先尝试源码 data 目录
+    try:
+        os.makedirs(_SRC_DB_DIR, exist_ok=True)
+        _probe = os.path.join(_SRC_DB_DIR, ".write_probe")
+        with open(_probe, "w") as f:
+            f.write("x")
+        os.remove(_probe)
+        return _SRC_DB_DIR
+    except Exception:
+        pass
+    # 回退到环境变量 TMPDIR / /tmp / 当前目录
+    for _cand in (os.environ.get("TMPDIR"), "/tmp", os.getcwd()):
+        if _cand:
+            try:
+                os.makedirs(_cand, exist_ok=True)
+                _probe = os.path.join(_cand, ".write_probe")
+                with open(_probe, "w") as f:
+                    f.write("x")
+                os.remove(_probe)
+                return _cand
+            except Exception:
+                continue
+    return _SRC_DB_DIR
+
+
+DB_DIR = _pick_writable_db_dir()
 DB_PATH = os.path.join(DB_DIR, "weather.db")
 
 

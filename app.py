@@ -155,7 +155,8 @@ init_db()
 
 # 数据库列兼容检测：shortwave_radiation
 import sqlite3, os, sys
-_db_path = os.path.join(os.path.dirname(__file__), "data", "weather.db")
+from src.db.models import DB_PATH
+_db_path = DB_PATH
 if os.path.exists(_db_path):
     try:
         _conn = sqlite3.connect(_db_path)
