@@ -493,13 +493,13 @@ if _current == "🏠 项目概览":
     # 核心 KPI 卡片
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        st.metric("年节省电费", "2157 万元", help="基准(全电网购电) − 光储柔优化后")
+        st.metric("年节省电费", "700 万元", help="基准(全电网购电) − 光储柔优化后（真实节点电价口径）")
     with c2:
         st.metric("年减排量", "1819 吨 CO₂e", help="储能运行减排 ER")
     with c3:
-        st.metric("投资回收期", "2.87 年", help="总投资 5309 万 ÷ 年节省")
+        st.metric("投资回收期", "7.58 年", help="总投资 5309 万 ÷ 年节省")
     with c4:
-        st.metric("绿电占比", "23.08%", help="光伏自发自用 / 总负荷")
+        st.metric("绿电占比", "23.96%", help="光伏自发自用 / 总负荷")
 
     st.divider()
 
