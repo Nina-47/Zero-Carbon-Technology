@@ -354,151 +354,80 @@ def load_cached_or_fetch(location_key: str, history_days: int, forecast_days: in
 with st.sidebar:
     st.header("🌤️ 控制面板")
 
-    # 地点选择
-    st.subheader("📍 地点")
-    st.caption("关联 Tab → 📊 天气总览")
-    selected_locations = st.multiselect(
-        "选择地点（可多选）",
-        options=list(LOCATIONS.keys()),
-        default=["zhongshan"],
-        format_func=lambda x: LOCATIONS[x]["display_name"],
-        label_visibility="collapsed",
-    )
-    if not selected_locations:
-        selected_locations = ["zhongshan"]
-
-    # 时间范围
-    st.subheader("📅 时间范围")
-    st.caption("关联 Tab → 📊 天气总览")
-    history_days = st.slider(
-        "历史回溯",
-        min_value=1,
-        max_value=MAX_HISTORY_DAYS,
-        value=int(get_setting("default_history_days", str(DEFAULT_HISTORY_DAYS))),
-        step=1,
-        format="%d 天",
-    )
-    forecast_days = st.slider(
-        "预报天数",
-        min_value=1,
-        max_value=7,
-        value=DEFAULT_FORECAST_DAYS,
-        step=1,
-        format="%d 天",
-    )
-
-    # 可视化参数
-    st.subheader("🌡️ 展示参数")
-    st.caption("关联 Tab → 📊 天气总览")
-    vis_selection = {}
-    for param, info in VIS_PARAMS.items():
-        default_checked = param in [
-            "temperature_2m", "apparent_temp_cn",
-            "precipitation", "wind_speed_10m", "shortwave_radiation",
-        ]
-        vis_selection[param] = st.checkbox(
-            info["cn"],
-            value=default_checked,
-            key=f"vis_{param}",
-        )
-
-    st.divider()
-
-    # 负荷预测参数（Tab 2）
-    st.subheader("🔌 负荷预测参数")
-    st.caption("关联 Tab → 🔌 负荷预测")
-    pred_company_sidebar = st.selectbox(
-        "预测公司",
-        options=PREDICTION_COMPANIES,
-        key="sidebar_pred_company",
-    )
-    forecast_horizon_sidebar = st.slider(
-        "预测天数",
-        min_value=1,
-        max_value=DEFAULT_FORECAST_DAYS_LIMIT,
-        value=DEFAULT_FORECAST_DAYS_LIMIT,
-        step=1,
-        key="sidebar_forecast_horizon",
-    )
-    knn_k_sidebar = st.slider(
-        "KNN 匹配数",
-        min_value=1,
-        max_value=10,
-        value=DEFAULT_KNN_K,
-        step=1,
-        key="sidebar_knn_k",
-    )
-
-    st.divider()
-
-    # 光储柔调度参数（模块二）
-    st.subheader("⚡ 光储柔调度参数")
-    st.caption("关联 Tab → ⚡ 智能调度 · 设计方案锁定值")
-    pv_scale_sidebar = st.number_input(
-        "光伏放大系数", value=2.0, min_value=0.5, max_value=5.0, step=0.1,
-        help="三站真实合计6.4MW × 系数 ≈ 规划装机（设计方案锁定）",
-        key="sidebar_pv_scale", disabled=True,
-    )
-    battery_cap_sidebar = st.number_input(
-        "储能容量(MWh)", value=4.0, min_value=1.0, max_value=100.0, step=1.0,
-        key="sidebar_battery_cap", disabled=True,
-    )
-    battery_pow_sidebar = st.number_input(
-        "储能功率(MW)", value=2.0, min_value=0.5, max_value=50.0, step=0.5,
-        key="sidebar_battery_pow", disabled=True,
-    )
-    flex_enabled_sidebar = st.checkbox("启用柔性负荷", value=True, key="sidebar_flex_enabled")
-    flex_min_sidebar = st.slider(
-        "柔性负荷下限(%)", 50, 100, 65, 5, key="sidebar_flex_min",
-        disabled=not flex_enabled_sidebar,
-    )
-    st.caption(
-        f"设计方案: 光伏 12.8MW · 储能 {battery_cap_sidebar}MWh/{battery_pow_sidebar}MW · "
-        f"柔性{'开' if flex_enabled_sidebar else '关'}（光伏/储能为锁定值）"
-    )
-
-    st.divider()
-
-    # 碳核算参数（模块三）
-    st.subheader("🌱 碳核算参数")
-    st.caption("关联 Tab → 🌱 碳效益核算")
-    ef_report_sidebar = st.number_input(
-        "电网排放因子(kgCO₂/kWh)", value=0.4419, min_value=0.3, max_value=0.8, step=0.001,
-        help="广东省2023电力CO₂因子",
-        key="sidebar_ef_report",
-    )
-    n2o_factor_sidebar = st.number_input(
-        "N₂O 排放因子", value=0.016, min_value=0.003, max_value=0.025, step=0.001,
-        help="kg N₂O-N/kg N，国内AAO工艺中值",
-        key="sidebar_n2o_factor",
-    )
-    lca_cf_sidebar = st.number_input(
-        "储能隐含碳(kgCO₂e/kWh)", value=70.0, min_value=40.0, max_value=120.0, step=1.0,
-        help="LFP系统级碳足迹",
-        key="sidebar_lca_cf",
-    )
-    st.caption("碳核算以模块三代码为准，此处为默认展示参数")
-
-    st.divider()
-
-    # 导出
-    st.subheader("📥 导出")
-    export_format = st.radio(
-        "导出格式",
-        options=["CSV", "JSON"],
+    # 模块导航
+    _current_sidebar = st.radio(
+        "模块导航",
+        options=["🏠 项目概览", "📊 天气总览", "🔌 负荷预测", "⚡ 智能调度", "🌱 碳效益核算"],
         horizontal=True,
         label_visibility="collapsed",
+        key="main_nav",
     )
-    export_all_cols = st.checkbox("导出全部参数（含模型用）", value=True)
+    st.session_state.main_nav = _current_sidebar
+    st.divider()
+
+    # ---- 天气总览参数 ----
+    with st.expander("📊 天气总览参数", expanded=(_current_sidebar == "📊 天气总览")):
+        st.subheader("📍 地点")
+        selected_locations = st.multiselect(
+            "选择地点（可多选）", options=list(LOCATIONS.keys()), default=["zhongshan"],
+            format_func=lambda x: LOCATIONS[x]["display_name"], label_visibility="collapsed",
+        )
+        if not selected_locations:
+            selected_locations = ["zhongshan"]
+
+        st.subheader("📅 时间范围")
+        history_days = st.slider("历史回溯", 1, MAX_HISTORY_DAYS,
+            value=int(get_setting("default_history_days", str(DEFAULT_HISTORY_DAYS))), step=1, format="%d 天")
+        forecast_days = st.slider("预报天数", 1, 7, DEFAULT_FORECAST_DAYS, 1, "%d 天")
+
+        st.subheader("🌡️ 展示参数")
+        vis_selection = {}
+        for param, info in VIS_PARAMS.items():
+            default_checked = param in ["temperature_2m", "apparent_temp_cn", "precipitation", "wind_speed_10m", "shortwave_radiation"]
+            vis_selection[param] = st.checkbox(info["cn"], value=default_checked, key=f"vis_{param}")
+
+    # ---- 负荷预测参数 ----
+    with st.expander("🔌 负荷预测参数", expanded=(_current_sidebar == "🔌 负荷预测")):
+        pred_company_sidebar = st.selectbox("预测公司", options=PREDICTION_COMPANIES, key="sidebar_pred_company")
+        forecast_horizon_sidebar = st.slider("预测天数", 1, DEFAULT_FORECAST_DAYS_LIMIT,
+            value=DEFAULT_FORECAST_DAYS_LIMIT, step=1, key="sidebar_forecast_horizon")
+        knn_k_sidebar = st.slider("KNN 匹配数", 1, 10, DEFAULT_KNN_K, 1, key="sidebar_knn_k")
+
+    # ---- 光储柔调度参数 ----
+    with st.expander("⚡ 光储柔调度参数", expanded=(_current_sidebar == "⚡ 智能调度")):
+        pv_scale_sidebar = st.number_input("光伏放大系数", value=2.0, min_value=0.5, max_value=5.0, step=0.1,
+            help="三站真实合计6.4MW × 系数 ≈ 规划装机（设计方案锁定）", key="sidebar_pv_scale", disabled=True)
+        battery_cap_sidebar = st.number_input("储能容量(MWh)", value=4.0, min_value=1.0, max_value=100.0, step=1.0,
+            key="sidebar_battery_cap", disabled=True)
+        battery_pow_sidebar = st.number_input("储能功率(MW)", value=2.0, min_value=0.5, max_value=50.0, step=0.5,
+            key="sidebar_battery_pow", disabled=True)
+        flex_enabled_sidebar = st.checkbox("启用柔性负荷", value=True, key="sidebar_flex_enabled")
+        flex_min_sidebar = st.slider("柔性负荷下限(%)", 50, 100, 65, 5, key="sidebar_flex_min",
+            disabled=not flex_enabled_sidebar)
+        st.caption(f"设计方案: 光伏 12.8MW · 储能 {battery_cap_sidebar}MWh/{battery_pow_sidebar}MW · 柔性{'开' if flex_enabled_sidebar else '关'}（光伏/储能锁定）")
+
+    # ---- 碳核算参数 ----
+    with st.expander("🌱 碳核算参数", expanded=(_current_sidebar == "🌱 碳效益核算")):
+        ef_report_sidebar = st.number_input("电网排放因子(kgCO₂/kWh)", value=0.4419, min_value=0.3, max_value=0.8, step=0.001,
+            help="广东省2023电力CO₂因子", key="sidebar_ef_report")
+        n2o_factor_sidebar = st.number_input("N₂O 排放因子", value=0.016, min_value=0.003, max_value=0.025, step=0.001,
+            help="kg N₂O-N/kg N，国内AAO工艺中值", key="sidebar_n2o_factor")
+        lca_cf_sidebar = st.number_input("储能隐含碳(kgCO₂e/kWh)", value=70.0, min_value=40.0, max_value=120.0, step=1.0,
+            help="LFP系统级碳足迹", key="sidebar_lca_cf")
+        st.caption("碳核算以模块三代码为准，此处为默认展示参数")
 
     st.divider()
 
-    # 设置
-    st.subheader("⚙️ 设置")
-    auto_refresh = st.checkbox(
-        "自动刷新",
-        value=get_setting("auto_refresh", "true") == "true",
-    )
+    # 通用：导出
+    with st.expander("📥 导出", expanded=False):
+        export_format = st.radio("导出格式", options=["CSV", "JSON"], horizontal=True, label_visibility="collapsed")
+        export_all_cols = st.checkbox("导出全部参数（含模型用）", value=True)
+
+    # 通用：设置
+    with st.expander("⚙️ 设置", expanded=False):
+        auto_refresh = st.checkbox("自动刷新", value=get_setting("auto_refresh", "true") == "true")
+
+    st.divider()
 
     # 数据源状态
     status = st.session_state.data_status
@@ -551,18 +480,14 @@ primary_label = LOCATIONS[primary_loc]["display_name"]
 # ============================================================
 # Tab 页签
 # ============================================================
-tab0, tab1, tab2, tab3, tab4 = st.tabs([
-    "🏠 项目概览",
-    "📊 天气总览",
-    "🔌 负荷预测",
-    "⚡ 智能调度",
-    "🌱 碳效益核算",
-])
 
 # ============================================================
 # Tab 0: 项目概览（核心 KPI 驾驶舱）
 # ============================================================
-with tab0:
+# 主区导航值（从侧边栏 session_state 读取）
+_current = st.session_state.get("main_nav", "🏠 项目概览")
+
+if _current == "🏠 项目概览":
     st.subheader("🏠 项目概览")
     st.caption("中山市中嘉污水处理厂 · 光储柔一体化智能控碳方案")
 
@@ -606,7 +531,7 @@ with tab0:
 # ============================================================
 # Tab 1: 天气总览
 # ============================================================
-with tab1:
+if _current == "📊 天气总览":
     if primary_data.empty:
         st.info("正在加载天气数据，请稍候...")
     else:
@@ -647,7 +572,7 @@ with tab1:
 # ============================================================
 # Tab 2: 负荷叠加分析
 # ============================================================
-with tab2:
+if _current == "🔌 负荷预测":
     st.subheader("📤 负荷数据")
 
     upload_col, info_col = st.columns([3, 2])
@@ -747,7 +672,7 @@ with tab2:
 # ============================================================
 # Tab 1（下部）: 数据表格与导出
 # ============================================================
-with tab1:
+if _current == "📊 天气总览":
     if primary_data.empty:
         st.info("数据加载中...")
     else:
@@ -846,7 +771,7 @@ with tab1:
 # ============================================================
 # Tab 2（下部）: 相似日分析
 # ============================================================
-with tab2:
+if _current == "🔌 负荷预测":
     st.subheader("🔮 相似日分析")
 
     # 负荷数据模板下载
@@ -1214,7 +1139,7 @@ with tab2:
 # ============================================================
 # Tab 3: 智能调度
 # ============================================================
-with tab3:
+if _current == "⚡ 智能调度":
     # 定位模块二目录（供未来日期实时计算用）
     _m2_here = os.path.dirname(os.path.abspath(__file__))
     _m2_candidates = [
@@ -1621,7 +1546,7 @@ with tab3:
 # ============================================================
 # Tab 2（中部）: 负荷预测
 # ============================================================
-with tab2:
+if _current == "🔌 负荷预测":
     st.subheader("🔌 污水厂负荷预测")
     st.caption("基于历史负荷 + 排班日历 + 天气预报，预测未来逐时负荷")
 
@@ -1990,7 +1915,7 @@ with tab2:
 # ============================================================
 # Tab 4: 碳效益核算
 # ============================================================
-with tab4:
+if _current == "🌱 碳效益核算":
     st.subheader("🌱 碳效益核算")
     st.caption("三账分离：企业清单账 / 项目减排账 / LCA 全生命周期，量化光储柔协同的减碳效益")
 
