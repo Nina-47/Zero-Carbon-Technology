@@ -154,11 +154,19 @@ def forecast_daily_adaptive(
         for i in range(max(1, val_start), n)
     ])
     fitted_seasonal = np.array([seasonal[dow_idx[i]] for i in range(max(1, val_start), n)])
+    val_dates = dates[max(1, val_start):n]
     if len(fitted_deseasoned) > 0:
         residuals = y[-len(fitted_deseasoned):] - (fitted_deseasoned + fitted_seasonal)
         residual_std = float(residuals.std())
     else:
+        residuals = np.array([])
         residual_std = daily_series.std() * 0.3
+
+    # 验证期逐日残差（供残差修正 + 守门机制，用与基线完全一致的口径）
+    val_residual_detail = [
+        {"date": pd.Timestamp(val_dates[i]), "residual": float(residuals[i])}
+        for i in range(len(residuals))
+    ]
 
     lower = pd.Series(
         [max(0, f - 1.28 * residual_std) for f in forecast.values],
@@ -177,6 +185,7 @@ def forecast_daily_adaptive(
         "residual_std": residual_std,
         "overall_mean": overall_mean,
         "best_mae_val": best_mae,
+        "val_residual_detail": val_residual_detail,
     }
 
 
@@ -249,6 +258,108 @@ def _apply_weather_correction(
 
         corrected.loc[dt] = base_pred
 
+    return corrected
+
+
+def _scene_of_date(d: pd.Timestamp, calendar_df: pd.DataFrame = None) -> str:
+    """
+    日期场景分类（守门机制的分场景基础）：
+      - 'weekend_holiday'：周末/节假日（rest、holiday）
+      - 'adjust'：调休工作日（本项目中用 day_type='production' 但落在周末的近似）
+      - 'workday'：普通工作日
+    """
+    dow = d.dayofweek
+    if calendar_df is not None and not calendar_df.empty:
+        day_map = {}
+        for _, row in calendar_df.iterrows():
+            try:
+                dd = pd.Timestamp(row["date"])
+                day_map[dd.date()] = row.get("day_type", "production")
+            except Exception:
+                continue
+        dt = day_map.get(d.date() if hasattr(d, "date") else d)
+        if dt == "holiday":
+            return "weekend_holiday"
+        if dt == "rest":
+            return "weekend_holiday"
+        # 调休：日历标 production 但落在周末
+        if dt == "production" and dow >= 5:
+            return "adjust"
+    # 无日历信息时按星期退化
+    return "weekend_holiday" if dow >= 5 else "workday"
+
+
+def _residual_correction_with_gate(
+    val_residual_detail: list,
+    calendar_df: pd.DataFrame = None,
+) -> dict:
+    """
+    残差修正 + 守门机制（基于验证期残差，口径与基线一致）。
+
+    参数
+    ----
+    val_residual_detail : list[dict]
+        由 forecast_daily_adaptive 返回的 info["val_residual_detail"]，
+        每项 {date, residual}，residual = 实际 - 基线预测。
+
+    守门逻辑：按场景分组残差，用「残差方向稳定性」决定缩放系数 scale，
+    避免在残差不稳定的场景过度修正。
+    """
+    gate = {
+        "scene_residual_mean": {},
+        "scene_scale": {},
+        "scene_count": {},
+    }
+    if not val_residual_detail:
+        return gate
+
+    by_scene = {}
+    for item in val_residual_detail:
+        d = item["date"]
+        scene = _scene_of_date(pd.Timestamp(d), calendar_df)
+        by_scene.setdefault(scene, []).append(item["residual"])
+
+    for scene, rs in by_scene.items():
+        if len(rs) < 3:
+            gate["scene_residual_mean"][scene] = 0.0
+            gate["scene_scale"][scene] = 0.0
+            gate["scene_count"][scene] = len(rs)
+            continue
+        rs_arr = np.array(rs)
+        mean_resid = float(rs_arr.mean())
+        std_resid = float(rs_arr.std()) + 1e-6
+        stability = abs(mean_resid) / std_resid
+
+        # 分场景基础缩放（守门）
+        if scene == "weekend_holiday":
+            base_scale = 0.6
+        elif scene == "adjust":
+            base_scale = 0.0
+        else:  # workday
+            base_scale = 0.2
+
+        # 残差方向要足够稳定才采纳；不稳定则压到 0
+        scale = base_scale * min(1.0, max(0.0, (stability - 0.5) / 2.0))
+
+        gate["scene_residual_mean"][scene] = mean_resid
+        gate["scene_scale"][scene] = round(scale, 3)
+        gate["scene_count"][scene] = len(rs)
+
+    return gate
+
+
+def _apply_residual_gate(
+    forecast: pd.Series,
+    gate: dict,
+    calendar_df: pd.DataFrame = None,
+) -> pd.Series:
+    """把守门后的残差修正加到日总量预测上。"""
+    corrected = forecast.copy().astype(float)
+    for dt in corrected.index:
+        scene = _scene_of_date(pd.Timestamp(dt), calendar_df)
+        scale = gate.get("scene_scale", {}).get(scene, 0.0)
+        resid = gate.get("scene_residual_mean", {}).get(scene, 0.0)
+        corrected.loc[dt] = max(0.0, forecast.loc[dt] + scale * resid)
     return corrected
 
 
@@ -591,6 +702,13 @@ def run_forecast(
         daily_series, forecast_horizon, weather_df, calendar_df
     )
     info.update(outlier_info)
+
+    # ---- 残差修正 + 守门机制（参考量化 Model 1 + 守门）----
+    gate = _residual_correction_with_gate(
+        info.get("val_residual_detail", []), calendar_df
+    )
+    forecast = _apply_residual_gate(forecast, gate, calendar_df)
+    info["residual_gate"] = gate
 
     templates = build_template_library(df_clean, calendar_df, weather_df, anomaly_dates)
 
