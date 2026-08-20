@@ -433,19 +433,19 @@ with st.sidebar:
 
     # 光储柔调度参数（模块二）
     st.subheader("⚡ 光储柔调度参数")
-    st.caption("关联 Tab → ⚡ 智能调度")
+    st.caption("关联 Tab → ⚡ 智能调度 · 设计方案锁定值")
     pv_scale_sidebar = st.number_input(
         "光伏放大系数", value=2.0, min_value=0.5, max_value=5.0, step=0.1,
-        help="三站真实合计6.4MW × 系数 ≈ 规划装机",
-        key="sidebar_pv_scale",
+        help="三站真实合计6.4MW × 系数 ≈ 规划装机（设计方案锁定）",
+        key="sidebar_pv_scale", disabled=True,
     )
     battery_cap_sidebar = st.number_input(
         "储能容量(MWh)", value=4.0, min_value=1.0, max_value=100.0, step=1.0,
-        key="sidebar_battery_cap",
+        key="sidebar_battery_cap", disabled=True,
     )
     battery_pow_sidebar = st.number_input(
         "储能功率(MW)", value=2.0, min_value=0.5, max_value=50.0, step=0.5,
-        key="sidebar_battery_pow",
+        key="sidebar_battery_pow", disabled=True,
     )
     flex_enabled_sidebar = st.checkbox("启用柔性负荷", value=True, key="sidebar_flex_enabled")
     flex_min_sidebar = st.slider(
@@ -453,8 +453,8 @@ with st.sidebar:
         disabled=not flex_enabled_sidebar,
     )
     st.caption(
-        f"当前: 光伏 {6080*pv_scale_sidebar/1000:.1f}MW · 储能 {battery_cap_sidebar}MWh/{battery_pow_sidebar}MW · "
-        f"柔性{'开' if flex_enabled_sidebar else '关'}"
+        f"设计方案: 光伏 12.8MW · 储能 {battery_cap_sidebar}MWh/{battery_pow_sidebar}MW · "
+        f"柔性{'开' if flex_enabled_sidebar else '关'}（光伏/储能为锁定值）"
     )
 
     st.divider()
@@ -551,12 +551,57 @@ primary_label = LOCATIONS[primary_loc]["display_name"]
 # ============================================================
 # Tab 页签
 # ============================================================
-tab1, tab2, tab3, tab4 = st.tabs([
+tab0, tab1, tab2, tab3, tab4 = st.tabs([
+    "🏠 项目概览",
     "📊 天气总览",
     "🔌 负荷预测",
     "⚡ 智能调度",
     "🌱 碳效益核算",
 ])
+
+# ============================================================
+# Tab 0: 项目概览（核心 KPI 驾驶舱）
+# ============================================================
+with tab0:
+    st.subheader("🏠 项目概览")
+    st.caption("中山市中嘉污水处理厂 · 光储柔一体化智能控碳方案")
+
+    # 核心 KPI 卡片
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        st.metric("年节省电费", "2157 万元", help="基准(全电网购电) − 光储柔优化后")
+    with c2:
+        st.metric("年减排量", "1819 吨 CO₂e", help="储能运行减排 ER")
+    with c3:
+        st.metric("投资回收期", "2.87 年", help="总投资 5309 万 ÷ 年节省")
+    with c4:
+        st.metric("绿电占比", "23.08%", help="光伏自发自用 / 总负荷")
+
+    st.divider()
+
+    # 方案要点
+    st.subheader("📐 方案构成")
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.markdown("**☀️ 光伏**\n12.8MW 装机（池顶面积约束）\n年发电约 1729 万 kWh")
+    with c2:
+        st.markdown("**🔋 储能**\n4MWh / 2MW 集装箱\n往返效率 90%，削峰填谷")
+    with c3:
+        st.markdown("**🌊 柔性曝气**\n双模式滞回控制\n节能65% / 安全80%")
+
+    st.divider()
+
+    # 全链路说明
+    st.subheader("🔄 三大模块")
+    st.markdown("""
+    | 模块 | 功能 | 所在 Tab |
+    |------|------|---------|
+    | 模块一 · 负荷预测 | 历史负荷 + 天气 + 排班 → 逐时负荷预测 | 📊 天气总览 / 🔌 负荷预测 |
+    | 模块二 · 智能调度 | 光伏 + 储能 + 柔性优化，输出逐时调度建议 | ⚡ 智能调度 |
+    | 模块三 · 碳效益核算 | 三账分离碳核算，量化减排效益 | 🌱 碳效益核算 |
+    """)
+
+    st.info("💡 提示：请先点击「⚡ 智能调度」查看光储柔调度方案，「🌱 碳效益核算」查看减碳结果。")
 
 # ============================================================
 # Tab 1: 天气总览
@@ -1580,6 +1625,17 @@ with tab2:
     st.subheader("🔌 污水厂负荷预测")
     st.caption("基于历史负荷 + 排班日历 + 天气预报，预测未来逐时负荷")
 
+    # 操作引导
+    with st.expander("📖 使用说明（首次使用必读）", expanded=False):
+        st.markdown("""
+        **三步开始预测：**
+        1. **导入负荷数据**：点击「📂 导入数据」，上传历史负荷文件（Excel 宽表：日期列 + 0时~23时逐时负荷，或 CSV）
+        2. **配置排班**：在「📅 排班日历」设置生产日/休息日，生成排班表
+        3. **填天气 + 运行**：在「🌤️ 天气预报」填未来天气，点「🚀 运行预测」
+
+        > 若数据为空，按钮会自动展开「📂 数据导入」面板，从第一步开始即可。
+        """)
+
     # ---- 顶部操作栏 ----
     c1, c2, c3, c4 = st.columns([2, 2, 1, 1])
     with c1:
@@ -2024,15 +2080,8 @@ with tab4:
                             sys.modules.pop("config", None)
                         sys.path[:] = _m3_orig_path
 
-            # 显示结果：优先 session 缓存，否则读 JSON，否则提示
+            # 显示结果：仅当用户点击「运行碳核算」后才显示（不读 json 兜底，避免误认为实时计算）
             _res = st.session_state.get("carbon_results")
-            if _res is None and _has_cached:
-                try:
-                    import json as _json
-                    with open(_result_json, "r", encoding="utf-8") as _f:
-                        _res = _json.load(_f).get("results")
-                except Exception:
-                    _res = None
 
             if _res:
                 s1 = _res["scope1"]
@@ -2142,6 +2191,15 @@ with tab4:
                         _fig.update_xaxes(type="category", tickangle=45)
                         _fig.update_yaxes(title="吨 CO₂")
                         st.plotly_chart(_fig, use_container_width=True)
+
+                        # 月度总量数字
+                        c1, c2, c3 = st.columns(3)
+                        with c1:
+                            st.metric("月度购电碳排", f"{_daily['co2_grid'].sum()/1000:,.0f} t")
+                        with c2:
+                            st.metric("月度基准碳排", f"{_daily['co2_base'].sum()/1000:,.0f} t")
+                        with c3:
+                            st.metric("月度减排", f"{_daily['reduction'].sum()/1000:,.0f} t")
 
                     else:  # 年
                         _monthly = _hdf.groupby("month").agg({"co2_grid":"sum","co2_base":"sum","load":"sum","pv":"sum"}).reset_index()
