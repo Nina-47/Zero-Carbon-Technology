@@ -362,7 +362,6 @@ with st.sidebar:
         label_visibility="collapsed",
         key="main_nav",
     )
-    st.session_state.main_nav = _current_sidebar
     st.divider()
 
     # ---- 天气总览参数 ----
