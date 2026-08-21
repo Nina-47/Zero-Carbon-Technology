@@ -137,39 +137,39 @@ fig.savefig(f'{OUT}/图3_光伏辐射关系.svg', bbox_inches='tight')
 plt.close(fig)
 
 # ============ 图4：模型精度对比（MAPE 柱状） ============
-# 四个模型均有真实 MAPE（相似日基线已实测）
-models = ['相似日\n(基线)', 'Holt-Winters\n+KNN (V2)', 'LightGBM\n(V3主力)', 'BiLSTM+Attention\n(修复中)']
-mape_val = [10.72, 9.08, 4.22, 43.0]
-notes = ['无参数下界', '已验证，午间偏差', '当前主力，已超验收', '归一化修复中']
+# 三种方法均有真实回测值：相似日基线 + 旧法（XGB+Prophet）+ 新法（HW+KNN）
+models = ['相似日\n(基线)', 'XGB+Prophet\n(旧法)', 'Holt-Winters\n+KNN (新法)']
+mape_val = [10.72, 13.84, 9.08]
+notes = ['无参数下界', '递归误差累积', '当前主力，已达标']
 x = np.arange(len(models))
-bar_colors = [GRAY, ORANGE, BLUE, RED]
+bar_colors = [GRAY, RED, ORANGE]
 
 fig, ax = plt.subplots(figsize=(8, 5.5))
 bars = ax.bar(x, mape_val, width=0.55, color=bar_colors, alpha=0.85, edgecolor='none')
 for i, (v, note) in enumerate(zip(mape_val, notes)):
-    ax.text(i, v + 1.5, f'{v:.1f}%', ha='center', fontsize=12, fontweight='bold',
+    ax.text(i, v + 0.5, f'{v:.2f}%', ha='center', fontsize=12, fontweight='bold',
             color=INK if v < 15 else RED)
-    ax.text(i, v + 4.5, note, ha='center', fontsize=8.5, color=GRAY)
+    ax.text(i, v + 2.2, note, ha='center', fontsize=8.5, color=GRAY)
 
 ax.axhline(15, color=RED, lw=1.5, ls='--')
-ax.text(3.42, 16.5, '验收线 MAPE < 15%', fontsize=9, color=RED, ha='right')
+ax.text(2.42, 16.0, '验收线 MAPE < 15%', fontsize=9, color=RED, ha='right')
 
 ax.set_xticks(x)
 ax.set_xticklabels(models, fontsize=10)
-ax.set_ylabel('MAPE (%)', fontsize=12)
-ax.set_title('模型精度对比（MAPE，越低越好）', fontsize=14, fontweight='bold')
-ax.set_ylim(0, 48)
+ax.set_ylabel('日总 MAPE (%)', fontsize=12)
+ax.set_title('模型精度对比（A公司日总MAPE，越低越好）', fontsize=14, fontweight='bold')
+ax.set_ylim(0, 18)
 ax.grid(True, axis='y', linestyle='--', alpha=0.4, color=GRID)
 ax.spines['top'].set_visible(False)
 ax.spines['right'].set_visible(False)
 
 # 图注
 fig.text(0.5, -0.02,
-         '相似日基线为无参数方法，其 MAPE=10.72% 为实测值（2026-04 测试集，KNN=3）；与 LightGBM 相比精度提升明显。',
+         '新旧方法对比（A公司）：新法 Holt-Winters+KNN 日总MAPE=9.08% 低于旧法 XGB+Prophet 的 13.84%，且无递归误差累积问题。',
          ha='center', fontsize=8.5, color=GRAY)
 fig.text(0.5, -0.06,
-         'LightGBM R² = 0.933（决定系数，越接近 1 越好）',
-         ha='center', fontsize=8.5, color=VIOLET)
+         '相似日基线为无参数方法，MAPE=10.72% 为实测值（2026-04 测试集，KNN=3）。',
+         ha='center', fontsize=8.5, color=GRAY)
 
 fig.tight_layout()
 fig.savefig(f'{OUT}/图4_模型精度对比.png', dpi=300, bbox_inches='tight')
