@@ -38,7 +38,7 @@ DISPATCH_JSON = os.path.join(DISPATCH_DIR, "output", "yearly_dispatch.json")
 # ---- 复用碳核算模块（避免 config 同名冲突：这里只用碳核算的 config）----
 sys.path.insert(0, CARBON_DIR)
 from carbon_accounting import CarbonAccounting
-from data_loader import build_schedule_from_module2, load_node_price
+from data_loader import build_schedule_from_module2, load_linked_price
 from emission_factors import price_to_carbon_intensity
 import config as C
 
@@ -97,13 +97,8 @@ yearly_dispatch["days"] = len(ok_days)
 # ============================================================
 df = build_schedule_from_module2()   # 逐时：timestamp/load/pv/pv_self/p_bat/p_grid/soc
 
-# ef_opt 时变碳因子（同 run_real 口径）
-price_df = load_node_price()
-price_map = price_df.set_index("timestamp")["price"]
-aligned = price_map.reindex(df["timestamp"]).ffill().bfill()
-if aligned.isna().any():
-    aligned = aligned.fillna(aligned.mean())
-df["ef_opt"] = price_to_carbon_intensity(aligned).values
+# ef_opt 时变碳因子（联动价代理，与调度省电费同源）
+df["ef_opt"] = price_to_carbon_intensity(load_linked_price(df)).values
 
 # 基准情景（无储能，光伏仍自用）
 df["baseline_grid"] = np.clip(df["load"] - df["pv_self"], 0, None)

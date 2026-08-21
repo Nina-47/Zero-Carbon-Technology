@@ -189,6 +189,37 @@ def load_node_price() -> pd.DataFrame:
     return pd.DataFrame({"timestamp": ts, "price": price})
 
 
+def load_linked_price(df: pd.DataFrame) -> pd.Series:
+    """逐时到户电价（中长期90% + 现货10% 联动），与优化调度 price_for_day 同源。
+
+    返回与 df.timestamp 对齐的 Series（元/kWh），供构造 EF_opt 时变碳因子。
+    关键口径：碳因子代理的价格信号必须与储能调度省电费的价格信号一致——
+    调度按联动价做削峰填谷，碳因子也按联动价推碳强度，避免"调度用一套价、
+    减碳评估用另一套价"的错位。复用优化调度 config（单一事实源），不重复维护参数。
+    """
+    import importlib.util
+    from datetime import datetime
+
+    dispatch_config_path = os.path.normpath(os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "..", "优化调度", "config.py"))
+    spec = importlib.util.spec_from_file_location("dispatch_config", dispatch_config_path)
+    dispatch_config = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(dispatch_config)
+
+    start = datetime.strptime(dispatch_config.DATA_START_DATE, "%Y-%m-%d").date()
+    day_cache = {}
+    out = np.empty(len(df), dtype=float)
+    for i, ts in enumerate(df["timestamp"]):
+        t = pd.Timestamp(ts)
+        day_idx = (t.date() - start).days
+        if day_idx < 0:
+            day_idx = 0
+        if day_idx not in day_cache:
+            day_cache[day_idx] = dispatch_config.price_for_day(day_idx)
+        out[i] = day_cache[day_idx][t.hour]
+    return pd.Series(out, index=df.index)
+
+
 def build_schedule_from_module2() -> pd.DataFrame:
     """读取模块二逐日调度 JSON，展平为逐时长表，字段对齐 CarbonAccounting。
 

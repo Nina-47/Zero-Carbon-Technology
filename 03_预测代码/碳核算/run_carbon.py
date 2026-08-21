@@ -29,13 +29,9 @@ def run_real() -> dict:
     df = data_loader.build_schedule_from_module2()
     from emission_factors import price_to_carbon_intensity
 
-    # 用真实节点实时电价构造 EF_opt(t)；按负荷时间戳对齐
-    price_df = data_loader.load_node_price()
-    price_map = price_df.set_index("timestamp")["price"]
-    aligned = price_map.reindex(df["timestamp"]).ffill().bfill()
-    if aligned.isna().any():
-        aligned = aligned.fillna(aligned.mean())
-    ef_opt = price_to_carbon_intensity(aligned)
+    # 用逐时联动电价（中长期90%+现货10%）构造 EF_opt(t)，与调度省电费同源
+    linked = data_loader.load_linked_price(df)
+    ef_opt = price_to_carbon_intensity(linked)
 
     acct = CarbonAccounting(df, ef_opt=ef_opt)
     return acct.run_all()
