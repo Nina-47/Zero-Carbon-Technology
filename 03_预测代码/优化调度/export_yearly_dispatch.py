@@ -65,10 +65,8 @@ def build_yearly_dispatch():
         flex_energy_ratio=config.FLEX_ENERGY_RATIO,
     )
 
-    # 真实现货价（元/kWh）；缺失则回退固定峰谷价
-    realtime_price = config.load_realtime_price()
-    fallback_price = np.array([config.tou_price(t) for t in range(24)])
-    price_used = "现货" if realtime_price else "峰谷目录价"
+    # 到户价 = 中长期(90%) + 现货(10%) 联动（config.price_for_day），
+    # 不用纯现货价，避免峰时成本虚高、省电费被夸大
 
     soc_now = config.SOC_INIT
 
@@ -79,10 +77,8 @@ def build_yearly_dispatch():
         pv = pv_arr[d]
         load = load_arr[d]
 
-        # 当日价格：优先真实现货价，否则固定峰谷价
-        date_str = _date_str(start_date, d)
-        price = realtime_price.get(datetime.strptime(date_str, "%Y-%m-%d").date(),
-                                   fallback_price) if realtime_price else fallback_price
+        # 当日到户价 = 中长期 + 现货联动（见 config.price_for_day）
+        price = config.price_for_day(d)
 
         flex_min_override, flex_energy_ratio, mode, is_shock = mc.decide(load)
 
