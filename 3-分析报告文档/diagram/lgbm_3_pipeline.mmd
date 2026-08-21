@@ -1,0 +1,23 @@
+flowchart LR
+    subgraph FEAT["输入特征向量 x"]
+        direction TB
+        f1["滞后特征 lag-1h/24h/168h"]
+        f2["光伏特征 出力/辐射"]
+        f3["气象特征 温/湿度/降水/云量"]
+        f4["时间+日历 sin/cos编码"]
+    end
+
+    FEAT --> M["训练好的 LightGBM<br/>（N 棵决策树集成）<br/>MAE 0.81kW · R² 0.933"]
+
+    M --> OUT["24h 逐时负荷预测值<br/>（24 维向量，kW）"]
+    OUT -->|"下游"| NEXT["模块二 · 优化调度<br/>充放电决策"]
+
+    classDef feat fill:#e6e6fa,stroke:#4a3aa7,stroke-width:1.5px,color:#1f1f7a
+    classDef model fill:#d9e8f5,stroke:#1f4e79,stroke-width:2px,color:#1f4e79
+    classDef out fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px,color:#1b5e20
+    classDef next fill:#f2f2f2,stroke:#333,stroke-width:1.5px,color:#000
+
+    class f1,f2,f3,f4 feat
+    class M model
+    class OUT out
+    class NEXT next

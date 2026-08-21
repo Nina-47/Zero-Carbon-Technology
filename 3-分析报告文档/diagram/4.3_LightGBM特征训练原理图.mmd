@@ -1,0 +1,43 @@
+%%{init: {"theme":"base", "themeVariables": {"fontSize":"18px", "primaryTextColor":"#000000"}}}%%
+flowchart TD
+    subgraph F["① 入模特征（5类）"]
+        direction LR
+        f1["负荷滞后特征<br/>lag-1h（惯性最强）<br/>lag-24h（日周期）<br/>lag-168h（周周期）"]
+        f2["光伏特征<br/>当前光伏出力<br/>昨日同期 lag-24h<br/>日总辐射"]
+        f3["气象特征<br/>2m气温 / 露点温度<br/>降水量 / 云量<br/>风速 / 地表气压"]
+        f4["时间编码<br/>小时/星期/月份<br/>sin + cos 各一维 · 共6维"]
+        f5["日历特征<br/>是否周末（布尔）"]
+        f1 ~~~ f2 ~~~ f3 ~~~ f4 ~~~ f5
+    end
+
+    subgraph M["② LightGBM 模型"]
+        lgbm["LightGBM 梯度提升树<br/>训练快 · 无需GPU · 特征交互 · 可解释"]
+    end
+
+    F --> M
+
+    subgraph V["③ 数据划分（时间序列）"]
+        direction LR
+        tr["训练集<br/>2025.4~2026.1<br/>约10个月"]
+        va["验证集<br/>2026.2~3<br/>调参·早停"]
+        te["测试集<br/>2026.4<br/>最终评估一次"]
+        tr ~~~ va ~~~ te
+    end
+
+    M --> V
+
+    subgraph R["④ 评估结果"]
+        res["MAE 0.81 kW · RMSE 1.14 kW<br/>MAPE 4.22% · R² 0.933<br/>（远超验收：MAPE&lt;15%，R²&gt;0.85）"]
+    end
+
+    V --> R
+
+    classDef feat fill:#e6e6fa,stroke:#4a3aa7,stroke-width:1.5px,color:#1f1f7a
+    classDef model fill:#d9e8f5,stroke:#1f4e79,stroke-width:2px,color:#1f4e79
+    classDef val fill:#f2f2f2,stroke:#333,stroke-width:1.5px,color:#000
+    classDef res fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px,color:#1b5e20
+
+    class f1,f2,f3,f4,f5 feat
+    class lgbm model
+    class tr,va,te val
+    class res res

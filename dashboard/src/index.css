@@ -1,0 +1,36 @@
+:root {
+  --bg-deep: #0a1628;
+  --bg-panel: #0d2137;
+  --border: rgba(0, 227, 150, 0.12);
+  --green: #00e396;
+  --cyan: #00b4d8;
+  --warn: #f2a23a;
+  --red: #ef4444;
+  --text: #e2e8f0;
+  --text2: #9ca3af;
+  --text3: #5a7a8a;
+  --gap: 14px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+  background: var(--bg-deep);
+  color: var(--text);
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+}
+
+#root {
+  width: 1920px;
+  height: 1080px;
+  display: flex;
+  flex-direction: column;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}

@@ -1,0 +1,33 @@
+.bar-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-size: 12px;
+}
+
+.bar-name {
+  width: 70px;
+  text-align: right;
+  color: var(--text2);
+  flex-shrink: 0;
+}
+
+.bar-track {
+  flex: 1;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.bar-fill {
+  height: 100%;
+  transition: width 0.8s;
+}
+
+.bar-val {
+  width: 80px;
+  text-align: right;
+  font-family: 'Consolas', monospace;
+  color: var(--text);
+  flex-shrink: 0;
+}

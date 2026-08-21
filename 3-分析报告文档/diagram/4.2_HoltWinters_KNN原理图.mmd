@@ -1,0 +1,38 @@
+%%{init: {"theme":"base", "themeVariables": {"fontSize":"18px", "primaryTextColor":"#000000"}}}%%
+flowchart TD
+    subgraph P1["第一阶段：预测每日总用电量（Holt-Winters）"]
+        direction LR
+        hw["Holt-Winters 模型<br/>阻尼趋势 + 7天季节周期 + 均值回归"]
+        win["自适应窗口选择<br/>14/21/28/42/56天<br/>选6月验证MAE最低"]
+        reg["均值回归机制<br/>强度0.0~0.6自动调优<br/>防短期趋势外推"]
+        week["星期修正<br/>周一到周日去均值化系数<br/>逐日修正"]
+        hw ~~~ win ~~~ reg ~~~ week
+    end
+
+    subgraph P2["第二阶段：日总量分配到24小时（KNN模板）"]
+        direction LR
+        knn["KNN 查找<br/>日总量最接近的5天<br/>同工作日/周末类型"]
+        norm["归一化负荷曲线<br/>距离加权平均"]
+        alloc["得到逐时分配比例"]
+        knn --> norm --> alloc
+    end
+
+    P1 --> P2
+
+    subgraph P3["输出与验证"]
+        result["A公司 逐时MAE 0.46kW<br/>日总MAPE 9.08%"]
+        issue["午间(10-15h)MAE偏高<br/>比值约1.5-2.0倍<br/>根因：未纳入光伏"]
+        result --> issue
+    end
+
+    P2 --> P3
+
+    classDef hw fill:#e6e6fa,stroke:#4a3aa7,stroke-width:1.5px,color:#1f1f7a
+    classDef knn fill:#e8f5e9,stroke:#1b5e20,stroke-width:1.5px,color:#1b5e20
+    classDef res fill:#fff3cd,stroke:#997404,stroke-width:1.5px,color:#5c4a00
+    classDef issue fill:#ffe0e0,stroke:#c0392b,stroke-width:2px,color:#8b0000
+
+    class hw,win,reg,week hw
+    class knn,norm,alloc knn
+    class result res
+    class issue issue

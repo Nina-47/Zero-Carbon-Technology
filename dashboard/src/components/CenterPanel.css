@@ -1,0 +1,19 @@
+.center-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.map-panel {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.map-panel .panel-header {
+  position: relative;
+  z-index: 1;
+}

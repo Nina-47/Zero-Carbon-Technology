@@ -1,0 +1,41 @@
+%%{init: {"theme":"base", "themeVariables": {"fontSize":"18px", "primaryTextColor":"#000000"}}}%%
+flowchart TD
+    subgraph STEP1["① 候选日筛选"]
+        direction LR
+        c1["季节匹配"]
+        c2["星期类型匹配"]
+        c3["晴雨类型匹配"]
+        c1 ~~~ c2 ~~~ c3
+    end
+
+    subgraph STEP2["② 相似度计算（7因子加权）"]
+        direction LR
+        n1["数值因子<br/>日最高温 20%<br/>日最低温 20%<br/>露点温度 10%<br/>→ z-score 标准化 + 曼哈顿距离"]
+        n2["离散因子<br/>降水等级 18%<br/>季节匹配 15%<br/>星期类型 10%<br/>→ 0/0.5/1 三级距离"]
+        n3["日期衰减<br/>7%<br/>近90天优先"]
+        n1 ~~~ n2 ~~~ n3
+    end
+
+    subgraph STEP3["③ 综合距离 → 相似度"]
+        dist["综合距离 = 各因子加权求和"]
+        sim["指数衰减 → 0~100% 相似度分数"]
+        dist --> sim
+    end
+
+    subgraph STEP4["④ 预测输出"]
+        top["选取相似度最高的 3 个历史日"]
+        wavg["按相似度加权平均 24h 负荷曲线"]
+        top --> wavg
+    end
+
+    STEP1 --> STEP2 --> STEP3 --> STEP4
+
+    classDef step fill:#f2f2f2,stroke:#333,stroke-width:1.5px,color:#000
+    classDef num fill:#e6e6fa,stroke:#4a3aa7,stroke-width:1.5px,color:#1f1f7a
+    classDef out fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px,color:#1b5e20
+
+    class c1,c2,c3 step
+    class n1,n2,n3,num num
+    class dist,sim step
+    class top step
+    class wavg out
