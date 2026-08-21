@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1600, initial-scale=1.0">
+<title>明日调度建议 · 零碳虚拟电厂</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+:root{
+  --bg:#0a1628; --bg2:#0d2137; --bd:rgba(0,227,150,0.10);
+  --gn:#00e396; --cy:#00b4d8; --wr:#f2a23a; --rd:#ef4444;
+  --tx:#e2e8f0; --t2:#9ca3af; --t3:#5a7a8a;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;padding:0 20px 30px}
+
+.topbar{height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 8px;border-bottom:1px solid var(--bd)}
+.topbar .title{font-size:18px;font-weight:700;color:var(--gn);letter-spacing:3px;display:flex;align-items:center;gap:10px}
+.topbar .title::before{content:'';width:7px;height:7px;background:var(--gn);border-radius:50%;animation:pulse 2s infinite;display:inline-block}
+.topbar .right{font-size:12px;color:var(--t2)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.35}}
+
+.kpi-row{display:flex;gap:12px;margin-top:16px;flex-wrap:wrap}
+.kpi-card{flex:1;min-width:150px;background:var(--bg2);border:1px solid var(--bd);padding:16px;border-radius:4px}
+.kpi-card .lb{font-size:12px;color:var(--t3);margin-bottom:8px;letter-spacing:1px}
+.kpi-card .v{font-size:32px;font-weight:700;color:var(--gn);font-family:'Consolas',monospace;line-height:1}
+.kpi-card .u{font-size:13px;color:var(--t2);margin-left:3px}
+.kpi-card.hl .v{color:var(--wr)}
+
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px}
+.panel{background:var(--bg2);border:1px solid var(--bd);padding:16px;border-radius:4px}
+.panel.full{grid-column:1/-1}
+.panel .hd{font-size:12px;color:var(--t3);letter-spacing:1.5px;margin-bottom:12px;display:flex;align-items:center;gap:7px}
+.panel .hd::before{content:'';width:3px;height:12px;background:var(--gn);display:block;flex-shrink:0}
+.chart{height:320px}
+
+table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:7px 8px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.04)}
+th{color:var(--t3);font-weight:500}
+td.num{font-family:'Consolas',monospace}
+.badge{display:inline-block;padding:2px 8px;border-radius:3px;font-size:11px}
+.badge.chg{background:rgba(0,180,216,0.15);color:var(--cy)}
+.badge.dis{background:rgba(0,227,150,0.15);color:var(--gn)}
+.badge.idle{background:rgba(255,255,255,0.05);color:var(--t3)}
+.badge.safe{background:rgba(242,162,58,0.15);color:var(--wr)}
+.badge.eco{background:rgba(0,227,150,0.15);color:var(--gn)}
+
+.foot{margin-top:16px;font-size:11px;color:var(--t3);text-align:center}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="title">明日调度建议</div>
+  <div class="right" id="dateInfo">—</div>
+</div>
+
+<div class="kpi-row" id="kpiRow"></div>
+
+<div class="grid">
+  <div class="panel"><div class="hd">负荷 · 光伏 · 购电 逐时曲线 (kW)</div><div class="chart" id="cPower"></div></div>
+  <div class="panel"><div class="hd">储能充放功率 (正=放电/负=充电) · 曝气下调 (kW) 与 SOC</div><div class="chart" id="cBattery"></div></div>
+  <div class="panel full"><div class="hd">逐时操作指令明细</div><div id="tblWrap"></div></div>
+</div>
+
+<div class="foot">零碳虚拟电厂 · AI 智能调度平台 · 中山市中嘉污水处理厂示范</div>
+
+<script>
+const DATA = __DATA__ ;
+(function(){
+const d = DATA;
+const s = d.summary, sr = d.series;
+  document.getElementById('dateInfo').textContent =
+    `目标日 ${s['目标日']} | 模式 ${s['运行模式']} | 曝气下限 ${s['曝气下限']}% | 光伏匹配 ${s['匹配相似日'].length}个相似日`;
+
+  // KPI 卡片
+  const m = d.metrics || {};
+  const kpis = [
+    {lb:'绿电占比', v:s['绿电占比_pct'], u:'%', hl:false},
+    {lb:'外购电量', v:s['外购电量_kWh'].toLocaleString(), u:'kWh', hl:false},
+    {lb:'分时购电成本', v:(s['分时购电成本_元']/10000).toFixed(1), u:'万元', hl:false},
+    {lb:'储能替代购电', v:((m['放电替代购电_kWh']??0)/1000).toFixed(1), u:'MWh', hl:true},
+    {lb:'余电上网', v:(m['余电上网_kWh']??0).toLocaleString(), u:'kWh', hl:(m['余电上网_kWh']??0)>0},
+    {lb:'日总负荷', v:(s['预测日总负荷_kWh']/1000).toFixed(0), u:'MWh', hl:false},
+    {lb:'日总光伏', v:(s['预测日总光伏_kWh']/1000).toFixed(0), u:'MWh', hl:false},
+    {lb:'运行模式', v:s['运行模式'], u:s['冲击负荷豁免']?'豁免':'', hl:s['运行模式']==='安全'},
+  ];
+  document.getElementById('kpiRow').innerHTML = kpis.map(k=>
+    `<div class="kpi-card ${k.hl?'hl':''}"><div class="lb">${k.lb}</div><div class="v">${k.v}<span class="u">${k.u}</span></div></div>`
+  ).join('');
+
+  // 图1：负荷/光伏/购电
+  const c1 = echarts.init(document.getElementById('cPower'));
+  c1.setOption({
+    backgroundColor:'transparent',
+    tooltip:{trigger:'axis'},
+    legend:{textStyle:{color:'#9ca3af'},top:0},
+    grid:{left:50,right:20,top:30,bottom:30},
+    xAxis:{type:'category',data:sr.hours.map(h=>h+'时'),axisLabel:{color:'#5a7a8a'},axisLine:{lineStyle:{color:'#2a4a5a'}}},
+    yAxis:{type:'value',name:'kW',nameTextStyle:{color:'#5a7a8a'},axisLabel:{color:'#5a7a8a'},splitLine:{lineStyle:{color:'rgba(255,255,255,0.04)'}}},
+    series:[
+      {name:'负荷',type:'line',data:sr.load,smooth:true,showSymbol:false,lineStyle:{width:2,color:'#e2e8f0'},areaStyle:{color:'rgba(226,232,240,0.06)'}},
+      {name:'光伏',type:'line',data:sr.pv,smooth:true,showSymbol:false,lineStyle:{width:2,color:'#00e396'},areaStyle:{color:'rgba(0,227,150,0.10)'}},
+      {name:'购电',type:'line',data:sr.grid_buy,smooth:true,showSymbol:false,lineStyle:{width:2,color:'#f2a23a'}},
+      {name:'实际用电',type:'line',data:sr.flex_use,smooth:true,showSymbol:false,lineStyle:{width:2,color:'#00b4d8',type:'dashed'}},
+    ]
+  });
+
+  // 图2：储能/曝气下调/SOC
+  const c2 = echarts.init(document.getElementById('cBattery'));
+  c2.setOption({
+    backgroundColor:'transparent',
+    tooltip:{trigger:'axis'},
+    legend:{textStyle:{color:'#9ca3af'},top:0},
+    grid:{left:50,right:50,top:30,bottom:30},
+    xAxis:{type:'category',data:sr.hours.map(h=>h+'时'),axisLabel:{color:'#5a7a8a'},axisLine:{lineStyle:{color:'#2a4a5a'}}},
+    yAxis:[
+      {type:'value',name:'kW',nameTextStyle:{color:'#5a7a8a'},axisLabel:{color:'#5a7a8a'},splitLine:{lineStyle:{color:'rgba(255,255,255,0.04)'}}},
+      {type:'value',name:'SOC',min:0,max:1,nameTextStyle:{color:'#5a7a8a'},axisLabel:{color:'#5a7a8a',formatter:'{value}'},splitLine:{show:false}},
+    ],
+    series:[
+      {name:'储能功率',type:'bar',data:sr.pbat,itemStyle:{color:function(p){return p.value>=0?'#00e396':'#00b4d8'}},barWidth:'35%'},
+      {name:'曝气下调',type:'bar',data:sr.flex_down,itemStyle:{color:'#5a7a8a'},barWidth:'35%'},
+      {name:'SOC',type:'line',yAxisIndex:1,data:sr.soc,smooth:true,showSymbol:false,lineStyle:{width:2,color:'#ef4444'}},
+    ]
+  });
+
+  // 表格：逐时操作
+  const rows = d.hourly.map((h,i)=>{
+    const act = h['储能动作'];
+    const badge = act.startsWith('充电')?`<span class="badge chg">${act}</span>`
+      : act.startsWith('放电')?`<span class="badge dis">${act}</span>`
+      : `<span class="badge idle">静置</span>`;
+    const pv = h['光伏去向'];
+    const pvOn = pv && pv.startsWith('余电')?`<span class="badge dis">${pv}</span>`
+      : pv==='全部自用'?`<span class="badge eco">自用</span>`
+      : `<span class="badge idle">无</span>`;
+    return `<tr>
+      <td>${h['小时']}</td>
+      <td class="num">${h['预测负荷_kW']}</td>
+      <td class="num">${h['预测光伏_kW']}</td>
+      <td>${badge}</td>
+      <td class="num">${h['购电_kW']}</td>
+      <td class="num">${h['曝气下调_kW']}</td>
+      <td>${pvOn}</td>
+      <td class="num">${sr.flex_use[i]??'-'}</td>
+      <td class="num">${h['SOC']}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('tblWrap').innerHTML =
+    `<table><thead><tr><th>时</th><th>负荷kW</th><th>光伏kW</th><th>储能动作</th><th>购电kW</th><th>曝气下调kW</th><th>光伏去向</th><th>实际用电kW</th><th>SOC</th></tr></thead><tbody>${rows}</tbody></table>`;
+
+  window.addEventListener('resize',()=>{c1.resize();c2.resize();});
+})();
+</script>
+</body>
+</html>
