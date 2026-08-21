@@ -1,0 +1,60 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+
+# MATLAB
+*.asv
+*.m~
+*.mat
+
+# ZIP (源文件夹已有)
+*.zip
+
+# Excel temp
+~$*.xlsx
+
+# uv lock (generated, can be large)
+uv.lock
+
+# Project temp
+_tmp/
+
+# Environment
+.env
+.env.local
+
+# 原始数据（大文件 + 比赛数据，不上传）
+02_原始数据/
+
+# 结果输出（代码本地可重跑生成，不上传）
+04_预测输出/
+
+# 规则与文献 PDF（版权，不上传）
+05_电力交易规则/
+06_参考文献/
+
+# Claude 协作约定（含个人上下文，不上传）
+CLAUDE.md
+进行中.md
+
+# 会话归档（历史对话记录，不上传）
+归档/
+
+# 代码目录内混入的结果文件（产出应放 04_预测输出）
+03_预测代码/优化调度/output/
+03_预测代码/碳核算/carbon_results.json
