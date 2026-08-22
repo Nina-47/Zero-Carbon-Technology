@@ -37,8 +37,8 @@ SEC = 0.57                  # kWh/m3 吨水电耗, 由真实总负荷9022万kWh�
 COD_SLUDGE_RATIO = 0.15     # 剩余污泥携带 COD 占总去除量比例(用于CH4扣除)
 
 # ============ 储能工程参数 ============
-BATTERY_CAPACITY = 4000.0   # kWh (4MWh)
-BATTERY_POWER_MAX = 2000.0  # kW (2MW)
+BATTERY_CAPACITY = 16000.0  # kWh (16MWh，与优化调度 E_BAT_MAX 对齐)
+BATTERY_POWER_MAX = 8000.0  # kW (8MW，与优化调度 P_BAT_MAX 对齐)
 ETA_RT = 0.90               # 往返总效率(模块二设定 η_c=η_d=94.87%)
 SOC_MIN = 0.10
 SOC_MAX = 0.90
