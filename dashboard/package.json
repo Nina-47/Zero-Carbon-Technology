@@ -1,0 +1,23 @@
+{
+  "name": "dashboard",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@react-three/drei": "*",
+    "@react-three/fiber": "*",
+    "echarts": "*",
+    "react": "*",
+    "react-dom": "*",
+    "three": "*"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "*",
+    "vite": "*"
+  }
+}

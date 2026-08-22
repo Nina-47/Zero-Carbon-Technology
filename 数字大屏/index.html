@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1920, initial-scale=1.0">
+<title>零碳虚拟电厂智能调度大屏</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="https://geo.datav.aliyun.com/areas_v3/bound/440000_full.json"></script>
+<style>
+:root{
+  --bg:#0a1628; --bg2:#0d2137; --bd:rgba(0,227,150,0.10);
+  --gn:#00e396; --cy:#00b4d8; --wr:#f2a23a; --rd:#ef4444;
+  --tx:#e2e8f0; --t2:#9ca3af; --t3:#5a7a8a;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--tx);width:1920px;height:1080px;overflow:hidden;display:flex;flex-direction:column}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.35}}
+@keyframes scan{0%{top:0}100%{top:100%}}
+
+.topbar{height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 22px;border-bottom:1px solid var(--bd);flex-shrink:0}
+.topbar .title{font-size:18px;font-weight:700;color:var(--gn);letter-spacing:3px;display:flex;align-items:center;gap:10px}
+.topbar .title::before{content:'';width:7px;height:7px;background:var(--gn);border-radius:50%;animation:pulse 2s infinite;display:inline-block}
+.topbar .right{display:flex;align-items:center;gap:18px;font-size:11px;color:var(--t2)}
+.topbar .sdot{width:5px;height:5px;border-radius:50%;background:var(--gn);display:inline-block;margin-right:4px;box-shadow:0 0 5px var(--gn)}
+
+.main{display:flex;flex:1;gap:12px;padding:12px 14px;min-height:0}
+.left{width:440px;display:flex;flex-direction:column;gap:12px;flex-shrink:0}
+.center{flex:1;display:flex;flex-direction:column;gap:12px;min-width:0}
+.right{width:440px;display:flex;flex-direction:column;gap:12px;flex-shrink:0}
+
+.panel{background:var(--bg2);border:1px solid var(--bd);padding:14px 16px;overflow:hidden;position:relative}
+.panel .hd{font-size:11px;color:var(--t3);letter-spacing:1.5px;margin-bottom:12px;display:flex;align-items:center;gap:7px}
+.panel .hd::before{content:'';width:3px;height:12px;background:var(--gn);display:block;flex-shrink:0}
+
+.kp{font-size:44px;font-weight:700;color:var(--gn);line-height:1;font-family:'Consolas',monospace}
+.ku{font-size:13px;color:var(--t2);margin-left:3px}
+.kch{font-size:11px;margin-top:2px}.kch.down{color:var(--gn)}.kch.up{color:var(--rd)}
+
+.ring-zone{display:flex;align-items:center;gap:16px;height:110px;margin-top:14px;position:relative}
+.ring-info{font-size:11px;color:var(--t2);display:flex;flex-direction:column;gap:6px}
+.ring-info .warn{color:var(--wr);font-weight:700}.ring-info .wht{color:var(--tx)}
+
+.bar-line{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:11px}
+.bar-line .nm{width:66px;text-align:right;color:var(--t2);flex-shrink:0}
+.bar-line .trk{flex:1;height:7px;background:rgba(255,255,255,0.04)}
+.bar-line .fl{height:100%;transition:width 1s}
+.bar-line .vl{width:70px;text-align:right;font-family:'Consolas',monospace;flex-shrink:0}
+
+.price-bar{display:flex;height:34px;border-radius:2px;overflow:hidden;font-size:10px;text-align:center;line-height:34px;font-weight:600;color:#0a1628}
+.price-bar .vly{background:var(--cy)}.price-bar .flt{background:var(--gn)}
+.price-bar .pk{background:var(--wr)}.price-bar .cr{background:var(--rd)}
+.pleg{display:flex;gap:14px;margin-top:6px;font-size:9px;color:var(--t3);flex-wrap:wrap}
+.pleg i{display:flex;align-items:center;gap:3px;font-style:normal}
+.pleg i::before{content:'';width:8px;height:8px;display:inline-block;border-radius:2px}
+.pleg .cr::before{background:var(--rd)}.pleg .pk::before{background:var(--wr)}
+.pleg .flt::before{background:var(--gn)}.pleg .vly::before{background:var(--cy)}
+
+.kpi-bar{display:flex;gap:10px;flex-wrap:wrap}
+.kpi-card{flex:1;min-width:110px;background:var(--bg2);border:1px solid var(--bd);padding:12px 14px;display:flex;flex-direction:column;justify-content:center}
+.kpi-card .v{font-size:30px;font-weight:700;color:var(--gn);font-family:'Consolas',monospace;line-height:1.1}
+.kpi-card .u{font-size:12px;color:var(--t2)}.kpi-card .l{font-size:9px;color:var(--t3);letter-spacing:1px;margin-top:3px}
+.kpi-card .s{font-size:10px;margin-top:2px}
+
+#gdmap{width:100%;height:100%}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="title">零碳虚拟电厂智能调度大屏</div>
+  <div class="right">
+    <span>📡 数据源 <span class="sdot"></span> Open-Meteo 正常</span>
+    <span>🔄 刷新 30s</span>
+    <span id="clock">--</span>
+  </div>
+</div>
+
+<div class="main">
+  <!-- LEFT -->
+  <div class="left">
+    <div class="panel" style="flex:1">
+      <div class="hd">实时碳排放</div>
+      <div style="display:flex;align-items:baseline"><span class="kp">47.2</span><span class="ku">tCO₂</span></div>
+      <div class="kch down">▼ 3.2% vs 昨日</div>
+      <div class="ring-zone">
+        <div id="ring" style="width:100px;height:100px;flex-shrink:0"></div>
+        <div class="ring-info">
+          <div>剩余配额 <span class="warn">2,310 tCO₂</span></div>
+          <div>月度配额 <span class="wht">10,500 tCO₂</span></div>
+          <div>日均排放 <span class="wht">197.4 tCO₂</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="panel" style="flex:1"><div class="hd">碳排放趋势 — 近7天</div><div id="etrend" style="width:100%;height:calc(100% - 26px)"></div></div>
+    <div class="panel">
+      <div class="hd">碳减排贡献</div>
+      <div class="bar-line"><span class="nm">光伏减排</span><span class="trk"><span class="fl" style="width:100%;background:var(--gn)"></span></span><span class="vl" style="color:var(--gn)">12.4 t</span></div>
+      <div class="bar-line"><span class="nm">储能调峰</span><span class="trk"><span class="fl" style="width:70%;background:var(--cy)"></span></span><span class="vl" style="color:var(--cy)">8.7 t</span></div>
+      <div class="bar-line"><span class="nm">负荷优化</span><span class="trk"><span class="fl" style="width:51%;background:var(--wr)"></span></span><span class="vl" style="color:var(--wr)">6.3 t</span></div>
+    </div>
+  </div>
+
+  <!-- CENTER -->
+  <div class="center">
+    <div class="panel" style="flex:1;display:flex;flex-direction:column">
+      <div class="hd">广东省 · 数字孪生地图</div>
+      <div id="gdmap" style="flex:1;width:100%"></div>
+    </div>
+    <div class="panel">
+      <div class="hd">24h 分时电价调度</div>
+      <div class="price-bar">
+        <span class="vly" style="flex:8">低谷 22-08h · 0.262</span>
+        <span class="flt" style="flex:2">平 08-10</span>
+        <span class="pk" style="flex:2">高峰 10-11</span>
+        <span class="cr" style="flex:1">尖 11-12</span>
+        <span class="flt" style="flex:2">平 12-14</span>
+        <span class="pk" style="flex:1">高 14-15</span>
+        <span class="cr" style="flex:3">尖峰 15-17h · 1.310</span>
+        <span class="pk" style="flex:2">高峰 17-19</span>
+        <span class="flt" style="flex:3">平段 19-22h · 0.655</span>
+      </div>
+      <div class="pleg">
+        <i class="cr">尖峰 1.310 元/kWh · 储能放电</i>
+        <i class="pk">高峰 1.048 元/kWh · 储能放电</i>
+        <i class="flt">平段 0.655 元/kWh · 正常用电</i>
+        <i class="vly">低谷 0.262 元/kWh · 储能充电</i>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="right">
+    <div class="panel" style="flex:1">
+      <div class="hd">实时电力负荷 · A 公司</div>
+      <div style="display:flex;gap:12px;align-items:baseline;margin-bottom:8px">
+        <span class="kp">10.2</span><span class="ku">MW</span>
+        <span style="font-size:11px;color:var(--t3);margin-left:auto">4.3~17.5 MW · 日均 245.5 MWh</span>
+      </div>
+      <div id="dailybar" style="width:100%;height:calc(100% - 42px)"></div>
+    </div>
+    <div class="panel" style="flex:1"><div class="hd">24h 负荷预测 · 典型工作日</div><div id="fcast" style="width:100%;height:calc(100% - 26px)"></div></div>
+    <div class="kpi-bar">
+      <div class="kpi-card"><div class="v">47.2<span class="u"> t</span></div><div class="l">今日碳排放</div></div>
+      <div class="kpi-card"><div class="v">82<span class="u">%</span></div><div class="l">绿电消纳率</div><div class="s" style="color:var(--gn)">↑ 5% vs 上月</div></div>
+      <div class="kpi-card"><div class="v">38.5<span class="u">k</span></div><div class="l">虚拟电厂收益</div><div class="s" style="color:var(--gn)">↑ 12% vs 上月</div></div>
+      <div class="kpi-card"><div class="v" style="color:var(--wr)">2.31<span class="u">k</span></div><div class="l">碳配额剩余</div></div>
+      <div class="kpi-card"><div class="v" style="color:var(--gn)">●</div><div class="l">系统状态 在线</div><div class="s" style="color:var(--t3)">3/3 子系统正常</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ====== 环图 ======
+echarts.init(document.getElementById('ring')).setOption({
+  series:[{type:'pie',radius:['72%','82%'],silent:true,label:{show:false},
+    data:[{value:78,itemStyle:{color:'#00e396',borderRadius:3}},{value:22,itemStyle:{color:'rgba(255,255,255,0.05)'}}]
+  }],
+  graphic:[
+    {type:'text',left:'center',top:'42%',style:{text:'78%',fill:'#00e396',font:'bold 22px Consolas,monospace'}},
+    {type:'text',left:'center',top:'58%',style:{text:'已用配额',fill:'#5a7a8a',font:'9px PingFang SC,Microsoft YaHei,sans-serif'}}
+  ]
+})
+
+// ====== 碳排放趋势 ======
+echarts.init(document.getElementById('etrend')).setOption({
+  grid:{left:36,right:10,top:4,bottom:22},
+  xAxis:{type:'category',data:['6/23','6/24','6/25','6/26','6/27','6/28','6/29'],
+    axisLine:{lineStyle:{color:'rgba(255,255,255,0.06)'}},axisLabel:{color:'#5a7a8a',fontSize:9},axisTick:{show:false}},
+  yAxis:{type:'value',splitLine:{lineStyle:{color:'rgba(255,255,255,0.03)'}},axisLabel:{color:'#5a7a8a',fontSize:9,formatter:function(v){return v+' t'}}},
+  series:[{type:'line',data:[207.7,215.9,218.4,210.9,176.7,174.9,227.4],smooth:true,
+    lineStyle:{color:'#00e396',width:2},areaStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'rgba(0,227,150,0.12)'},{offset:1,color:'rgba(0,227,150,0.01)'}])},
+    itemStyle:{color:'#00e396'},symbol:'circle',symbolSize:3}]
+})
+
+// ====== 日总量柱状图 ======
+echarts.init(document.getElementById('dailybar')).setOption({
+  grid:{left:40,right:10,top:4,bottom:22},
+  xAxis:{type:'category',data:['6/23','6/24','6/25','6/26','6/27','6/28','6/29'],
+    axisLine:{lineStyle:{color:'rgba(255,255,255,0.06)'}},axisLabel:{color:'#5a7a8a',fontSize:9},axisTick:{show:false}},
+  yAxis:{type:'value',splitLine:{lineStyle:{color:'rgba(255,255,255,0.03)'}},axisLabel:{color:'#5a7a8a',fontSize:9,formatter:function(v){return v+' MWh'}}},
+  series:[{type:'bar',
+    data:[258.3,268.5,271.7,262.3,219.8,217.6,282.8].map(function(v,i){
+      return{value:v,itemStyle:{color:['#00e396','#00e396','#00e396','#00e396','rgba(0,180,216,0.55)','rgba(0,180,216,0.55)','#00e396'][i],borderRadius:[3,3,0,0]}}
+    }),barWidth:20}]
+})
+
+// ====== 24h负荷预测 ======
+echarts.init(document.getElementById('fcast')).setOption({
+  grid:{left:38,right:10,top:4,bottom:22},
+  xAxis:{type:'category',
+    data:['00h','01h','02h','03h','04h','05h','06h','07h','08h','09h','10h','11h','12h','13h','14h','15h','16h','17h','18h','19h','20h','21h','22h','23h'],
+    axisLabel:{color:'#5a7a8a',fontSize:8,interval:3},axisLine:{lineStyle:{color:'rgba(255,255,255,0.06)'}},axisTick:{show:false}},
+  yAxis:{type:'value',splitLine:{lineStyle:{color:'rgba(255,255,255,0.03)'}},axisLabel:{color:'#5a7a8a',fontSize:9,formatter:function(v){return v+' MW'}}},
+  series:[
+    {type:'line',data:[9.6,8.7,8.9,8.1,8.4,8.5,8.5,9.4,10.9,10.9,12.6,13.7,15.0,16.0,15.2,15.7,15.6,16.0,16.0,15.7,14.4,8.5,8.9,8.3],lineStyle:{opacity:0},itemStyle:{opacity:0},areaStyle:{color:'rgba(0,227,150,0.05)'},stack:'ci',symbol:'none'},
+    {type:'line',data:[8.2,7.5,7.5,6.9,7.2,7.3,7.3,8.0,9.3,9.3,10.8,11.7,12.8,13.6,13.0,13.3,13.2,13.6,13.6,13.3,12.2,7.3,7.5,7.1],lineStyle:{opacity:0},itemStyle:{opacity:0},areaStyle:{color:'rgba(10,22,40,0.8)'},stack:'ci',symbol:'none'},
+    {type:'line',data:[8.9,8.1,8.2,7.5,7.8,7.9,7.9,8.7,10.1,10.1,11.7,12.7,13.9,14.8,14.1,14.5,14.4,14.8,14.8,14.5,13.3,7.9,8.2,7.7],
+      smooth:true,symbol:'circle',symbolSize:3,lineStyle:{color:'#00e396',width:2},itemStyle:{color:'#00e396'},
+      markPoint:{data:[{type:'max',name:'峰值',symbolSize:6,itemStyle:{color:'#f2a23a'}},{type:'min',name:'谷值',symbolSize:6,itemStyle:{color:'#00b4d8'}}],label:{color:'#e2e8f0',fontSize:9}}}
+  ]
+})
+
+// ====== 广东地图 (DataV GeoJSON) ======
+var gdEl=document.getElementById('gdmap')
+gdEl.style.width='100%'
+gdEl.style.height='100%'
+fetch('https://geo.datav.aliyun.com/areas_v3/bound/440000_full.json')
+  .then(function(r){return r.json()})
+  .then(function(geo){
+    echarts.registerMap('GD',geo)
+    var mapChart=echarts.init(gdEl)
+    mapChart.setOption({
+      geo:{map:'GD',roam:true,zoom:1.45,center:[113.5,23.3],aspectScale:0.85,
+        itemStyle:{areaColor:'rgba(0,227,150,0.04)',borderColor:'rgba(0,227,150,0.18)',borderWidth:1},
+        emphasis:{itemStyle:{areaColor:'rgba(0,227,150,0.08)'},label:{show:true,color:'#00e396',fontSize:11}}
+      },
+      series:[
+        {type:'scatter',coordinateSystem:'geo',
+          data:[
+            {name:'广州',value:[113.26,23.13]},{name:'深圳',value:[114.06,22.54]},
+            {name:'韶关',value:[113.58,24.80]},{name:'湛江',value:[110.36,21.27]},{name:'汕头',value:[116.68,23.35]}
+          ],
+          symbolSize:8,itemStyle:{color:'#00e396'},
+          label:{show:true,formatter:function(p){return p.name},position:'right',color:'#9ca3af',fontSize:10,distance:6}
+        },
+        {type:'effectScatter',coordinateSystem:'geo',
+          data:[{name:'中山市',value:[113.38,22.52]}],
+          symbolSize:12,showEffectOn:'emphasis',rippleEffect:{brushType:'stroke',scale:3,period:3},
+          itemStyle:{color:'#00e396'},
+          label:{show:true,formatter:'中山市',position:'top',color:'#00e396',fontSize:12,fontWeight:'bold',distance:10}
+        }
+      ]
+    })
+
+// ====== 时钟 ======
+function tick(){document.getElementById('clock').textContent=new Date().toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false})}
+tick();setInterval(tick,1000)
+</script>
+</body>
+</html>

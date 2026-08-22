@@ -1,0 +1,44 @@
+.kpi-cards {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.kpi-card {
+  flex: 1;
+  min-width: 120px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.kpi-card-val {
+  font-size: 34px;
+  font-weight: 700;
+  color: var(--green);
+  font-family: 'Consolas', monospace;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.kpi-card-unit {
+  font-size: 14px;
+  color: var(--text2);
+}
+
+.kpi-card-label {
+  font-size: 10px;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-top: 4px;
+}
+
+.kpi-card-sub {
+  font-size: 11px;
+  color: var(--text2);
+  margin-top: 2px;
+}

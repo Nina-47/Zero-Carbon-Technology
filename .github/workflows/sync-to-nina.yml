@@ -1,0 +1,23 @@
+name: Sync to Nina-47
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.NINA_DEPLOY_KEY }}
+
+      - name: Push to Nina-47
+        run: |
+          git remote add nina git@github.com:Nina-47/Zero-Carbon-Technology.git
+          git push nina main:main

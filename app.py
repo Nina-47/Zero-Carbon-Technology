@@ -1,0 +1,2178 @@
+"""
+天气负荷分析平台 — Streamlit 主入口
+"""
+
+import streamlit as st
+import pandas as pd
+import numpy as np
+from datetime import datetime, timedelta
+from io import BytesIO
+import sys as _sys
+import os as _os
+import os
+import sys
+
+# ============================================================
+# 关键修复：清理上个会话残留的 config/module2_config 污染
+# Streamlit Cloud 复用进程，旧版代码可能把 sys.modules["config"]
+# 或 module2_config 指向了模块二的 config.py（缺 LOCATIONS），导致
+# 本文件顶部 from config import LOCATIONS 失败。这里强制清除脏缓存。
+# ============================================================
+for _k in list(_sys.modules):
+    if _k == "config" or _k == "module2_config" or _k.startswith(("decision_engine", "storage_optimizer", "mode_controller", "pv_forecast", "load_forecast", "validate_optimizer")):
+        _sys.modules.pop(_k, None)
+
+# 清理 sys.path 里的模块二目录（旧会话污染），确保 from config 命中本目录 config.py
+_tbd = []
+for _p in _sys.path:
+    if "模块二" in str(_p) or "智能调度" in str(_p):
+        _tbd.append(_p)
+for _p in _tbd:
+    _sys.path.remove(_p)
+
+# 诊断：打印实际运行环境，帮助定位部署 ImportError
+_st_py_dir = _os.path.dirname(_os.path.abspath(__file__))
+sys_path_copy = list(_sys.path)
+
+# ============================================================
+# 页面配置
+# ============================================================
+st.set_page_config(
+    page_title="天气负荷分析平台",
+    page_icon="🌤️",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+# ============================================================
+# 导入项目模块
+# ============================================================
+try:
+    from config import (
+        LOCATIONS,
+        VIS_PARAMS,
+        EXPORT_PARAMS,
+        DEFAULT_HISTORY_DAYS,
+        DEFAULT_FORECAST_DAYS,
+        CACHE_TTL_SECONDS,
+        MAX_HISTORY_DAYS,
+        PREDICTION_COMPANIES,
+        DEFAULT_FORECAST_DAYS_LIMIT,
+        DEFAULT_KNN_K,
+        DEFAULT_PRODUCTION_DAYS,
+        DAY_TYPE_MAP,
+        convert_units,
+    )
+except Exception as _e:
+    import traceback as _tb
+    st.error("【诊断】config import 失败，真实错误：")
+    st.code(f"{type(_e).__name__}: {_e}\n\n文件路径: {_st_py_dir}\nconfig.py 存在: {_os.path.exists(_os.path.join(_st_py_dir, 'config.py'))}\n\n系统路径:\n" + "\n".join(sys_path_copy))
+    st.code(_tb.format_exc())
+    st.stop()
+from src.api.fallback import (
+    fetch_forecast_safe,
+    fetch_historical_safe,
+    DataSourceStatus,
+)
+from src.aggregation.province_avg import fetch_guangdong_average
+from src.db.models import (
+    init_db,
+    insert_weather_data,
+    query_weather_data,
+    get_setting,
+    save_setting,
+    clean_old_forecasts,
+)
+from src.charts.cards import render_overview_cards
+from src.charts.weather_charts import (
+    plot_temperature,
+    plot_precipitation,
+    plot_wind,
+    plot_shortwave_radiation,
+)
+from src.charts.load_overlay import (
+    plot_precip_load_overlay,
+    plot_temp_load_scatter,
+    plot_multi_factor,
+    compute_correlations,
+    render_correlation_cards,
+)
+from src.export.csv_writer import export_csv
+from src.export.json_writer import export_json
+from src.utils.csv_parser import parse_load_csv, list_load_columns, parse_load_history_upload
+from src.utils.time_utils import date_range_dates
+from src.similarity.similar_day import find_similar_days, compute_daily_weather
+from src.charts.similar_day import (
+    plot_similar_day_overlay,
+    render_similar_day_cards,
+    render_target_weather_card,
+    plot_similarity_breakdown,
+)
+from src.db.models import (
+    init_db,
+    insert_weather_data,
+    query_weather_data,
+    get_setting,
+    save_setting,
+    clean_old_forecasts,
+    init_load_table,
+    import_load_from_df,
+    get_load_by_date,
+    query_load_date_range,
+    has_load_data,
+    delete_load_data,
+    query_load_all,
+    get_load_companies,
+    init_calendar_table,
+    import_calendar_from_df,
+    get_calendar,
+    delete_calendar,
+)
+from src.prediction.load_forecast import (
+    prepare_load_data,
+    prepare_daily_series,
+    run_forecast,
+)
+from src.prediction.calendar import generate_calendar_from_rule, parse_calendar_upload
+from src.prediction.weather_forecast import parse_weather_forecast_upload, get_weather_from_db
+from src.charts.prediction_charts import (
+    plot_daily_forecast,
+    plot_hourly_profile,
+    plot_weekday_vs_rest,
+    plot_template_matches,
+)
+from src.db.models import (
+    init_load_table,
+    import_load_from_df,
+    get_load_by_date,
+    query_load_date_range,
+    has_load_data,
+    delete_load_data,
+)
+
+# ============================================================
+# 初始化
+# ============================================================
+init_db()
+
+# 数据库列兼容检测：shortwave_radiation
+import sqlite3, os, sys
+from src.db.models import DB_PATH
+_db_path = DB_PATH
+if os.path.exists(_db_path):
+    try:
+        _conn = sqlite3.connect(_db_path)
+        _cols = [r[1] for r in _conn.execute("PRAGMA table_info(weather_hourly)").fetchall()]
+        _conn.close()
+        if "shortwave_radiation" not in _cols:
+            st.warning(
+                "⚠️ 数据库缺少 `shortwave_radiation` 列。"
+                "请删除 `data/weather.db` 后刷新页面以重新拉取天气数据。"
+            )
+    except Exception:
+        pass  # 表不存在等异常静默忽略
+
+# 天气数据种子检查：如果数据库天数 < 100，自动从预置 Excel 导入
+import hashlib
+def _seed_weather_db():
+    """如果 weather_hourly 表数据不足 100 天，从全要素天气表导入。"""
+    try:
+        _conn = sqlite3.connect(_db_path)
+        _days = _conn.execute("SELECT COUNT(DISTINCT date(datetime)) FROM weather_hourly").fetchone()[0]
+        _conn.close()
+        if _days >= 100:
+            return  # 数据充足，无需导入
+    except Exception:
+        _days = 0
+
+    # 尝试导入
+    seed_path = os.path.join(os.path.dirname(__file__), "data", "weather_seed.xlsx")
+    if not os.path.exists(seed_path):
+        return
+
+    try:
+        element_map = {
+            "气温(℃)": "temperature_2m",
+            "降水量(mm)": "precipitation",
+            "风速(km/h)": "wind_speed_10m",
+            "风向(°)": "wind_direction_10m",
+            "云量(%)": "cloud_cover",
+            "太阳总辐射(MJ/m²)": "shortwave_radiation",
+        }
+        df = pd.read_excel(seed_path, sheet_name="全要素天气表_长格式_v2")
+        df.columns = ["date", "element"] + list(range(24))
+
+        _conn = sqlite3.connect(_db_path)
+        _conn.execute("DELETE FROM weather_hourly")
+
+        # 用 melt 向量化替代 iterrows 逐行聚合
+        df["element_en"] = df["element"].map(element_map)
+        df = df.dropna(subset=["element_en"])
+        df["date"] = df["date"].astype(str).str[:10]
+
+        id_vars = ["date", "element_en"]
+        value_vars = list(range(24))
+        melted = df.melt(id_vars=id_vars, value_vars=value_vars, var_name="hour", value_name="value")
+        melted = melted.dropna(subset=["value"])
+        melted["datetime"] = melted["date"] + "T" + melted["hour"].astype(str).str.zfill(2) + ":00:00"
+
+        pivoted = melted.pivot_table(
+            index=["date", "hour", "datetime"],
+            columns="element_en",
+            values="value",
+            aggfunc="first",
+        ).reset_index()
+
+        now = pd.Timestamp.now().isoformat()
+        cols = ["location_id", "datetime", "data_type", "source",
+                "temperature_2m", "precipitation", "wind_speed_10m",
+                "wind_direction_10m", "cloud_cover", "shortwave_radiation", "fetched_at"]
+        phs = ",".join(["?"] * len(cols))
+        sql = f"INSERT OR REPLACE INTO weather_hourly ({','.join(cols)}) VALUES ({phs})"
+
+        rows = []
+        for _, r in pivoted.iterrows():
+            rows.append((
+                "zhongshan", r["datetime"], "historical", "seed",
+                r.get("temperature_2m"),
+                r.get("precipitation"),
+                r.get("wind_speed_10m"),
+                r.get("wind_direction_10m"),
+                r.get("cloud_cover"),
+                r.get("shortwave_radiation"),
+                now,
+            ))
+
+        _conn.executemany(sql, rows)
+        _conn.commit()
+        _conn.close()
+    except Exception:
+        pass
+
+_seed_weather_db()
+
+
+def _build_hourly_export(company: str) -> BytesIO:
+    """导出指定公司的全部历史逐时负荷为 Excel。"""
+    from io import BytesIO
+    df = query_load_all(company)
+    if df.empty:
+        df = pd.DataFrame({"提示": ["暂无数据"]})
+    else:
+        df = df.rename(columns={
+            "datetime": "时间", "load_mw": "负荷_MW",
+            "weekday": "星期", "daily_total": "日总_MWh",
+        })
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, sheet_name="逐时负荷", index=False)
+    output.seek(0)
+    return output
+
+
+# Session State 初始化
+if "load_df" not in st.session_state:
+    st.session_state.load_df = None
+if "load_filename" not in st.session_state:
+    st.session_state.load_filename = ""
+if "load_error" not in st.session_state:
+    st.session_state.load_error = ""
+if "data_status" not in st.session_state:
+    st.session_state.data_status = DataSourceStatus()
+if "weather_loaded" not in st.session_state:
+    st.session_state.weather_loaded = False
+if "similar_days" not in st.session_state:
+    st.session_state.similar_days = []
+if "target_date_str" not in st.session_state:
+    st.session_state.target_date_str = ""
+if "similar_search_done" not in st.session_state:
+    st.session_state.similar_search_done = False
+if "target_summary" not in st.session_state:
+    st.session_state.target_summary = {}
+if "target_weather" not in st.session_state:
+    st.session_state.target_weather = None
+if "prediction_result" not in st.session_state:
+    st.session_state.prediction_result = None
+if "prediction_company" not in st.session_state:
+    st.session_state.prediction_company = ""
+if "calendar_df" not in st.session_state:
+    st.session_state.calendar_df = None
+if "weather_forecast_df" not in st.session_state:
+    st.session_state.weather_forecast_df = None
+
+# ============================================================
+# 数据获取（SQLite 优先，缺失时拉取 API + Streamlit 内存缓存）
+# ============================================================
+@st.cache_data(ttl=CACHE_TTL_SECONDS, show_spinner=False)
+def load_cached_or_fetch(location_key: str, history_days: int, forecast_days: int) -> dict:
+    """优先从 SQLite 读取缓存，缺失时才拉取 API。"""
+    loc = LOCATIONS[location_key]
+    status = DataSourceStatus()
+
+    now = datetime.now()
+    hist_start = (now - timedelta(days=history_days)).strftime("%Y-%m-%d")
+    hist_end = now.strftime("%Y-%m-%d")
+    forecast_end = (now + timedelta(days=forecast_days)).strftime("%Y-%m-%d")
+    forecast_start = now.strftime("%Y-%m-%d")
+
+    if loc.get("is_aggregate"):
+        from src.aggregation.province_avg import fetch_guangdong_average
+        historical = fetch_guangdong_average("historical", status, history_days, forecast_days)
+        forecast = fetch_guangdong_average("forecast", status, history_days, forecast_days)
+    else:
+        historical = query_weather_data([location_key], hist_start, hist_end, ["historical"])
+        forecast = query_weather_data([location_key], forecast_start, forecast_end, ["forecast"])
+
+        expected_hist_hours = history_days * 24
+        expected_forecast_hours = forecast_days * 24
+
+        if len(historical) < expected_hist_hours * 0.8:
+            historical = fetch_historical_safe(
+                loc["latitude"], loc["longitude"], location_key, hist_start, hist_end, status,
+            )
+            if not historical.empty:
+                insert_weather_data(historical)
+
+        if len(forecast) < expected_forecast_hours * 0.8:
+            forecast = fetch_forecast_safe(
+                loc["latitude"], loc["longitude"], location_key, forecast_days, status,
+            )
+            if not forecast.empty:
+                insert_weather_data(forecast)
+
+        if not historical.empty:
+            historical = convert_units(historical)
+        if not forecast.empty:
+            forecast = convert_units(forecast)
+
+    return {"historical": historical, "forecast": forecast, "status": status}
+
+
+# ============================================================
+# 侧边栏
+# ============================================================
+with st.sidebar:
+    st.header("🌤️ 控制面板")
+
+    # 模块导航
+    _current_sidebar = st.radio(
+        "模块导航",
+        options=["🏠 项目概览", "📊 天气总览", "🔌 负荷预测", "⚡ 智能调度", "🌱 碳效益核算"],
+        horizontal=True,
+        label_visibility="collapsed",
+        key="main_nav",
+    )
+    st.divider()
+
+    # ---- 天气总览参数 ----
+    with st.expander("📊 天气总览参数", expanded=(_current_sidebar == "📊 天气总览")):
+        st.subheader("📍 地点")
+        selected_locations = st.multiselect(
+            "选择地点（可多选）", options=list(LOCATIONS.keys()), default=["zhongshan"],
+            format_func=lambda x: LOCATIONS[x]["display_name"], label_visibility="collapsed",
+        )
+        if not selected_locations:
+            selected_locations = ["zhongshan"]
+
+        st.subheader("📅 时间范围")
+        history_days = st.slider("历史回溯", 1, MAX_HISTORY_DAYS,
+            value=int(get_setting("default_history_days", str(DEFAULT_HISTORY_DAYS))), step=1, format="%d 天")
+        forecast_days = st.slider("预报天数", 1, 7, DEFAULT_FORECAST_DAYS, 1, "%d 天")
+
+        st.subheader("🌡️ 展示参数")
+        vis_selection = {}
+        for param, info in VIS_PARAMS.items():
+            default_checked = param in ["temperature_2m", "apparent_temp_cn", "precipitation", "wind_speed_10m", "shortwave_radiation"]
+            vis_selection[param] = st.checkbox(info["cn"], value=default_checked, key=f"vis_{param}")
+
+    # ---- 负荷预测参数 ----
+    with st.expander("🔌 负荷预测参数", expanded=(_current_sidebar == "🔌 负荷预测")):
+        pred_company_sidebar = st.selectbox("预测公司", options=PREDICTION_COMPANIES, key="sidebar_pred_company")
+        forecast_horizon_sidebar = st.slider("预测天数", 1, DEFAULT_FORECAST_DAYS_LIMIT,
+            value=DEFAULT_FORECAST_DAYS_LIMIT, step=1, key="sidebar_forecast_horizon")
+        knn_k_sidebar = st.slider("KNN 匹配数", 1, 10, DEFAULT_KNN_K, 1, key="sidebar_knn_k")
+
+    # ---- 光储柔调度参数 ----
+    with st.expander("⚡ 光储柔调度参数", expanded=(_current_sidebar == "⚡ 智能调度")):
+        pv_scale_sidebar = st.number_input("光伏放大系数", value=2.0, min_value=0.5, max_value=5.0, step=0.1,
+            help="三站真实合计6.4MW × 系数 ≈ 规划装机（设计方案锁定）", key="sidebar_pv_scale", disabled=True)
+        battery_cap_sidebar = st.number_input("储能容量(MWh)", value=4.0, min_value=1.0, max_value=100.0, step=1.0,
+            key="sidebar_battery_cap", disabled=True)
+        battery_pow_sidebar = st.number_input("储能功率(MW)", value=2.0, min_value=0.5, max_value=50.0, step=0.5,
+            key="sidebar_battery_pow", disabled=True)
+        flex_enabled_sidebar = st.checkbox("启用柔性负荷", value=True, key="sidebar_flex_enabled")
+        flex_min_sidebar = st.slider("柔性负荷下限(%)", 50, 100, 65, 5, key="sidebar_flex_min",
+            disabled=not flex_enabled_sidebar)
+        st.caption(f"设计方案: 光伏 12.8MW · 储能 {battery_cap_sidebar}MWh/{battery_pow_sidebar}MW · 柔性{'开' if flex_enabled_sidebar else '关'}（光伏/储能锁定）")
+
+    # ---- 碳核算参数 ----
+    with st.expander("🌱 碳核算参数", expanded=(_current_sidebar == "🌱 碳效益核算")):
+        ef_report_sidebar = st.number_input("电网排放因子(kgCO₂/kWh)", value=0.4419, min_value=0.3, max_value=0.8, step=0.001,
+            help="广东省2023电力CO₂因子", key="sidebar_ef_report")
+        n2o_factor_sidebar = st.number_input("N₂O 排放因子", value=0.016, min_value=0.003, max_value=0.025, step=0.001,
+            help="kg N₂O-N/kg N，国内AAO工艺中值", key="sidebar_n2o_factor")
+        lca_cf_sidebar = st.number_input("储能隐含碳(kgCO₂e/kWh)", value=70.0, min_value=40.0, max_value=120.0, step=1.0,
+            help="LFP系统级碳足迹", key="sidebar_lca_cf")
+        st.caption("碳核算以模块三代码为准，此处为默认展示参数")
+
+    st.divider()
+
+    # 通用：导出
+    with st.expander("📥 导出", expanded=False):
+        export_format = st.radio("导出格式", options=["CSV", "JSON"], horizontal=True, label_visibility="collapsed")
+        export_all_cols = st.checkbox("导出全部参数（含模型用）", value=True)
+
+    # 通用：设置
+    with st.expander("⚙️ 设置", expanded=False):
+        auto_refresh = st.checkbox("自动刷新", value=get_setting("auto_refresh", "true") == "true")
+
+    st.divider()
+
+    # 数据源状态
+    status = st.session_state.data_status
+    st.info(f"{status.status_icon} 数据源: {status.status_text}")
+
+    if st.button("🔄 强制刷新", use_container_width=True):
+        st.cache_data.clear()
+        st.session_state.weather_loaded = False
+        st.rerun()
+
+# ============================================================
+# 页面标题
+# ============================================================
+st.title("🌤️ 天气负荷分析平台")
+
+# 错误/警告横幅
+status = st.session_state.data_status
+if not status.primary_ok and not status.fallback_used:
+    st.error(f"🔴 数据更新失败：{status.error_message}。显示最近可用缓存数据。")
+elif not status.primary_ok and status.fallback_used:
+    st.warning("🟡 主数据源响应慢，已切换至备用数据源（和风天气）。")
+
+# ============================================================
+# 加载数据
+# ============================================================
+all_weather = {}
+for loc_key in selected_locations:
+    all_weather[loc_key] = load_cached_or_fetch(loc_key, history_days, forecast_days)
+    st.session_state.data_status = all_weather[loc_key]["status"]
+
+st.session_state.weather_loaded = True
+
+# 合并历史和预报
+for loc_key in selected_locations:
+    data = all_weather[loc_key]
+    combined = pd.concat(
+        [data["historical"], data["forecast"]],
+        ignore_index=True,
+    ) if not data["historical"].empty or not data["forecast"].empty else pd.DataFrame()
+    # 防御性去重：避免 provincial_avg 等聚合产生的重复列
+    if not combined.empty:
+        combined = combined.loc[:, ~combined.columns.duplicated()].sort_values("datetime")
+    all_weather[loc_key]["combined"] = combined
+
+# 当前选中的主地点
+primary_loc = selected_locations[0]
+primary_data = all_weather[primary_loc]["combined"]
+primary_label = LOCATIONS[primary_loc]["display_name"]
+
+# ============================================================
+# Tab 页签
+# ============================================================
+
+# ============================================================
+# Tab 0: 项目概览（核心 KPI 驾驶舱）
+# ============================================================
+# 主区导航值（从侧边栏 session_state 读取）
+_current = st.session_state.get("main_nav", "🏠 项目概览")
+
+if _current == "🏠 项目概览":
+    st.subheader("🏠 项目概览")
+    st.caption("中山市中嘉污水处理厂 · 光储柔一体化智能控碳方案")
+
+    # 核心 KPI 卡片
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        st.metric("年节省电费", "700 万元", help="基准(全电网购电) − 光储柔优化后（真实节点电价口径）")
+    with c2:
+        st.metric("年减排量", "1819 吨 CO₂e", help="储能运行减排 ER")
+    with c3:
+        st.metric("投资回收期", "7.58 年", help="总投资 5309 万 ÷ 年节省")
+    with c4:
+        st.metric("绿电占比", "23.96%", help="光伏自发自用 / 总负荷")
+
+    st.divider()
+
+    # 方案要点
+    st.subheader("📐 方案构成")
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.markdown("**☀️ 光伏**\n12.8MW 装机（池顶面积约束）\n年发电约 1729 万 kWh")
+    with c2:
+        st.markdown("**🔋 储能**\n4MWh / 2MW 集装箱\n往返效率 90%，削峰填谷")
+    with c3:
+        st.markdown("**🌊 柔性曝气**\n双模式滞回控制\n节能65% / 安全80%")
+
+    st.divider()
+
+    # 全链路说明
+    st.subheader("🔄 三大模块")
+    st.markdown("""
+    | 模块 | 功能 | 所在 Tab |
+    |------|------|---------|
+    | 模块一 · 负荷预测 | 历史负荷 + 天气 + 排班 → 逐时负荷预测 | 📊 天气总览 / 🔌 负荷预测 |
+    | 模块二 · 智能调度 | 光伏 + 储能 + 柔性优化，输出逐时调度建议 | ⚡ 智能调度 |
+    | 模块三 · 碳效益核算 | 三账分离碳核算，量化减排效益 | 🌱 碳效益核算 |
+    """)
+
+    st.info("💡 提示：请先点击「⚡ 智能调度」查看光储柔调度方案，「🌱 碳效益核算」查看减碳结果。")
+
+# ============================================================
+# Tab 1: 天气总览
+# ============================================================
+if _current == "📊 天气总览":
+    if primary_data.empty:
+        st.info("正在加载天气数据，请稍候...")
+    else:
+        # 概览卡片
+        st.subheader("📌 实时概览")
+        render_overview_cards(primary_data)
+
+        st.divider()
+
+        # 温度
+        if vis_selection.get("temperature_2m", True) or vis_selection.get("apparent_temp_cn", True):
+            st.plotly_chart(
+                plot_temperature(primary_data, primary_label),
+                use_container_width=True,
+            )
+
+        # 降水
+        if vis_selection.get("precipitation", True):
+            st.plotly_chart(
+                plot_precipitation(primary_data, primary_label),
+                use_container_width=True,
+            )
+
+        # 风况
+        if vis_selection.get("wind_speed_10m", True):
+            st.plotly_chart(
+                plot_wind(primary_data, primary_label),
+                use_container_width=True,
+            )
+
+        # 太阳总辐射
+        if vis_selection.get("shortwave_radiation", True):
+            st.plotly_chart(
+                plot_shortwave_radiation(primary_data, primary_label),
+                use_container_width=True,
+            )
+
+# ============================================================
+# Tab 2: 负荷叠加分析
+# ============================================================
+if _current == "🔌 负荷预测":
+    st.subheader("📤 负荷数据")
+
+    upload_col, info_col = st.columns([3, 2])
+
+    with upload_col:
+        uploaded_file = st.file_uploader(
+            "上传负荷文件",
+            type=["xlsx", "xls", "csv"],
+            help="支持格式：宽表(日期列 + 0时~23时逐时负荷，如「负荷数据污水厂.xlsx」) 或 长表(datetime + load_mw)。",
+            key="load_uploader",
+        )
+
+    # 处理上传
+    if uploaded_file is not None:
+        file_bytes = uploaded_file.getvalue()
+        load_df, error_msg = parse_load_history_upload(file_bytes, uploaded_file.name)
+
+        if error_msg and "未检测到负荷列" not in error_msg:
+            st.error(error_msg)
+        elif load_df is not None and not load_df.empty:
+            st.session_state.load_df = load_df
+            st.session_state.load_filename = uploaded_file.name
+            st.session_state.load_error = ""
+        else:
+            st.session_state.load_error = error_msg or ""
+
+    with info_col:
+        if st.session_state.load_df is not None and not st.session_state.load_df.empty:
+            ld = st.session_state.load_df
+            st.success(f"✅ 已加载: {st.session_state.load_filename}")
+            st.caption(f"时间范围: {ld['datetime'].min()} ~ {ld['datetime'].max()}")
+            st.caption(f"数据点数: {len(ld)}")
+            if st.button("清除数据", key="clear_load"):
+                st.session_state.load_df = None
+                st.session_state.load_filename = ""
+                st.rerun()
+        else:
+            st.info("尚未上传负荷数据。\n\n支持格式：\n- 宽表: 日期列 + 0时~23时逐时负荷（如「负荷数据污水厂.xlsx」）\n- 长表: `datetime, load_mw`")
+
+    st.divider()
+
+    # 叠加图表
+    if primary_data.empty:
+        st.info("天气数据加载中...")
+    elif st.session_state.load_df is not None and not st.session_state.load_df.empty:
+        load_df = st.session_state.load_df
+
+        st.subheader("🔗 降水-负荷叠加")
+        st.plotly_chart(
+            plot_precip_load_overlay(primary_data, load_df, primary_label),
+            use_container_width=True,
+        )
+
+        col_left, col_right = st.columns(2)
+        with col_left:
+            st.subheader("🌡️ 温度-负荷散点")
+            st.plotly_chart(
+                plot_temp_load_scatter(primary_data, load_df, primary_label),
+                use_container_width=True,
+            )
+
+        with col_right:
+            st.subheader("📊 多因子对比")
+            numeric_params = [
+                p for p in EXPORT_PARAMS.keys()
+                if p in primary_data.columns and p != "wind_direction_10m"
+            ]
+            selected_param = st.selectbox(
+                "选择 X 轴参数",
+                options=numeric_params,
+                format_func=lambda x: EXPORT_PARAMS.get(x, {}).get("cn", x),
+                key="multi_factor_param",
+            )
+            chart_type = st.radio(
+                "图表类型",
+                options=["scatter", "bar"],
+                format_func=lambda x: "散点图" if x == "scatter" else "柱状图",
+                horizontal=True,
+                key="multi_factor_chart",
+            )
+            st.plotly_chart(
+                plot_multi_factor(primary_data, load_df, selected_param, chart_type),
+                use_container_width=True,
+            )
+
+        # 相关性统计
+        st.subheader("📈 天气-负荷相关性")
+        correlations = compute_correlations(
+            primary_data, load_df,
+            params=list(EXPORT_PARAMS.keys()),
+        )
+        param_labels = {k: v["cn"] for k, v in EXPORT_PARAMS.items()}
+        render_correlation_cards(correlations, param_labels)
+    else:
+        st.info("👆 请先上传负荷 CSV 文件以进行叠加分析")
+
+# ============================================================
+# Tab 1（下部）: 数据表格与导出
+# ============================================================
+if _current == "📊 天气总览":
+    if primary_data.empty:
+        st.info("数据加载中...")
+    else:
+        st.subheader("📋 数据表格")
+
+        # 列选择
+        available_cols = [c for c in EXPORT_PARAMS.keys() if c in primary_data.columns]
+        selected_table_cols = st.multiselect(
+            "选择显示列",
+            options=available_cols,
+            default=["temperature_2m", "precipitation", "wind_speed_10m", "shortwave_radiation"][:4],
+            format_func=lambda x: EXPORT_PARAMS.get(x, {}).get("cn", x),
+        )
+
+        # 表格
+        display_cols = ["datetime", "location_id"] + selected_table_cols
+        display_cols = [c for c in display_cols if c in primary_data.columns]
+        table_df = primary_data[display_cols].copy()
+
+        if "datetime" in table_df.columns:
+            table_df["datetime"] = table_df["datetime"].dt.strftime("%Y-%m-%d %H:%M")
+
+        st.dataframe(
+            table_df,
+            use_container_width=True,
+            height=400,
+            hide_index=True,
+        )
+        st.caption(f"共 {len(table_df)} 条记录")
+
+        st.divider()
+        st.subheader("📥 数据导出")
+
+        export_col1, export_col2 = st.columns(2)
+
+        with export_col1:
+            # 导出列选择
+            export_columns = st.multiselect(
+                "导出参数（留空=全部）",
+                options=available_cols,
+                default=[],
+                format_func=lambda x: f"{EXPORT_PARAMS.get(x, {}).get('cn', x)} ({EXPORT_PARAMS.get(x, {}).get('unit', '')})",
+                key="export_cols",
+            )
+            export_locs = st.multiselect(
+                "导出地点",
+                options=selected_locations,
+                default=selected_locations,
+                format_func=lambda x: LOCATIONS[x]["display_name"],
+            )
+
+        with export_col2:
+            export_time_range = st.radio(
+                "时间范围",
+                options=["全部数据", "仅历史", "仅预报"],
+                horizontal=False,
+            )
+
+        # 筛选导出数据
+        export_df = primary_data.copy()
+        if export_time_range == "仅历史":
+            export_df = all_weather[primary_loc]["historical"]
+        elif export_time_range == "仅预报":
+            export_df = all_weather[primary_loc]["forecast"]
+
+        selected_export_cols = export_columns if export_columns else None
+
+        if st.button("⬇️ 下载数据", type="primary", use_container_width=True):
+            if export_format == "CSV":
+                csv_bytes = export_csv(
+                    export_df,
+                    selected_columns=selected_export_cols,
+                    include_location=True,
+                )
+                st.download_button(
+                    label="📥 下载 CSV",
+                    data=csv_bytes,
+                    file_name=f"weather_{primary_loc}_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                    mime="text/csv",
+                    use_container_width=True,
+                )
+            else:
+                json_str = export_json(
+                    export_df,
+                    location_id=primary_loc,
+                    selected_columns=selected_export_cols,
+                )
+                st.download_button(
+                    label="📥 下载 JSON",
+                    data=json_str,
+                    file_name=f"weather_{primary_loc}_{datetime.now().strftime('%Y%m%d_%H%M')}.json",
+                    mime="application/json",
+                    use_container_width=True,
+                )
+
+# ============================================================
+# Tab 2（下部）: 相似日分析
+# ============================================================
+if _current == "🔌 负荷预测":
+    st.subheader("🔮 相似日分析")
+
+    # 负荷数据模板下载
+    template_path = os.path.join(os.path.dirname(__file__), "data", "负荷数据模板.xlsx")
+    with open(template_path, "rb") as tf:
+        st.download_button(
+            label="📥 下载负荷数据模板",
+            data=tf,
+            file_name="负荷数据模板.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            help="下载后按模板格式填入负荷数据，再上传到本页面",
+            use_container_width=True,
+        )
+
+    load_available = has_load_data()
+    load_start, load_end = query_load_date_range()
+
+    import json as _json
+
+    @st.cache_data(ttl=86400, show_spinner=False)
+    def _load_similarity_db():
+        sim_path = os.path.join(os.path.dirname(__file__), "data", "similarity_results.json")
+        if not os.path.exists(sim_path):
+            return {}, {}
+        with open(sim_path, "r", encoding="utf-8") as f:
+            raw = _json.load(f)
+        return raw.get("results", {}), raw.get("features", {})
+
+    similarity_db, similarity_features = _load_similarity_db()
+    sim_dates = sorted(similarity_db.keys())
+    sim_min = sim_dates[0] if sim_dates else "2025-01-01"
+    sim_max = sim_dates[-1] if sim_dates else "2026-07-29"
+
+    if not load_available:
+        st.info(
+            "💡 **尚未导入历史负荷数据。**\n\n"
+            "请先导入历史负荷数据（支持 CSV / Excel 格式）。\n"
+            "**支持格式**: Excel (.xlsx) / CSV 宽表(日期+24时) / CSV 长表(datetime+load_mw)"
+        )
+        uploaded_load = st.file_uploader(
+            "📤 上传历史负荷文件",
+            type=["csv", "xlsx", "xls"],
+            key="similar_day_load_uploader",
+        )
+        if uploaded_load is not None:
+            file_bytes = uploaded_load.getvalue()
+            load_hist_df, error_msg = parse_load_history_upload(file_bytes, uploaded_load.name)
+            if error_msg:
+                st.error(error_msg)
+            elif load_hist_df is not None and not load_hist_df.empty:
+                n_imported = import_load_from_df(load_hist_df, uploaded_load.name)
+                st.success(f"✅ 已导入 {n_imported} 条负荷记录")
+                st.rerun()
+    else:
+        with st.expander(f"📂 历史负荷数据 — {load_start} ~ {load_end}", expanded=False):
+            col_a, col_b = st.columns([2, 1])
+            with col_a:
+                st.caption(f"数据范围: **{load_start}** ~ **{load_end}**")
+            with col_b:
+                if st.button("🗑️ 清空", key="clear_load_history"):
+                    delete_load_data()
+                    st.rerun()
+
+        st.divider()
+        st.subheader("🎯 选择目标日")
+
+        today = datetime.now().date()
+        min_date = max(datetime.strptime(sim_min, "%Y-%m-%d").date(), today - timedelta(days=30))
+        sim_max_date = datetime.strptime(sim_max, "%Y-%m-%d").date()
+        max_date = max(sim_max_date, today + timedelta(days=7))  # 允许选未来，超出 JSON 的用实时算
+
+        col_t1, col_t2 = st.columns([2, 1])
+        with col_t1:
+            target_date = st.date_input(
+                "选择要分析的目标日期",
+                value=min(today + timedelta(days=1), max_date),
+                min_value=min_date,
+                max_value=max_date,
+                key="similar_day_target_date",
+            )
+        with col_t2:
+            st.caption(f"可用范围: {sim_min} ~ {sim_max}")
+            st.caption(f"共 {len(sim_dates)} 天预计算数据")
+            search_btn = st.button("🔍 查找相似日", type="primary",
+                                   use_container_width=True, key="similar_day_search")
+
+        if search_btn:
+            target_date_str = target_date.strftime("%Y-%m-%d")
+
+            if target_date_str not in similarity_db:
+                # 未来日期：从侧边栏预报数据提取天气，在 JSON 历史特征中找相似
+                if not primary_data.empty and "datetime" in primary_data.columns:
+                    target_wx = primary_data[
+                        primary_data["datetime"].apply(lambda x: str(x)[:10]) == target_date_str
+                    ].copy()
+                else:
+                    target_wx = pd.DataFrame()
+
+                if target_wx.empty or len(target_wx) < 6:
+                    target_wx = pd.DataFrame()  # 走下面的降级
+
+                if not target_wx.empty and len(target_wx) >= 6:
+                    st.info(f"目标日 {target_date_str} 超出预计算范围，使用预报天气实时匹配。")
+                    # 聚合目标日天气
+                    td = compute_daily_weather(target_wx)
+                    if td.empty:
+                        st.warning("无法计算目标日天气特征。")
+                    else:
+                        tr = td.iloc[0]
+                        t_tmax = tr.get("tmax", 0) or 0
+                        t_tmin = tr.get("tmin", 0) or 0
+                        t_precip = tr.get("precip_sum", 0) or 0
+                        t_rainy = t_precip >= 0.5
+                        t_m = target_date.month
+                        t_s = 0 if t_m in [12,1,2] else 1 if t_m in [3,4,5] else 2 if t_m in [6,7,8] else 3
+
+                        season_names = ["冬", "春", "夏", "秋"]
+                        weekday_names = ["一", "二", "三", "四", "五", "六", "日"]
+
+                        def precip_level(p):
+                            if p < 0.1: return 0
+                            if p < 1: return 1
+                            if p < 10: return 2
+                            if p < 25: return 3
+                            if p < 50: return 4
+                            return 5
+
+                        # 同季节 + 同晴雨 + 温度最接近
+                        scored = []
+                        for d_str in sim_dates:
+                            d_dt = datetime.strptime(d_str, "%Y-%m-%d")
+                            dm = d_dt.month
+                            ds = 0 if dm in [12,1,2] else 1 if dm in [3,4,5] else 2 if dm in [6,7,8] else 3
+                            if ds != t_s:
+                                continue
+                            f = similarity_features.get(d_str, {})
+                            if not f:
+                                continue
+                            f_rainy = f.get("precip_sum", 0) >= 0.5
+                            if t_rainy != f_rainy:
+                                continue
+                            tmax_d = abs(t_tmax - f.get("tmax", t_tmax)) ** 2
+                            tmin_d = abs(t_tmin - f.get("tmin", t_tmin)) ** 2
+                            score = tmax_d + tmin_d  # 温度差的平方和
+                            scored.append((d_str, score, f))
+
+                        scored.sort(key=lambda x: x[1])
+                        similar_days = []
+                        for rank, (d_str, score, f) in enumerate(scored[:3]):
+                            dd = datetime.strptime(d_str, "%Y-%m-%d")
+                            dm = dd.month
+                            ds = 0 if dm in [12,1,2] else 1 if dm in [3,4,5] else 2 if dm in [6,7,8] else 3
+                            dp = f.get("precip_sum", 0)
+                            pl = precip_level(dp)
+                            # 相似度：第一名 95%, 第二 85%, 第三 75%（简单分层）
+                            sim = [95, 85, 75][rank] if rank < 3 else 70
+                            similar_days.append({
+                                "date": dd,
+                                "similarity_score": round(score, 2),
+                                "similarity_pct": sim,
+                                "tmax": f.get("tmax"),
+                                "tmin": f.get("tmin"),
+                                "precip_sum": dp,
+                                "precip_level": pl,
+                                "rad_daily_sum": f.get("rad_sum"),
+                                "dew_point_avg": None,
+                                "season_label": season_names[ds],
+                                "weekday_label": weekday_names[dd.weekday()],
+                                "distance_components": {},
+                            })
+
+                        if not similar_days:
+                            st.warning("未找到匹配的相似日。")
+                        else:
+                            st.session_state.similar_days = similar_days
+                            st.session_state.target_date_str = target_date_str
+                            st.session_state.similar_search_done = True
+                            st.session_state.target_weather = target_wx
+
+                else:
+                    # 降级：无预报数据，同季节选日期最近的 3 天
+                    st.info(f"目标日 {target_date_str} 暂无预报数据，降级为同季节最近相似日。")
+                    t_m = target_date.month
+                    t_s = 0 if t_m in [12,1,2] else 1 if t_m in [3,4,5] else 2 if t_m in [6,7,8] else 3
+                    season_names = ["冬", "春", "夏", "秋"]
+                    weekday_names = ["一", "二", "三", "四", "五", "六", "日"]
+                    fallback = []
+                    for d_str in sim_dates:
+                        d_dt = datetime.strptime(d_str, "%Y-%m-%d")
+                        dm = d_dt.month
+                        ds = 0 if dm in [12,1,2] else 1 if dm in [3,4,5] else 2 if dm in [6,7,8] else 3
+                        if ds != t_s:
+                            continue
+                        c = similarity_features.get(d_str, {})
+                        delta = abs((target_date - d_dt.date()).days)
+                        fallback.append((d_str, delta, c))
+                    fallback.sort(key=lambda x: x[1])
+                    similar_days = []
+                    for d_str, delta, c in fallback[:3]:
+                        dd = datetime.strptime(d_str, "%Y-%m-%d")
+                        dp = c.get("precip_sum", 0)
+                        pl = 0 if dp < 0.1 else 1 if dp < 1 else 2 if dp < 10 else 3 if dp < 25 else 4 if dp < 50 else 5
+                        sim = max(50.0, round(100.0 - delta / 3.65, 1))
+                        similar_days.append({
+                            "date": dd,
+                            "similarity_score": delta,
+                            "similarity_pct": sim,
+                            "tmax": c.get("tmax"),
+                            "tmin": c.get("tmin"),
+                            "precip_sum": dp,
+                            "precip_level": pl,
+                            "rad_daily_sum": c.get("rad_sum"),
+                            "dew_point_avg": None,
+                            "season_label": season_names[ds],
+                            "weekday_label": weekday_names[dd.weekday()],
+                            "distance_components": {},
+                        })
+                    if similar_days:
+                        st.session_state.similar_days = similar_days
+                        st.session_state.target_date_str = target_date_str
+                        st.session_state.similar_search_done = True
+                        st.session_state.target_weather = None
+            else:
+                precomputed = similarity_db[target_date_str]
+                if not precomputed:
+                    st.warning("未找到相似日。")
+                else:
+                    season_names = ["冬", "春", "夏", "秋"]
+                    weekday_names = ["一", "二", "三", "四", "五", "六", "日"]
+
+                    similar_days = []
+                    for item in precomputed[:3]:
+                        d = datetime.strptime(item["date"], "%Y-%m-%d")
+                        similar_days.append({
+                            "date": d,
+                            "similarity_score": item["distance"],
+                            "similarity_pct": item["similarity_pct"],
+                            "tmax": item["tmax"],
+                            "tmin": item["tmin"],
+                            "precip_sum": item["precip_sum"],
+                            "precip_level": item.get("precip_level", 0),
+                            "rad_daily_sum": item["rad_sum"],
+                            "dew_point_avg": None,
+                            "season_label": season_names[item["season"]],
+                            "weekday_label": weekday_names[item["weekday"]],
+                            "distance_components": {},
+                        })
+
+                    st.session_state.similar_days = similar_days
+                    st.session_state.target_date_str = target_date_str
+                    st.session_state.similar_search_done = True
+                    st.session_state.target_weather = None
+
+        if st.session_state.get("similar_search_done"):
+            similar_days = st.session_state.get("similar_days", [])
+            target_date_str = st.session_state.get("target_date_str", "")
+
+            st.divider()
+            st.caption(f"相似日数据已预计算（{len(sim_dates)} 天，算法 v2），查表响应 < 1 秒。")
+
+            if similar_days:
+                render_similar_day_cards(similar_days)
+                st.divider()
+
+                load_data_map = {}
+                for day in similar_days:
+                    ds = day["date"].strftime("%Y-%m-%d") if hasattr(day["date"], "strftime") else str(day["date"])
+                    ldf = get_load_by_date(ds)
+                    if not ldf.empty:
+                        load_data_map[ds] = ldf
+
+                st.subheader("📈 负荷曲线叠加对比")
+                st.plotly_chart(
+                    plot_similar_day_overlay(target_date_str, similar_days, load_data_map,
+                                             target_weather=None, location_label=primary_label),
+                    use_container_width=True,
+                )
+
+                # --- 导出 Excel ---
+                st.divider()
+                st.subheader("📥 导出 24h 负荷数据")
+
+                # 构建导出数据
+                export_rows = []
+                # 相似日实际负荷
+                for day in similar_days:
+                    ds = day["date"].strftime("%Y-%m-%d") if hasattr(day["date"], "strftime") else str(day["date"])
+                    ldf = load_data_map.get(ds)
+                    if ldf is not None and not ldf.empty:
+                        vals = ldf["load_mw"].values[:24] if "load_mw" in ldf.columns else []
+                        if len(vals) == 24:
+                            export_rows.append({
+                                "类型": f"相似日_{ds}",
+                                "相似度": f"{day.get('similarity_pct', 0):.1f}%",
+                                **{f"{h:02d}h": round(vals[h], 2) for h in range(24)},
+                            })
+
+                # 预测负荷
+                all_loads = []
+                for day in similar_days:
+                    ds = day["date"].strftime("%Y-%m-%d") if hasattr(day["date"], "strftime") else str(day["date"])
+                    ldf = load_data_map.get(ds)
+                    if ldf is not None and not ldf.empty:
+                        vals = list(ldf["load_mw"].values[:24]) if "load_mw" in ldf.columns else []
+                        if len(vals) == 24:
+                            w = day.get("similarity_pct", 0) / 100.0
+                            all_loads.append((w, vals))
+
+                if all_loads:
+                    total_w = sum(w for w, _ in all_loads)
+                    if total_w > 0:
+                        pred = [round(sum(w * lv[h] for w, lv in all_loads) / total_w, 2) for h in range(24)]
+                        export_rows.append({
+                            "类型": f"预测_{target_date_str}",
+                            "相似度": "加权平均",
+                            **{f"{h:02d}h": pred[h] for h in range(24)},
+                        })
+
+                if export_rows:
+                    export_df = pd.DataFrame(export_rows)
+                    # 转置：行=小时，列=日期
+                    export_df_t = export_df.set_index("类型").T
+                    export_df_t.index.name = "小时"
+
+                    from io import BytesIO
+                    col_a, col_b = st.columns(2)
+                    with col_a:
+                        output1 = BytesIO()
+                        with pd.ExcelWriter(output1, engine="openpyxl") as writer:
+                            export_df_t.to_excel(writer, sheet_name="24h负荷", index=True)
+                        output1.seek(0)
+                        st.download_button(
+                            label=f"⬇️ 横表导出 ({target_date_str})",
+                            data=output1,
+                            file_name=f"相似日负荷_{target_date_str}.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            use_container_width=True,
+                        )
+
+                    with col_b:
+                        long_rows = []
+                        for _, row in export_df.iterrows():
+                            typ = row["类型"]
+                            sim = row["相似度"]
+                            for h in range(24):
+                                long_rows.append({
+                                    "类型": typ, "相似度": sim,
+                                    "小时": h, "负荷_MW": row[f"{h:02d}h"],
+                                })
+                        long_df = pd.DataFrame(long_rows)
+                        output2 = BytesIO()
+                        with pd.ExcelWriter(output2, engine="openpyxl") as writer:
+                            long_df.to_excel(writer, sheet_name="逐时数据", index=False)
+                        output2.seek(0)
+                        st.download_button(
+                            label=f"⬇️ 逐时数据导出 ({target_date_str})",
+                            data=output2,
+                            file_name=f"相似日逐时数据_{target_date_str}.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            use_container_width=True,
+                        )
+                else:
+                    st.caption("暂无负荷数据可导出。")
+
+# ============================================================
+# Tab 3: 智能调度
+# ============================================================
+if _current == "⚡ 智能调度":
+    # 定位模块二目录（供未来日期实时计算用）
+    _m2_here = os.path.dirname(os.path.abspath(__file__))
+    _m2_candidates = [
+        os.path.join(_m2_here, "..", "..", "..", "模块二", "智能调度"),
+        os.path.join(_m2_here, "..", "..", "模块二", "智能调度"),
+        os.path.join(_m2_here, "..", "..", "..", "..", "公用", "模块二", "智能调度"),
+        os.path.join(_m2_here, "..", "..", "..", "..", "..", "公用", "模块二", "智能调度"),
+    ]
+    module2_path = next((os.path.abspath(p) for p in _m2_candidates if os.path.exists(p)), os.path.abspath(_m2_candidates[0]))
+    module2_found = os.path.isdir(module2_path)
+
+    # ---- 三个展示辅助函数（日/月/年）----
+    def _show_dispatch_day(_day):
+        """展示单日的24小时详细调度建议。"""
+        s = _day["summary"]
+        h = _day["hourly"]
+        st.markdown(f"#### 📆 {_day['date']}（{_day['mode']}模式{'，冲击豁免' if _day['is_shock'] else ''}）")
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            st.metric("负荷", f"{s['load_kWh']:,.0f} kWh")
+        with c2:
+            st.metric("光伏", f"{s['pv_kWh']:,.0f} kWh")
+        with c3:
+            st.metric("购电", f"{s['buy_kWh']:,.0f} kWh")
+        with c4:
+            st.metric("绿电占比", f"{s['green_ratio_pct']:.1f}%")
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            st.metric("储能充电", f"{s['chg_kWh']:,.0f} kWh")
+        with c2:
+            st.metric("储能放电", f"{s['dis_kWh']:,.0f} kWh")
+        with c3:
+            st.metric("购电成本", f"¥{s['cost_yuan']:,.0f}")
+
+        # ============================================================
+        # 储能充放电时间线（把"何时充、何时放、充多少、放多少"讲清楚）
+        # ============================================================
+        st.subheader("🔋 储能充放电时间线")
+
+        # 提取充放电事件段（连续同动作合并）
+        _chg_events = []
+        _dis_events = []
+        _cur = None  # (动作类型, 起小时, 止小时, 累计功率, 累计电量kWh)
+        for x in h:
+            _hh = x["h"]
+            _pc = x["pch_kW"]
+            _pd = x["pdis_kW"]
+            _act = "chg" if _pc > 1 else ("dis" if _pd > 1 else None)
+            if _act is None:
+                # 动作结束，先结算上一个事件段
+                if _cur is not None:
+                    (_chg_events if _cur[0] == "chg" else _dis_events).append(_cur)
+                    _cur = None
+                continue
+            _pwr = _pc if _act == "chg" else _pd
+            if _cur is not None and _cur[0] == _act:
+                # 连续同动作，累加
+                _cur = (_act, _cur[1], _hh + 1, _cur[3] + _pwr, _cur[4] + _pwr)
+            else:
+                if _cur is not None:
+                    (_chg_events if _cur[0] == "chg" else _dis_events).append(_cur)
+                _cur = (_act, _hh, _hh + 1, _pwr, _pwr)
+        if _cur is not None:
+            (_chg_events if _cur[0] == "chg" else _dis_events).append(_cur)
+
+        # 总述文字
+        _src_pv = s.get("chg_pv_kWh", 0)
+        _src_grid = s["chg_kWh"] - _src_pv
+        _dis_rep = s.get("dis_replace_kWh", s["dis_kWh"])
+        st.markdown(
+            f"今日储能共 **充电 {s['chg_kWh']:,.0f} kWh**（其中光伏充入 {_src_pv:,.0f} kWh、"
+            f"电网充入 {max(_src_grid,0):,.0f} kWh），**放电 {s['dis_kWh']:,.0f} kWh**，"
+            f"其中 {_dis_rep:,.0f} kWh 用于替代购电供厂内负荷。"
+        )
+
+        # 充放电事件表
+        _event_rows = []
+        for _act, _t0, _t1, _pwsum, _ekwh in sorted(_chg_events + _dis_events, key=lambda e: e[1]):
+            _label = "充电" if _act == "chg" else "放电"
+            _icon = "🔵" if _act == "chg" else "🟠"
+            _avg_pwr = _pwsum / (_t1 - _t0) if _t1 > _t0 else 0
+            _event_rows.append({
+                "动作": f"{_icon} {_label}",
+                "时段": f"{_t0:02d}:00 ~ {_t1:02d}:00",
+                "时长": f"{_t1 - _t0} 小时",
+                "平均功率": f"{_avg_pwr:,.0f} kW",
+                "电量": f"{_ekwh:,.0f} kWh",
+            })
+        if _event_rows:
+            _edf = pd.DataFrame(_event_rows)
+            st.dataframe(_edf, use_container_width=True, height=min(260, 40 + len(_event_rows) * 35))
+            if not _chg_events:
+                st.caption("今日无充电动作。")
+            if not _dis_events:
+                st.caption("今日无放电动作。")
+        else:
+            st.caption("今日储能无充放电动作（静置）。")
+
+        # 逐时曲线
+        import plotly.graph_objects as _go
+        from plotly.subplots import make_subplots as _make_subplots
+        _hh = [x["h"] for x in h]
+        _load = [x["load_kW"] for x in h]
+        _pv = [x["pv_kW"] for x in h]
+        _grid = [x["pgrid_kW"] for x in h]
+        _pch = [x["pch_kW"] for x in h]
+        _pdis = [x["pdis_kW"] for x in h]
+        _soc = [x["soc"] for x in h]
+
+        _fig = _make_subplots(rows=3, cols=1, subplot_titles=("功率平衡", "储能充放电", "SOC"),
+                              vertical_spacing=0.12, row_heights=[0.4, 0.3, 0.3])
+        _fig.add_trace(_go.Scatter(x=_hh, y=_load, name="负荷", line=dict(color="black", width=2)), row=1, col=1)
+        _fig.add_trace(_go.Scatter(x=_hh, y=_pv, name="光伏", fill="tozeroy", line=dict(color="#2ECC71")), row=1, col=1)
+        _fig.add_trace(_go.Scatter(x=_hh, y=_grid, name="购电", line=dict(color="#E74C3C", dash="dot")), row=1, col=1)
+        _fig.add_trace(_go.Bar(x=_hh, y=_pch, name="充电", marker_color="#3498DB"), row=2, col=1)
+        _fig.add_trace(_go.Bar(x=_hh, y=[-x for x in _pdis], name="放电", marker_color="#E67E22"), row=2, col=1)
+        _fig.add_trace(_go.Scatter(x=_hh, y=[x*100 for x in _soc], name="SOC%", line=dict(color="#8E44AD"), fill="tozeroy"), row=3, col=1)
+        _fig.update_layout(height=650, hovermode="x unified", title_text=f"{_day['date']} 24小时调度曲线")
+        _fig.update_yaxes(title_text="功率(kW)", row=1, col=1)
+        _fig.update_yaxes(title_text="功率(kW)", row=2, col=1)
+        _fig.update_yaxes(title_text="SOC(%)", row=3, col=1)
+        st.plotly_chart(_fig, use_container_width=True)
+
+        # 逐时明细表
+        _rows = []
+        for x in h:
+            _rows.append({
+                "时刻": f"{x['h']:02d}:00",
+                "负荷kW": round(x["load_kW"], 1),
+                "光伏kW": round(x["pv_kW"], 1),
+                "充电kW": round(x["pch_kW"], 1),
+                "放电kW": round(x["pdis_kW"], 1),
+                "购电kW": round(x["pgrid_kW"], 1),
+                "SOC%": round(x["soc"]*100, 1),
+            })
+        _ddf = pd.DataFrame(_rows)
+        with st.expander("📋 逐时明细表", expanded=False):
+            st.dataframe(_ddf, use_container_width=True, height=400)
+            from io import BytesIO
+            _buf = BytesIO()
+            _ddf.to_csv(_buf, index=False, encoding="utf-8-sig")
+            _buf.seek(0)
+            st.download_button(
+                f"⬇️ 下载 {_day['date']} 调度明细CSV", data=_buf,
+                file_name=f"调度明细_{_day['date']}.csv", mime="text/csv",
+                use_container_width=True,
+            )
+
+    def _show_dispatch_month(_month_days, _pick_month):
+        """展示单月逐日汇总。"""
+        st.markdown(f"#### 📅 {_pick_month} 逐日调度汇总（{len(_month_days)} 天）")
+        _rows = []
+        _tot = {"load": 0, "pv": 0, "buy": 0, "cost": 0, "chg": 0, "dis": 0}
+        for d in _month_days:
+            s = d["summary"]
+            _rows.append({
+                "日期": d["date"],
+                "模式": d["mode"],
+                "负荷kWh": round(s["load_kWh"]),
+                "光伏kWh": round(s["pv_kWh"]),
+                "购电kWh": round(s["buy_kWh"]),
+                "绿电%": s["green_ratio_pct"],
+                "成本元": round(s["cost_yuan"]),
+                "充电kWh": round(s["chg_kWh"]),
+                "放电kWh": round(s["dis_kWh"]),
+            })
+            _tot["load"] += s["load_kWh"]; _tot["pv"] += s["pv_kWh"]
+            _tot["buy"] += s["buy_kWh"]; _tot["cost"] += s["cost_yuan"]
+            _tot["chg"] += s["chg_kWh"]; _tot["dis"] += s["dis_kWh"]
+        _mdf = pd.DataFrame(_rows)
+        st.dataframe(_mdf, use_container_width=True, height=400)
+
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            st.metric("月总负荷", f"{_tot['load']/1e4:.0f} 万kWh")
+        with c2:
+            st.metric("月总光伏", f"{_tot['pv']/1e4:.0f} 万kWh")
+        with c3:
+            st.metric("月总购电", f"{_tot['buy']/1e4:.0f} 万kWh")
+        with c4:
+            st.metric("月购电成本", f"¥{_tot['cost']/1e4:.0f} 万")
+
+        # 逐日趋势图
+        import plotly.graph_objects as _go
+        _dates = [d["date"][5:] for d in _month_days]   # MM-DD，如 07-01
+        _fig = _go.Figure()
+        _fig.add_trace(_go.Scatter(x=_dates, y=[d["summary"]["load_kWh"] for d in _month_days], name="负荷"))
+        _fig.add_trace(_go.Scatter(x=_dates, y=[d["summary"]["pv_kWh"] for d in _month_days], name="光伏"))
+        _fig.add_trace(_go.Scatter(x=_dates, y=[d["summary"]["buy_kWh"] for d in _month_days], name="购电"))
+        _fig.update_layout(height=400, title=f"{_pick_month} 逐日负荷/光伏/购电趋势", hovermode="x unified")
+        _fig.update_xaxes(type="category", tickangle=45)
+        st.plotly_chart(_fig, use_container_width=True)
+
+    def _show_dispatch_year(_all_days):
+        """展示全年逐月汇总。"""
+        st.markdown(f"#### 📅 全年调度汇总（{len(_all_days)} 天）")
+        from collections import defaultdict
+        _magg = defaultdict(lambda: {"load": 0, "pv": 0, "buy": 0, "cost": 0, "chg": 0, "dis": 0, "green": 0, "n": 0})
+        for d in _all_days:
+            m = d["date"][:7]
+            s = d["summary"]
+            _magg[m]["load"] += s["load_kWh"]; _magg[m]["pv"] += s["pv_kWh"]
+            _magg[m]["buy"] += s["buy_kWh"]; _magg[m]["cost"] += s["cost_yuan"]
+            _magg[m]["chg"] += s["chg_kWh"]; _magg[m]["dis"] += s["dis_kWh"]
+            _magg[m]["green"] += s["green_ratio_pct"]; _magg[m]["n"] += 1
+        _rows = []
+        for m in sorted(_magg.keys()):
+            g = _magg[m]
+            _rows.append({
+                "月份": m,
+                "天数": g["n"],
+                "负荷万kWh": round(g["load"]/1e4, 1),
+                "光伏万kWh": round(g["pv"]/1e4, 1),
+                "购电万kWh": round(g["buy"]/1e4, 1),
+                "绿电均值%": round(g["green"]/g["n"], 1),
+                "成本万元": round(g["cost"]/1e4, 1),
+                "储能充万kWh": round(g["chg"]/1e4, 1),
+                "储能放万kWh": round(g["dis"]/1e4, 1),
+            })
+        _ydf = pd.DataFrame(_rows)
+        st.dataframe(_ydf, use_container_width=True, height=420)
+
+        # 月份趋势
+        import plotly.graph_objects as _go
+        _fig = _go.Figure()
+        _fig.add_trace(_go.Bar(x=_ydf["月份"], y=_ydf["负荷万kWh"], name="负荷"))
+        _fig.add_trace(_go.Bar(x=_ydf["月份"], y=_ydf["光伏万kWh"], name="光伏"))
+        _fig.add_trace(_go.Bar(x=_ydf["月份"], y=_ydf["购电万kWh"], name="购电"))
+        _fig.update_layout(height=420, barmode="group", title="全年逐月电量对比", hovermode="x unified")
+        _fig.update_xaxes(type="category")
+        st.plotly_chart(_fig, use_container_width=True)
+
+    st.subheader("⚡ 光储优化调度系统")
+    st.caption("基于光伏预测 + 储能优化 + 柔性负荷的智能调度决策")
+
+    st.info("""
+    📌 **功能说明**
+    - 光伏预测: 基于相似日KNN算法
+    - 储能优化: 分时电价下的充放电策略优化
+    - 柔性负荷: 曝气系统功率可调(双模式滞回控制)
+    - 输出: 未来24小时逐时调度建议
+    """)
+
+    # ============================================================
+    # 生成调度建议（用侧边栏参数重新运行优化，联动到下方日/月/年查询）
+    # ============================================================
+    st.divider()
+    c_gen1, c_gen2 = st.columns([2, 1])
+    with c_gen1:
+        st.subheader("🚀 生成调度建议")
+        st.caption("用侧边栏「光储柔调度参数」重新运行全年优化，生成结果供下方日/月/年查询")
+    with c_gen2:
+        st.write("")
+        _do_generate = st.button("🔄 重新生成", type="primary", use_container_width=True,
+                                  key="regenerate_dispatch")
+
+    if _do_generate:
+        if module2_found:
+            with st.spinner("正在用当前参数重新运行全年优化调度（约5秒）..."):
+                _orig_cfg = sys.modules.get("config")
+                _orig_p = list(sys.path)
+                try:
+                    sys.path.insert(0, module2_path)
+                    for _k in [k for k in list(sys.modules) if k.startswith(("export_yearly_dispatch", "storage_optimizer", "mode_controller", "validate_optimizer", "module2_config"))]:
+                        sys.modules.pop(_k, None)
+
+                    import importlib.util as _ilu
+                    _cfg_path = os.path.join(module2_path, "config.py")
+                    if os.path.exists(_cfg_path):
+                        _spec = _ilu.spec_from_file_location("module2_config", _cfg_path)
+                        _m2cfg = _ilu.module_from_spec(_spec)
+                        _spec.loader.exec_module(_m2cfg)
+                        sys.modules["config"] = _m2cfg
+
+                    from export_yearly_dispatch import build_yearly_dispatch
+                    import config as _m2_cfg
+
+                    # 用侧边栏参数覆盖
+                    _bcs = float(st.session_state.get("sidebar_pv_scale", 2.0))
+                    _bc = float(st.session_state.get("sidebar_battery_cap", 4.0))
+                    _bp = float(st.session_state.get("sidebar_battery_pow", 2.0))
+                    _fe = bool(st.session_state.get("sidebar_flex_enabled", True))
+                    _fm = float(st.session_state.get("sidebar_flex_min", 65)) / 100.0
+                    _bak = (_m2_cfg.PV_SCALE, _m2_cfg.E_BAT_MAX, _m2_cfg.P_BAT_MAX,
+                            _m2_cfg.FLEX_ENABLED, _m2_cfg.FLEX_MIN)
+                    _m2_cfg.PV_SCALE = _bcs
+                    _m2_cfg.E_BAT_MAX = _bc * 1000
+                    _m2_cfg.P_BAT_MAX = _bp * 1000
+                    _m2_cfg.FLEX_ENABLED = _fe
+                    _m2_cfg.FLEX_MIN = _fm
+
+                    _new_result = build_yearly_dispatch()
+
+                    _m2_cfg.PV_SCALE, _m2_cfg.E_BAT_MAX, _m2_cfg.P_BAT_MAX, \
+                        _m2_cfg.FLEX_ENABLED, _m2_cfg.FLEX_MIN = _bak
+
+                    st.session_state.yearly_dispatch_data = _new_result
+                    st.success("✅ 已用当前参数重新生成调度建议")
+                except Exception as _e:
+                    st.error(f"重新生成失败: {_e}")
+                finally:
+                    if _orig_cfg is not None:
+                        sys.modules["config"] = _orig_cfg
+                    else:
+                        sys.modules.pop("config", None)
+                    for _k in [k for k in list(sys.modules) if k.startswith(("export_yearly_dispatch", "storage_optimizer", "mode_controller", "validate_optimizer", "module2_config"))]:
+                        sys.modules.pop(_k, None)
+                    sys.path[:] = _orig_p
+        else:
+            st.error("❌ 未找到模块二目录，无法重新生成")
+
+    # ============================================================
+    # 按日/月/年查询调度建议
+    # ============================================================
+    st.divider()
+    st.subheader("📅 按日/月/年查询调度建议")
+
+    import json as _json
+
+    # 独立定位 yearly_dispatch.json（不依赖后面才定义的 module2_path）
+    _jd_here = os.path.dirname(os.path.abspath(__file__))
+    _jd_candidates = [
+        os.path.join(_jd_here, "..", "..", "..", "模块二", "智能调度", "output", "yearly_dispatch.json"),
+        os.path.join(_jd_here, "..", "..", "模块二", "智能调度", "output", "yearly_dispatch.json"),
+        os.path.join(_jd_here, "..", "..", "..", "..", "公用", "模块二", "智能调度", "output", "yearly_dispatch.json"),
+    ]
+    _dispatch_json_path = next((os.path.abspath(p) for p in _jd_candidates if os.path.exists(p)), os.path.abspath(_jd_candidates[0]))
+
+    @st.cache_data(ttl=3600, show_spinner=False)
+    def _load_yearly_dispatch(_json_path: str):
+        if not os.path.exists(_json_path):
+            return None
+        with open(_json_path, "r", encoding="utf-8") as _f:
+            return _json.load(_f)
+
+    _yearly = st.session_state.get("yearly_dispatch_data") or _load_yearly_dispatch(_dispatch_json_path)
+    if _yearly and _yearly.get("days"):
+        _all_days = _yearly["days"]
+        _date_list = [d["date"] for d in _all_days]
+        _min_date = datetime.strptime(_date_list[0], "%Y-%m-%d").date()
+        _max_date = datetime.strptime(_date_list[-1], "%Y-%m-%d").date()
+
+        _grain = st.radio(
+            "时间粒度",
+            options=["日", "月", "年"],
+            horizontal=True,
+            key="dispatch_grain",
+        )
+
+        if _grain == "日":
+            _pick = st.date_input(
+                "选择日期",
+                value=_max_date,
+                min_value=_min_date,
+                max_value=_max_date,
+                key="dispatch_pick_day",
+            )
+            _pick_str = _pick.strftime("%Y-%m-%d")
+            _day = next((d for d in _all_days if d["date"] == _pick_str), None)
+            if _day:
+                _show_dispatch_day(_day)
+            else:
+                st.warning(f"⚠️ {_pick_str} 不在已生成的调度数据范围内（{_min_date} ~ {_max_date}）。")
+
+        elif _grain == "月":
+            _months = sorted(set(d["date"][:7] for d in _all_days))
+            _pick_month = st.selectbox("选择月份", options=_months, key="dispatch_pick_month")
+            _month_days = [d for d in _all_days if d["date"].startswith(_pick_month)]
+            _show_dispatch_month(_month_days, _pick_month)
+
+        else:  # 年
+            _show_dispatch_year(_all_days)
+
+
+    # ---- 储能成本与碳排放核算 ----
+    st.divider()
+    st.subheader("💰 储能成本与碳排放核算")
+
+    _bc = float(st.session_state.get("sidebar_battery_cap", 4.0))
+    _bp = float(st.session_state.get("sidebar_battery_pow", 2.0))
+    _e_kwh = _bc * 1000.0     # MWh -> kWh
+    _p_kw = _bp * 1000.0      # MW -> kW
+    _epc_unit = 1113.0        # 元/kWh 工商业储能EPC均价
+    _sys_cf = 90.0            # kgCO2/kWh 系统级隐含碳
+    _life_years = 10.0
+    _grid_ef = 0.55           # kgCO2/kWh 广东平均电网因子
+
+    _invest = _e_kwh * _epc_unit
+    _embodied = _e_kwh * _sys_cf
+    _embodied_day = _embodied / (_life_years * 365)
+
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.metric("储能总投资(EPC)", f"¥{_invest/1e4:.0f} 万",
+                  help=f"按 EPC 均价 {_epc_unit:.0f} 元/kWh，{_bc} MWh × {_epc_unit}")
+    with c2:
+        st.metric("制造隐含碳", f"{_embodied/1000:.0f} 吨 CO₂",
+                  help=f"系统级碳足迹 {_sys_cf:.0f} kgCO₂/kWh（含电芯+PCS+柜体）")
+    with c3:
+        st.metric("隐含碳摊销", f"{_embodied_day:.0f} kg/天",
+                  help=f"按 {_life_years:.0f} 年寿命摊销到天")
+    st.caption(f"规模 {_bc} MWh / {_bp} MW（随侧边栏光储柔调度参数联动）")
+
+# ============================================================
+# Tab 2（中部）: 负荷预测
+# ============================================================
+if _current == "🔌 负荷预测":
+    st.subheader("🔌 污水厂负荷预测")
+    st.caption("基于历史负荷 + 排班日历 + 天气预报，预测未来逐时负荷")
+
+    # 操作引导
+    with st.expander("📖 使用说明（首次使用必读）", expanded=False):
+        st.markdown("""
+        **三步开始预测：**
+        1. **导入负荷数据**：点击「📂 导入数据」，上传历史负荷文件（Excel 宽表：日期列 + 0时~23时逐时负荷，或 CSV）
+        2. **配置排班**：在「📅 排班日历」设置生产日/休息日，生成排班表
+        3. **填天气 + 运行**：在「🌤️ 天气预报」填未来天气，点「🚀 运行预测」
+
+        > 若数据为空，按钮会自动展开「📂 数据导入」面板，从第一步开始即可。
+        """)
+
+    # ---- 顶部操作栏 ----
+    c1, c2, c3, c4 = st.columns([2, 2, 1, 1])
+    with c1:
+        _default_company = st.session_state.get("sidebar_pred_company", PREDICTION_COMPANIES[0])
+        pred_company = st.selectbox("选择公司", options=PREDICTION_COMPANIES,
+                                    index=PREDICTION_COMPANIES.index(_default_company) if _default_company in PREDICTION_COMPANIES else 0,
+                                    key="pred_company_select")
+    with c2:
+        load_has = has_load_data(pred_company)
+        load_start, load_end = query_load_date_range(pred_company)
+        if load_has:
+            st.success(f"✅ {pred_company}: {load_start} ~ {load_end}")
+        else:
+            st.info(f"💡 {pred_company} 暂无数据")
+    with c3:
+        st.write("")
+        st.write("")
+        if st.button("📂 导入数据", use_container_width=True, key="toggle_import"):
+            st.session_state._show_import = not st.session_state.get("_show_import", False)
+    with c4:
+        if load_has:
+            st.write("")
+            st.write("")
+            st.download_button(
+                label="📥 导出", data=_build_hourly_export(pred_company),
+                file_name=f"{pred_company}_逐时负荷_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+            )
+
+    # ---- 导入面板 ----
+    if st.session_state.get("_show_import", False) or not load_has:
+        with st.expander("📂 数据导入", expanded=not load_has):
+            uploaded_load = st.file_uploader(
+                f"上传 {pred_company} 负荷文件 (Excel/CSV)", type=["csv", "xlsx", "xls"],
+                key="pred_load_uploader",
+            )
+            if uploaded_load is not None:
+                from src.utils.csv_parser import parse_load_history_upload
+                file_bytes = uploaded_load.getvalue()
+                load_hist_df, error_msg = parse_load_history_upload(file_bytes, uploaded_load.name)
+                if error_msg:
+                    st.error(error_msg)
+                elif load_hist_df is not None and not load_hist_df.empty:
+                    load_hist_df["company"] = pred_company
+                    n = import_load_from_df(load_hist_df, uploaded_load.name, pred_company)
+                    st.success(f"✅ 已导入 {pred_company} {n} 条负荷记录")
+                    st.session_state._show_import = False
+                    st.rerun()
+
+            st.divider()
+            st.caption("或分别上传各公司数据：")
+            batch_cols = st.columns(3)
+            for i, company in enumerate(PREDICTION_COMPANIES):
+                with batch_cols[i]:
+                    co_has = has_load_data(company)
+                    icon = "✅" if co_has else "⬜"
+                    st.caption(f"{icon} {company}")
+                    co_file = st.file_uploader(
+                        company, type=["csv", "xlsx", "xls"],
+                        key=f"batch_load_{company}", label_visibility="collapsed",
+                    )
+                    if co_file is not None:
+                        co_bytes = co_file.getvalue()
+                        co_df, co_err = parse_load_history_upload(co_bytes, co_file.name)
+                        if co_err:
+                            st.error(co_err)
+                        elif co_df is not None and not co_df.empty:
+                            co_df["company"] = company
+                            import_load_from_df(co_df, co_file.name, company)
+                            st.success(f"✅ {company}")
+                            st.rerun()
+
+        if not load_has:
+            st.info("👆 请先导入历史负荷数据")
+            st.stop()
+
+    # ---- 排班 + 天气 ----
+    existing_cal = get_calendar(pred_company)
+    if not existing_cal.empty:
+        st.session_state.calendar_df = existing_cal
+
+    with st.expander("📅 排班日历", expanded=False):
+        cal_mode = st.radio(
+            "排班模式", options=["weekly_rule", "upload"],
+            format_func=lambda x: "周规律" if x == "weekly_rule" else "上传排班表",
+            horizontal=True, key="cal_mode",
+        )
+        if cal_mode == "weekly_rule":
+            prod_days = st.multiselect(
+                "每周生产日",
+                options=[(0, "周一"), (1, "周二"), (2, "周三"), (3, "周四"), (4, "周五"), (5, "周六"), (6, "周日")],
+                default=DEFAULT_PRODUCTION_DAYS, format_func=lambda x: x[1], key="prod_days_select",
+            )
+            special_dates_input = st.text_area(
+                "特殊日（YYYY-MM-DD,类型）", placeholder="2026-10-01,holiday",
+                height=68, key="special_dates_input",
+            )
+            if st.button("🔄 生成排班日历", key="gen_calendar"):
+                prod_day_nums = [d[0] for d in prod_days]
+                special_dates = {}
+                if special_dates_input.strip():
+                    for line in special_dates_input.strip().split("\n"):
+                        parts = [p.strip() for p in line.split(",")]
+                        if len(parts) >= 2:
+                            special_dates[parts[0]] = parts[1]
+                if load_start and load_end:
+                    cal_df = generate_calendar_from_rule(load_start, load_end, prod_day_nums, special_dates)
+                    forecast_end_dt = datetime.strptime(load_end, "%Y-%m-%d") + timedelta(days=DEFAULT_FORECAST_DAYS_LIMIT)
+                    cal_ext = generate_calendar_from_rule(load_end, forecast_end_dt.strftime("%Y-%m-%d"), prod_day_nums, special_dates)
+                    cal_df = pd.concat([cal_df, cal_ext[cal_ext["date"] > cal_df["date"].max()]], ignore_index=True)
+                    delete_calendar(pred_company)
+                    import_calendar_from_df(cal_df, pred_company, "weekly_rule")
+                    st.session_state.calendar_df = cal_df
+                    st.success(f"✅ 已生成 {len(cal_df)} 天排班日历")
+                    st.rerun()
+        else:
+            uploaded_cal = st.file_uploader("上传排班表", type=["csv", "xlsx"], key="cal_uploader")
+            if uploaded_cal is not None:
+                cal_raw = pd.read_csv(uploaded_cal) if uploaded_cal.name.endswith(".csv") else pd.read_excel(uploaded_cal)
+                cal_df = parse_calendar_upload(cal_raw)
+                if cal_df.empty:
+                    st.error("无法解析排班表")
+                else:
+                    delete_calendar(pred_company)
+                    import_calendar_from_df(cal_df, pred_company, "upload")
+                    st.session_state.calendar_df = cal_df
+                    st.success(f"✅ 已导入 {len(cal_df)} 天排班数据")
+                    st.rerun()
+        if not existing_cal.empty:
+            st.caption(f"当前排班: {len(existing_cal)} 天")
+
+    with st.expander("🌤️ 天气预报", expanded=False):
+        wx_from_db = False
+        col_db, _ = st.columns([1, 2])
+        with col_db:
+            if st.button("📥 从数据库加载", use_container_width=True, key="load_wx_from_db"):
+                if load_start:
+                    wx_db = get_weather_from_db("zhongshan", load_start, load_end if load_end else load_start)
+                    if wx_db.empty:
+                        st.warning("⚠️ 数据库中无天气数据，请先运行批量拉取脚本")
+                    else:
+                        pred_end = (datetime.strptime(load_end, "%Y-%m-%d") + timedelta(days=DEFAULT_FORECAST_DAYS_LIMIT)).strftime("%Y-%m-%d")
+                        st.session_state.weather_forecast_df = get_weather_from_db("zhongshan", load_start, pred_end)
+                        st.session_state._wx_from_db = True
+                        st.success(f"✅ 已加载 {len(st.session_state.weather_forecast_df)} 天历史天气")
+                        st.rerun()
+                else:
+                    st.warning("请先导入负荷数据")
+
+        if st.session_state.get("_wx_from_db"):
+            st.caption("当前使用数据库中的历史天气数据。若需修改，请在下方手动编辑后确认。")
+
+        st.caption("在表格中直接填写天气预报数据：")
+        wx_has = False
+        if "weather_editor_df" not in st.session_state:
+            dates = pd.date_range(datetime.now(), periods=7, freq="D")
+            st.session_state.weather_editor_df = pd.DataFrame({
+                "date": dates.strftime("%Y-%m-%d"),
+                "tmax": [32.0] * 7,
+                "tmin": [25.0] * 7,
+                "humidity_avg": [75.0] * 7,
+                "precip_sum": [0.0] * 7,
+                "rad_sum": [5000.0] * 7,
+            })
+        wx_days = st.slider("预报天数", 1, 31, 7, 1, key="wx_days")
+        current_df = st.session_state.weather_editor_df
+        if len(current_df) < wx_days:
+            extra = wx_days - len(current_df)
+            last_date = pd.Timestamp(current_df["date"].iloc[-1])
+            new_rows = pd.DataFrame({
+                "date": pd.date_range(last_date + pd.Timedelta(days=1), periods=extra, freq="D").strftime("%Y-%m-%d"),
+                "tmax": [current_df["tmax"].iloc[-1]] * extra,
+                "tmin": [current_df["tmin"].iloc[-1]] * extra,
+                "humidity_avg": [current_df["humidity_avg"].iloc[-1]] * extra,
+                "precip_sum": [0.0] * extra,
+                "rad_sum": [current_df["rad_sum"].iloc[-1]] * extra,
+            })
+            current_df = pd.concat([current_df, new_rows], ignore_index=True)
+        elif len(current_df) > wx_days:
+            current_df = current_df.head(wx_days)
+
+        edited = st.data_editor(
+            current_df,
+            column_config={
+                "date": st.column_config.TextColumn("日期", disabled=True),
+                "tmax": st.column_config.NumberColumn("最高温 °C", min_value=-20.0, max_value=50.0, step=0.5, format="%.1f"),
+                "tmin": st.column_config.NumberColumn("最低温 °C", min_value=-20.0, max_value=50.0, step=0.5, format="%.1f"),
+                "humidity_avg": st.column_config.NumberColumn("湿度 %", min_value=0.0, max_value=100.0, step=1.0, format="%.0f"),
+                "precip_sum": st.column_config.NumberColumn("降水 mm", min_value=0.0, max_value=500.0, step=1.0, format="%.1f"),
+                "rad_sum": st.column_config.NumberColumn("辐射 W/m²·d", min_value=0.0, max_value=15000.0, step=100.0, format="%.0f"),
+            },
+            use_container_width=True,
+            num_rows="fixed",
+            height=250,
+            key="weather_editor",
+        )
+        st.session_state.weather_editor_df = edited
+
+        if st.button("✅ 确认天气数据", use_container_width=True, key="confirm_wx"):
+            st.session_state.weather_forecast_df = edited.rename(columns={"date": "date"})
+            st.session_state._wx_from_db = False
+            st.success(f"✅ 已保存 {len(edited)} 天天气预报")
+            st.rerun()
+
+        wx_has = st.session_state.weather_forecast_df is not None and not st.session_state.weather_forecast_df.empty
+        source_label = "(数据库)" if st.session_state.get("_wx_from_db") else ""
+        st.caption(f"已保存: {len(st.session_state.weather_forecast_df)} 天 {source_label}" if wx_has else "✏️ 填完点「确认天气数据」或「从数据库加载」即可生效")
+
+    # ---- 预测参数 + 运行 ----
+    col_p1, col_p2, col_p3 = st.columns([1, 1, 2])
+    with col_p1:
+        _default_horizon = int(st.session_state.get("sidebar_forecast_horizon", DEFAULT_FORECAST_DAYS_LIMIT))
+        forecast_horizon = st.slider("预测天数", 1, DEFAULT_FORECAST_DAYS_LIMIT, _default_horizon, 1)
+    with col_p2:
+        _default_k = int(st.session_state.get("sidebar_knn_k", DEFAULT_KNN_K))
+        knn_k = st.slider("KNN 匹配数", 1, 10, _default_k, 1)
+    with col_p3:
+        st.write("")
+        if st.button("🚀 运行预测", type="primary", use_container_width=True, key="run_forecast_btn"):
+            with st.spinner(f"预测 {pred_company} 未来 {forecast_horizon} 天..."):
+                df_load = query_load_all(pred_company)
+                df_hourly = prepare_load_data(df_load, pred_company)
+                cal_df = st.session_state.calendar_df
+                wx_df = st.session_state.weather_forecast_df
+                result = run_forecast(
+                    company=pred_company, df_hourly=df_hourly,
+                    forecast_horizon=forecast_horizon,
+                    calendar_df=cal_df if cal_df is not None and not cal_df.empty else None,
+                    weather_df=wx_df if wx_df is not None and not wx_df.empty else None,
+                    k=knn_k,
+                )
+                st.session_state.prediction_result = result
+                st.session_state.prediction_company = pred_company
+                st.session_state._df_load = df_load
+            st.success("✅ 预测完成")
+
+    st.divider()
+
+    # ---- 预测结果 ----
+    result = st.session_state.prediction_result
+    if result is not None and st.session_state.prediction_company == pred_company:
+        if "error" in result:
+            st.error(result["error"])
+        else:
+            df_load = st.session_state.get("_df_load")
+            if df_load is None:
+                df_load = query_load_all(pred_company)
+            df_hourly = prepare_load_data(df_load, pred_company)
+            daily_series = prepare_daily_series(df_hourly)
+
+            forecast = result["daily_forecast"]
+            hourly_df = pd.DataFrame(result["hourly_results"])
+            info = result.get("info", {})
+            cal_df = st.session_state.calendar_df
+
+            # 回测 MAPE
+            hist_dates = set(str(d) for d in daily_series.index)
+            overlap = hourly_df[hourly_df["date"].apply(lambda d: str(d) in hist_dates)]
+            mape_val = None
+            if len(overlap) >= 24 * 7:
+                daily_pred = overlap.groupby("date")["load_mw"].sum()
+                daily_actual = {}
+                for d in daily_pred.index:
+                    key = pd.Timestamp(d).strftime("%Y-%m-%d")
+                    if key in daily_series.index:
+                        daily_actual[d] = daily_series[key]
+                if daily_actual:
+                    a = np.array(list(daily_actual.values()))
+                    p = np.array([daily_pred[d] for d in daily_actual.keys()])
+                    mape_val = float(np.mean(np.abs((a - p) / (a + 1e-6))) * 100)
+
+            # KPI 卡片
+            metrics = [
+                ("预测日均", f"{forecast.mean():.1f} MWh"),
+                ("历史日均", f"{daily_series.mean():.1f} MWh"),
+                ("最优窗口", f"{info.get('best_window', '-')} 天"),
+            ]
+            if mape_val is not None:
+                delta = "normal" if mape_val < 10 else "off" if mape_val < 20 else "inverse"
+                metrics.append((f"回测 MAPE", f"{mape_val:.1f}%"))
+            else:
+                rs = info.get('residual_std')
+                metrics.append(("回测残差", f"{rs:.1f} MWh" if isinstance(rs, (int, float)) else "-"))
+
+            mcols = st.columns(len(metrics))
+            for i, (label, value) in enumerate(metrics):
+                with mcols[i]:
+                    st.metric(label, value)
+
+            # 图表
+            st.plotly_chart(
+                plot_daily_forecast(daily_series, forecast, result["daily_lower"], result["daily_upper"], pred_company),
+                use_container_width=True,
+            )
+
+            c_l, c_r = st.columns(2)
+            with c_l:
+                st.plotly_chart(plot_hourly_profile(result["hourly_results"], company=pred_company), use_container_width=True)
+            with c_r:
+                st.plotly_chart(
+                    plot_weekday_vs_rest(result["hourly_results"],
+                        cal_df if cal_df is not None and not cal_df.empty else None, pred_company),
+                    use_container_width=True,
+                )
+
+            st.plotly_chart(
+                plot_template_matches(result["hourly_results"], df_hourly, pred_company),
+                use_container_width=True,
+            )
+
+            # 目标日24h逐时负荷数据表
+            forecast_hourly = hourly_df[
+                hourly_df["datetime"] > pd.Timestamp(daily_series.index[-1])
+            ][["datetime", "hour", "load_mw", "daily_total_mwh", "profile_std_mw"]]
+            forecast_hourly["date"] = forecast_hourly["datetime"].dt.strftime("%Y-%m-%d")
+
+            pred_dates = sorted(forecast_hourly["date"].unique())
+
+            with st.expander("📋 预测数据表 + 导出", expanded=False):
+                col_d, col_x = st.columns([1, 3])
+                with col_d:
+                    selected_date = st.selectbox("目标日", pred_dates, key="target_date_select")
+                with col_x:
+                    if selected_date:
+                        day_data = forecast_hourly[forecast_hourly["date"] == selected_date].copy()
+                        day_data["时刻"] = day_data["hour"].apply(lambda h: f"{int(h):02d}:00")
+                        day_data["负荷_MW"] = day_data["load_mw"].round(2)
+                        day_data["日总量_MWh"] = day_data["daily_total_mwh"].round(1)
+                        day_total = day_data["负荷_MW"].sum()
+                        st.caption(f"{selected_date} | 日总量: {day_total:.1f} MWh | 峰谷差: {day_data['负荷_MW'].max() - day_data['负荷_MW'].min():.1f} MW")
+
+                if selected_date:
+                    display_df = day_data[["时刻", "负荷_MW", "日总量_MWh"]]
+                    st.dataframe(display_df, use_container_width=True, height=420, hide_index=True)
+
+                    from io import BytesIO
+                    output = BytesIO()
+                    day_data[["时刻", "负荷_MW", "日总量_MWh", "profile_std_mw"]].to_csv(
+                        output, index=False, encoding="utf-8-sig",
+                    )
+                    output.seek(0)
+                    st.download_button(
+                        f"⬇️ 下载 {pred_company} {selected_date} 24h逐时负荷 CSV",
+                        data=output,
+                        file_name=f"{pred_company}_{selected_date}_逐时负荷.csv",
+                        mime="text/csv",
+                        use_container_width=True,
+                    )
+
+
+# ============================================================
+# Tab 4: 碳效益核算
+# ============================================================
+if _current == "🌱 碳效益核算":
+    st.subheader("🌱 碳效益核算")
+    st.caption("三账分离：企业清单账 / 项目减排账 / LCA 全生命周期，量化光储柔协同的减碳效益")
+
+    st.info("""
+    📌 **核算口径**
+    - **企业清单账**: 范围一(CH4/N2O 工艺) + 范围二(外购电力×广东因子0.4419)
+    - **项目减排账**: 基准排放 BE − 项目排放 PE − 泄漏 LE = 运行减排 ER
+    - **LCA 账**: 储能设备全生命周期隐含碳 → 净生命周期减排
+    """)
+
+    # 定位模块三目录（多候选路径兼容本地与外层部署）
+    _m3_here = os.path.dirname(os.path.abspath(__file__))
+    _m3_candidates = [
+        os.path.join(_m3_here, "..", "..", "..", "模块三", "code"),
+        os.path.join(_m3_here, "..", "..", "模块三", "code"),
+        os.path.join(_m3_here, "..", "..", "..", "..", "公用", "模块三", "code"),
+        os.path.join(_m3_here, "..", "..", "..", "..", "..", "公用", "模块三", "code"),
+    ]
+    m3_path = next((os.path.abspath(p) for p in _m3_candidates if os.path.isdir(p)), None)
+
+    if m3_path is None:
+        st.error("❌ 未找到模块三碳核算目录")
+        st.info("期望路径: 公用/公用/模块三/code")
+    else:
+        try:
+            # 预读已有计算结果（可选展示）
+            _result_json = os.path.join(m3_path, "carbon_results.json")
+            _has_cached = os.path.exists(_result_json)
+
+            if st.button("🚀 运行碳核算", type="primary", use_container_width=True):
+                with st.spinner("正在计算碳排放..."):
+                    _m3_orig = dict(zip(
+                        [k for k in list(sys.modules) if k.startswith(("carbon_accounting", "data_loader", "emission_factors", "module3_config"))],
+                        [sys.modules[k] for k in list(sys.modules) if k.startswith(("carbon_accounting", "data_loader", "emission_factors", "module3_config"))],
+                    ))
+                    _m3_orig_path = list(sys.path)
+                    try:
+                        sys.path.insert(0, m3_path)
+                        for _k in [k for k in list(sys.modules) if k.startswith(("carbon_accounting", "data_loader", "emission_factors", "module3_config"))]:
+                            sys.modules.pop(_k, None)
+
+                        # 加载模块三 config.py 为 module3_config，覆盖 sys.modules["config"]，
+                        # 让模块三内部 from config import ... 命中模块三自己的 config（与模块二相同处理）
+                        import importlib.util as _ilu
+                        _m3_config_path = os.path.join(m3_path, "config.py")
+                        _m3_orig_config = sys.modules.get("config")
+                        if os.path.exists(_m3_config_path):
+                            _spec = _ilu.spec_from_file_location("module3_config", _m3_config_path)
+                            _m3cfg = _ilu.module_from_spec(_spec)
+                            _spec.loader.exec_module(_m3cfg)
+                            sys.modules["config"] = _m3cfg
+
+                        import carbon_accounting as _ca
+                        import data_loader as _dl
+                        from emission_factors import price_to_carbon_intensity
+
+                        # 用模块二调度结果构造逐时明细 + 真实现货价构造 EF_opt
+                        _df = _dl.build_schedule_from_module2()
+                        _price_df = _dl.load_node_price()
+                        _price_map = _price_df.set_index("timestamp")["price"]
+                        _aligned = _price_map.reindex(_df["timestamp"]).ffill().bfill()
+                        if _aligned.isna().any():
+                            _aligned = _aligned.fillna(_aligned.mean())
+                        _ef_opt = price_to_carbon_intensity(_aligned)
+
+                        _acct = _ca.CarbonAccounting(_df, ef_opt=_ef_opt)
+                        _res = _acct.run_all()
+                        st.session_state.carbon_results = _res
+
+                        # 保存逐时碳排数据，供日/月/年细化曲线
+                        _hourly_df = _acct.df.copy()
+                        _hourly_df["co2_grid"] = _hourly_df["p_grid"] * _hourly_df["ef_opt"]
+                        _hourly_df["co2_base"] = (_hourly_df["load"] - _hourly_df["pv_self"]).clip(lower=0) * _hourly_df["ef_opt"]
+                        st.session_state.carbon_hourly_df = _hourly_df
+                        st.success("✅ 碳核算完成")
+                    except Exception as _e:
+                        st.error(f"碳核算失败: {_e}")
+                        import traceback as _tb
+                        st.code(_tb.format_exc())
+                    finally:
+                        for _k in [k for k in list(sys.modules) if k.startswith(("carbon_accounting", "data_loader", "emission_factors", "module3_config"))]:
+                            sys.modules.pop(_k, None)
+                        # 恢复 config（被 module3_config 覆盖前的原 config）
+                        if _m3_orig_config is not None:
+                            sys.modules["config"] = _m3_orig_config
+                        else:
+                            sys.modules.pop("config", None)
+                        sys.path[:] = _m3_orig_path
+
+            # 显示结果：仅当用户点击「运行碳核算」后才显示（不读 json 兜底，避免误认为实时计算）
+            _res = st.session_state.get("carbon_results")
+
+            if _res:
+                s1 = _res["scope1"]
+                s2 = _res["scope2"]
+                pr = _res["project"]
+                lc = _res["lca"]
+                total = _res.get("total_plant_kg", s1["scope1_kg"] + s2["scope2_kg"])
+
+                st.divider()
+                st.subheader("📊 企业清单账")
+                c1, c2, c3 = st.columns(3)
+                with c1:
+                    st.metric("范围一 工艺排放", f"{s1['scope1_kg']/1000:,.1f} t", help="CH4+N2O 污水生物处理过程")
+                    st.metric("  其中 CH4", f"{s1['ch4_co2e_kg']/1000:,.1f} t")
+                    st.metric("  其中 N2O", f"{s1['n2o_co2e_kg']/1000:,.1f} t")
+                with c2:
+                    st.metric("范围二 外购电力", f"{s2['scope2_kg']/1000:,.1f} t",
+                              help=f"净购电 {s2['e_grid_kwh']/1e4:,.1f} 万kWh × {s2['ef_report']}")
+                with c3:
+                    st.metric("厂区年度总排放", f"{total/1000:,.1f} t CO₂e", help="范围一+范围二")
+
+                st.divider()
+                st.subheader("📉 项目减排账")
+                c1, c2, c3, c4 = st.columns(4)
+                with c1:
+                    st.metric("基准排放 BE", f"{pr['BE_kg']/1000:,.1f} t", help="无储能全电网供电")
+                with c2:
+                    st.metric("项目排放 PE", f"{pr['PE_kg']/1000:,.1f} t", help="光储柔优化后")
+                with c3:
+                    st.metric("泄漏 LE", f"{pr['LE_kg']/1000:,.1f} t", help="储能辅助电耗")
+                with c4:
+                    st.metric("运行减排 ER", f"{pr['ER_kg']/1000:,.1f} t", delta=f"{pr['ER_kg']/1000:,.0f} t", help="BE-PE-LE")
+
+                st.divider()
+                st.subheader("♻️ LCA 全生命周期")
+                c1, c2, c3 = st.columns(3)
+                with c1:
+                    st.metric("储能隐含碳总量", f"{lc['embodied_net_kg']/1000:,.1f} t",
+                              help=f"4MWh × 70kg/kWh × (1-10%回收)")
+                with c2:
+                    st.metric("年均隐含碳分摊", f"{lc['embodied_annual_kg']/1000:,.1f} t", help=f"{lc['life_years']:.0f}年寿命")
+                with c3:
+                    net = lc["er_net_yearly_kg"]
+                    st.metric("净生命周期年减排", f"{net/1000:,.1f} t",
+                              delta=f"{net/1000:,.0f} t", help="运行减排 − 隐含碳分摊")
+
+                st.caption(
+                    f"领域口径：运行减排 ER {pr['ER_kg']/1000:,.1f} t/年 − 隐含碳年分摊 "
+                    f"{lc['embodied_annual_kg']/1000:,.1f} t = 净生命周期减排 {net/1000:,.1f} t/年"
+                )
+
+                # ============================================================
+                # 日/月/年细化碳排曲线
+                # ============================================================
+                _hdf = st.session_state.get("carbon_hourly_df")
+                if _hdf is not None and not _hdf.empty:
+                    st.divider()
+                    st.subheader("📈 碳排细化曲线（日/月/年）")
+
+                    import plotly.graph_objects as _go
+
+                    _cgrain = st.radio(
+                        "时间粒度",
+                        options=["日", "月", "年"],
+                        horizontal=True,
+                        key="carbon_grain",
+                    )
+
+                    _hdf = _hdf.copy()
+                    _hdf["date"] = _hdf["timestamp"].dt.date.astype(str)
+                    _hdf["month"] = _hdf["timestamp"].dt.to_period("M").astype(str)
+
+                    if _cgrain == "日":
+                        _dates = sorted(_hdf["date"].unique())
+                        _pick_d = st.selectbox("选择日期", options=_dates, key="carbon_pick_day")
+                        _d = _hdf[_hdf["date"] == _pick_d]
+                        _fig = _go.Figure()
+                        _fig.add_trace(_go.Scatter(x=_d["timestamp"].dt.hour, y=_d["co2_grid"]/1000, name="项目购电碳排(t)", line=dict(color="#E74C3C")))
+                        _fig.add_trace(_go.Scatter(x=_d["timestamp"].dt.hour, y=_d["co2_base"]/1000, name="基准碳排(t)", line=dict(color="#95A5A6", dash="dot")))
+                        _fig.add_trace(_go.Bar(x=_d["timestamp"].dt.hour, y=(_d["co2_base"]-_d["co2_grid"])/1000, name="减排(t)", marker_color="#2ECC71"))
+                        _fig.update_layout(height=420, title=f"{_pick_d} 逐时碳排与减排", hovermode="x unified")
+                        _fig.update_xaxes(type="category", tickangle=0, title="小时")
+                        _fig.update_yaxes(title="吨 CO₂")
+                        st.plotly_chart(_fig, use_container_width=True)
+
+                        # 当日汇总
+                        _di = _d.iloc[0]
+                        c1, c2, c3 = st.columns(3)
+                        with c1:
+                            st.metric("当日购电碳排", f"{_d['co2_grid'].sum()/1000:,.1f} t")
+                        with c2:
+                            st.metric("当日基准碳排", f"{_d['co2_base'].sum()/1000:,.1f} t")
+                        with c3:
+                            st.metric("当日减排", f"{(_d['co2_base'].sum()-_d['co2_grid'].sum())/1000:,.1f} t")
+
+                    elif _cgrain == "月":
+                        _months = sorted(_hdf["month"].unique())
+                        _pick_m = st.selectbox("选择月份", options=_months, key="carbon_pick_month")
+                        _m = _hdf[_hdf["month"] == _pick_m]
+                        _daily = _m.groupby("date").agg({"co2_grid":"sum","co2_base":"sum","load":"sum","pv":"sum"}).reset_index()
+                        _daily["reduction"] = _daily["co2_base"] - _daily["co2_grid"]
+                        _fig = _go.Figure()
+                        _fig.add_trace(_go.Scatter(x=_daily["date"].str[5:], y=_daily["co2_grid"]/1000, name="项目购电碳排(t)", line=dict(color="#E74C3C")))
+                        _fig.add_trace(_go.Scatter(x=_daily["date"].str[5:], y=_daily["co2_base"]/1000, name="基准碳排(t)", line=dict(color="#95A5A6", dash="dot")))
+                        _fig.add_trace(_go.Bar(x=_daily["date"].str[5:], y=_daily["reduction"]/1000, name="减排(t)", marker_color="#2ECC71"))
+                        _fig.update_layout(height=420, title=f"{_pick_m} 逐日碳排与减排", hovermode="x unified")
+                        _fig.update_xaxes(type="category", tickangle=45)
+                        _fig.update_yaxes(title="吨 CO₂")
+                        st.plotly_chart(_fig, use_container_width=True)
+
+                        # 月度总量数字
+                        c1, c2, c3 = st.columns(3)
+                        with c1:
+                            st.metric("月度购电碳排", f"{_daily['co2_grid'].sum()/1000:,.0f} t")
+                        with c2:
+                            st.metric("月度基准碳排", f"{_daily['co2_base'].sum()/1000:,.0f} t")
+                        with c3:
+                            st.metric("月度减排", f"{_daily['reduction'].sum()/1000:,.0f} t")
+
+                    else:  # 年
+                        _monthly = _hdf.groupby("month").agg({"co2_grid":"sum","co2_base":"sum","load":"sum","pv":"sum"}).reset_index()
+                        _monthly["reduction"] = _monthly["co2_base"] - _monthly["co2_grid"]
+                        _fig = _go.Figure()
+                        _fig.add_trace(_go.Bar(x=_monthly["month"], y=_monthly["co2_grid"]/1000, name="项目购电碳排(t)", marker_color="#E74C3C"))
+                        _fig.add_trace(_go.Bar(x=_monthly["month"], y=_monthly["co2_base"]/1000, name="基准碳排(t)", marker_color="#95A5A6"))
+                        _fig.add_trace(_go.Bar(x=_monthly["month"], y=_monthly["reduction"]/1000, name="减排(t)", marker_color="#2ECC71"))
+                        _fig.update_layout(height=420, barmode="group", title="全年逐月碳排与减排", hovermode="x unified")
+                        _fig.update_xaxes(type="category")
+                        _fig.update_yaxes(title="吨 CO₂")
+                        st.plotly_chart(_fig, use_container_width=True)
+
+                        # 全年汇总
+                        c1, c2, c3 = st.columns(3)
+                        with c1:
+                            st.metric("全年购电碳排", f"{_hdf['co2_grid'].sum()/1000:,.0f} t")
+                        with c2:
+                            st.metric("全年基准碳排", f"{_hdf['co2_base'].sum()/1000:,.0f} t")
+                        with c3:
+                            st.metric("全年减排", f"{(_hdf['co2_base'].sum()-_hdf['co2_grid'].sum())/1000:,.0f} t")
+
+            else:
+                st.info("👆 点击「运行碳核算」按钮，计算全年三账碳排放结果。")
+
+        except ImportError as e:
+            st.warning(f"⚠️ 模块三未正确导入: {e}")
+            st.info("请确保模块三目录存在且包含碳核算代码")
+
+
+# ============================================================
+# 自动刷新逻辑
+# ============================================================
+if auto_refresh:
+    import time
+
+    if "last_refresh" not in st.session_state:
+        st.session_state.last_refresh = datetime.now()
+
+    elapsed = (datetime.now() - st.session_state.last_refresh).total_seconds()
+    if elapsed > CACHE_TTL_SECONDS:
+        st.session_state.last_refresh = datetime.now()
+        st.cache_data.clear()
+
+try:
+    clean_old_forecasts(7)
+except Exception:
+    pass
+
+if auto_refresh != (get_setting("auto_refresh", "true") == "true"):
+    save_setting("auto_refresh", "true" if auto_refresh else "false")
+save_setting("default_history_days", str(history_days))

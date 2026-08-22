@@ -1,0 +1,20 @@
+flowchart TD
+    H["直方图分桶<br/>连续特征(气温)→离散桶<br/>气温25.3°C → 25°C档"]
+    H --> R["根节点：全部样本<br/>增益 = 分裂后损失 − 分裂前损失"]
+    R --> Q{"lag-1h > 25 kW ?"}
+    Q -->|"是"| LA["叶子 A<br/>权重 wA = 29.3"]
+    Q -->|"否"| LB["叶子 B<br/>权重 wB = 20.1"]
+    LA -.->|"再按增益分裂"| MORE1["子节点…"]
+    LB -.->|"再按增益分裂"| MORE2["子节点…"]
+
+    classDef hist fill:#e6e6fa,stroke:#4a3aa7,stroke-width:1.5px,color:#1f1f7a
+    classDef node fill:#f2f2f2,stroke:#333,stroke-width:1.5px,color:#000
+    classDef dec fill:#fff3cd,stroke:#997404,stroke-width:2px,color:#5c4a00
+    classDef leaf fill:#f2f2f2,stroke:#333,stroke-width:1.5px,color:#000
+    classDef more fill:#fff,stroke:#999,stroke-width:1px,color:#999
+
+    class H hist
+    class R node
+    class Q dec
+    class LA,LB leaf
+    class MORE1,MORE2 more

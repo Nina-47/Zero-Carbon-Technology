@@ -1,10 +1,15 @@
+# Streamlit
+.streamlit/secrets.toml
+
 # Python
 __pycache__/
 *.py[cod]
 *.pyo
+*.egg-info/
+dist/
+build/
 .venv/
 venv/
-*.egg-info/
 
 # IDE
 .vscode/
@@ -37,6 +42,10 @@ _tmp/
 # Environment
 .env
 .env.local
+
+# 天气数据（本地数据库）
+data/weather.db
+data/fetch_failures.jsonl
 
 # 原始数据（大文件 + 比赛数据，不上传）
 02_原始数据/

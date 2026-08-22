@@ -1,0 +1,59 @@
+.main {
+  display: flex;
+  flex: 1;
+  gap: 14px;
+  padding: 14px;
+  min-height: 0;
+}
+
+.panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  padding: 16px 18px;
+  overflow: hidden;
+}
+
+.panel-header {
+  font-size: 12px;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panel-header::before {
+  content: '';
+  width: 3px;
+  height: 14px;
+  background: var(--green);
+  display: block;
+}
+
+.kpi-big {
+  font-size: 48px;
+  font-weight: 700;
+  color: var(--green);
+  line-height: 1;
+  font-family: 'Consolas', 'DSEG14Classic', monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.kpi-unit {
+  font-size: 14px;
+  color: var(--text2);
+  margin-left: 4px;
+}
+
+.kpi-label {
+  font-size: 11px;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.kpi-change { font-size: 12px; margin-top: 2px; }
+.kpi-change.down { color: var(--green); }
+.kpi-change.up { color: var(--red); }
